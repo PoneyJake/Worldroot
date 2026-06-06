@@ -3,56 +3,35 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Worldroot — Play</title>
+  <title>Worldroot</title>
   <link rel="stylesheet" href="css/style.css" />
 </head>
 <body>
-  <header class="top-bar">
-    <div class="brand">
-      <a href="index.html" class="brand-link">
-        <h1>Worldroot</h1>
-      </a>
-      <p class="subtitle">Idle adventure — grow your party, gather resources, deepen the roots</p>
-    </div>
-    <div class="account-stats">
-      <p id="session-badge" class="session-badge"></p>
-      <div class="stat-block">
-        <span class="stat-label">Account Level</span>
-        <span id="account-level" class="stat-value">0</span>
+  <div class="game-shell">
+    <header class="hud">
+      <a href="index.html" class="hud-brand">Worldroot</a>
+      <div class="hud-stats">
+        <span class="hud-stat" title="Account Total Level">
+          <span class="hud-stat-label">Acct</span>
+          <strong id="account-level">0</strong>
+        </span>
+        <span class="hud-stat" title="Gold">
+          <span class="hud-stat-label">Gold</span>
+          <strong id="gold-total">0</strong>
+        </span>
       </div>
-      <div class="stat-block">
-        <span class="stat-label">Gold</span>
-        <span id="gold-total" class="stat-value">0</span>
-      </div>
-      <button type="button" class="btn ghost sm" id="btn-menu" data-action="go-menu">Main menu</button>
-      <button type="button" class="btn danger sm" data-action="reset-save">Reset save</button>
-    </div>
-  </header>
+    </header>
 
-  <p id="next-unlock" class="unlock-banner"></p>
+    <nav class="tab-bar" id="tab-bar"></nav>
 
-  <main class="layout">
-    <section class="panel wide">
-      <h2>Characters</h2>
-      <div id="characters" class="char-grid"></div>
-    </section>
-
-    <section class="panel">
-      <h2>Resources</h2>
-      <div id="resources" class="resources-wrap"></div>
-    </section>
-
-    <section class="panel wide">
-      <h2>Worldroot Upgrades</h2>
-      <p class="panel-note">Each resource has 3 upgrade paths. Costs scale with level (+1% efficiency per level).</p>
-      <div id="upgrades" class="upgrades-wrap"></div>
-    </section>
-
-    <section class="panel wide">
-      <h2>Activity Log</h2>
-      <ul id="log" class="log"></ul>
-    </section>
-  </main>
+    <main class="tab-content">
+      <section id="panel-characters" class="tab-panel" data-tab="characters"></section>
+      <section id="panel-skills" class="tab-panel hidden" data-tab="skills"></section>
+      <section id="panel-resources" class="tab-panel hidden" data-tab="resources"></section>
+      <section id="panel-worldroot" class="tab-panel hidden" data-tab="worldroot"></section>
+      <section id="panel-settings" class="tab-panel hidden" data-tab="settings"></section>
+    </main>
+  </div>
 
   <div id="class-modal" class="modal" hidden>
     <div class="modal-backdrop"></div>

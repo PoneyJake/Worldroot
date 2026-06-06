@@ -14,23 +14,31 @@
     return Math.floor(base * (currentLevel + 1) * (nodeIndex + 1));
   }
 
-  function totalEfficiencyBonus(state, resourceId) {
+  function effectBonus(state, effectType) {
     let bonus = 0;
-    for (let i = 0; i < 3; i++) {
-      const level = state.upgrades[upgradeKey(resourceId, i)] || 0;
-      bonus += level * C.UPGRADE_EFFICIENCY_PER_LEVEL;
+    for (const res of C.UPGRADES) {
+      res.nodes.forEach((node, i) => {
+        if (node.effect !== effectType) return;
+        bonus += (state.upgrades[upgradeKey(res.id, i)] || 0) * C.UPGRADE_BONUS_PER_LEVEL;
+      });
     }
     return bonus;
   }
 
-  function skillEfficiencyBonus(state, skillId) {
-    const skill = C.SKILLS[skillId];
-    if (!skill?.resources?.length) return 0;
-    let bonus = 0;
-    for (const res of skill.resources) {
-      bonus += totalEfficiencyBonus(state, res.id);
-    }
-    return bonus / skill.resources.length;
+  function skillXpBonus(state, skillId) {
+    return effectBonus(state, `${skillId}_xp`);
+  }
+
+  function skillYieldBonus(state, skillId) {
+    return effectBonus(state, `${skillId}_yield`);
+  }
+
+  function nodeLevel(state, resourceId, nodeIndex) {
+    return state.upgrades[upgradeKey(resourceId, nodeIndex)] || 0;
+  }
+
+  function nodeBonusPercent(state, resourceId, nodeIndex) {
+    return nodeLevel(state, resourceId, nodeIndex) * C.UPGRADE_BONUS_PER_LEVEL * 100;
   }
 
   function hasSpecialty(char, skillId) {
@@ -42,7 +50,6 @@
     return hasSpecialty(char, skillId) ? 1 + C.SPECIALTY_BONUS : 1;
   }
 
-  /** Pick a resource tier — mostly highest unlocked, sometimes one tier lower. */
   function rollResource(skillId, skillLevel) {
     const skill = C.SKILLS[skillId];
     const unlocked = skill.resources.filter((r) => skillLevel >= r.minLevel);
@@ -50,9 +57,7 @@
 
     const best = unlocked[unlocked.length - 1];
     if (unlocked.length === 1 || Math.random() > 0.35) return best;
-
-    const lower = unlocked[unlocked.length - 2];
-    return lower;
+    return unlocked[unlocked.length - 2];
   }
 
   function tickCharacter(state, char) {
@@ -65,9 +70,9 @@
     const skill = char.skills[skillId];
     if (!skill) return null;
 
-    const eff = 1 + skillEfficiencyBonus(state, skillId);
+    const xpMult = 1 + skillXpBonus(state, skillId);
     const spec = specialtyMult(char, skillId);
-    const xpGain = Math.floor(C.BASE_XP_PER_TICK * eff * spec);
+    const xpGain = Math.floor(C.BASE_XP_PER_TICK * xpMult * spec);
     S.grantXp(skill, xpGain);
 
     const event = {
@@ -78,17 +83,18 @@
       resource: null,
       resourceAmount: 0,
       gold: 0,
-      leveled: skill.level,
     };
 
     if (char.activity === 'combat') {
-      event.gold = Math.floor(C.COMBAT_GOLD_PER_TICK * eff);
+      const goldMult = 1 + effectBonus(state, 'combat_gold');
+      event.gold = Math.floor(C.COMBAT_GOLD_PER_TICK * goldMult);
       state.gold += event.gold;
       return event;
     }
 
+    const yieldMult = 1 + skillYieldBonus(state, skillId);
     const res = rollResource(skillId, skill.level);
-    const amount = Math.max(1, Math.floor(C.BASE_RESOURCE_PER_TICK * eff * spec));
+    const amount = Math.max(1, Math.floor(C.BASE_RESOURCE_PER_TICK * yieldMult * spec));
     state.resources[res.id] = (state.resources[res.id] || 0) + amount;
     event.resource = res.id;
     event.resourceAmount = amount;
@@ -122,8 +128,11 @@
   window.WorldrootEngine = {
     upgradeKey,
     upgradeCost,
-    totalEfficiencyBonus,
-    skillEfficiencyBonus,
+    effectBonus,
+    skillXpBonus,
+    skillYieldBonus,
+    nodeLevel,
+    nodeBonusPercent,
     tick,
     buyUpgrade,
     rollResource,

@@ -1,4 +1,4 @@
-/** Worldroot — DOM rendering and event wiring. */
+/** Worldroot — tabbed Melvor-style UI. */
 
 (function () {
   const C = window.WorldrootConfig;
@@ -6,227 +6,379 @@
   const E = window.WorldrootEngine;
 
   let state = null;
+  let activeTab = 'characters';
+  let selectedSkillId = null;
+  let logBuffer = [];
 
-  const els = {};
+  const panels = {};
 
   function $(id) {
     return document.getElementById(id);
   }
 
-  function cacheElements() {
-    els.accountLevel = $('account-level');
-    els.nextUnlock = $('next-unlock');
-    els.gold = $('gold-total');
-    els.characters = $('characters');
-    els.resources = $('resources');
-    els.upgrades = $('upgrades');
-    els.classModal = $('class-modal');
-    els.classModalTitle = $('class-modal-title');
-    els.classOptions = $('class-options');
-    els.log = $('log');
-  }
-
-  function formatNum(n) {
+  function fmt(n) {
     return Math.floor(n).toLocaleString();
   }
 
-  function skillLabel(skillId) {
-    return C.SKILLS[skillId]?.name ?? skillId;
+  function skillName(id) {
+    return C.SKILLS[id]?.name ?? id;
   }
 
-  function resourceName(id) {
-    for (const skill of Object.values(C.SKILLS)) {
-      const r = skill.resources?.find((x) => x.id === id);
+  function resName(id) {
+    for (const sk of Object.values(C.SKILLS)) {
+      const r = sk.resources?.find((x) => x.id === id);
       if (r) return r.name;
     }
     return id;
   }
 
-  function activityLabel(activityId) {
-    if (!activityId) return 'Idle';
-    return C.ACTIVITIES.find((a) => a.id === activityId)?.label ?? activityId;
+  function activityLabel(id) {
+    if (!id) return 'Idle';
+    return C.ACTIVITIES.find((a) => a.id === id)?.label ?? id;
+  }
+
+  function charLabel(char) {
+    const cls = C.CLASSES[char.classId];
+    return cls ? `${cls.icon} ${cls.name}` : 'Character';
+  }
+
+  function bestSkillLevel(skillId) {
+    if (!state.characters.length) return 1;
+    return Math.max(...state.characters.map((c) => c.skills[skillId]?.level ?? 1));
+  }
+
+  function charsOnSkill(skillId) {
+    const skill = C.SKILLS[skillId];
+    const act = skill?.activity;
+    return state.characters
+      .map((c, i) => ({ c, i }))
+      .filter(({ c }) => c.activity === act);
   }
 
   function addLog(text) {
-    if (!els.log) return;
-    const li = document.createElement('li');
-    li.textContent = text;
-    els.log.prepend(li);
-    while (els.log.children.length > 20) els.log.lastChild?.remove();
+    logBuffer.unshift(text);
+    if (logBuffer.length > 15) logBuffer.length = 15;
+    const log = $('activity-log');
+    if (!log) return;
+    log.innerHTML = logBuffer.map((t) => `<li>${t}</li>`).join('');
   }
 
-  function renderAccount() {
+  function renderLogEl() {
+    const log = $('activity-log');
+    if (!log) return;
+    log.innerHTML = logBuffer.map((t) => `<li>${t}</li>`).join('');
+  }
+
+  /* ── Tab navigation ── */
+
+  function switchTab(tabId) {
+    activeTab = tabId;
+    if (tabId !== 'skills') selectedSkillId = null;
+
+    document.querySelectorAll('.tab-btn').forEach((btn) => {
+      btn.classList.toggle('active', btn.dataset.tab === tabId);
+    });
+    Object.entries(panels).forEach(([id, el) => {
+      el.classList.toggle('hidden', id !== tabId);
+    });
+    renderActivePanel();
+  }
+
+  function renderTabBar() {
+    const bar = $('tab-bar');
+    if (!bar) return;
+    bar.innerHTML = C.TABS.map(
+      (t) =>
+        `<button type="button" class="tab-btn ${t.id === activeTab ? 'active' : ''}" data-action="switch-tab" data-tab="${t.id}">${t.label}</button>`
+    ).join('');
+  }
+
+  /* ── HUD ── */
+
+  function renderHud() {
+    const acct = $('account-level');
+    const gold = $('gold-total');
+    if (acct) acct.textContent = fmt(S.accountTotalLevel(state));
+    if (gold) gold.textContent = fmt(state.gold);
+  }
+
+  /* ── Characters tab ── */
+
+  function renderCharactersPanel() {
+    const el = panels.characters;
+    if (!el) return;
+
     const account = S.accountTotalLevel(state);
-    const maxSlots = S.maxUnlockedSlots(account);
-    if (els.accountLevel) {
-      els.accountLevel.textContent = formatNum(account);
+    const next = S.nextSlotUnlock(account);
+    let unlockHint = '';
+    if (next) {
+      unlockHint = `<p class="hint-bar">Next slot unlocks at Account Level <strong>${next.at}</strong></p>`;
     }
-    if (els.nextUnlock) {
-      const next = S.nextSlotUnlock(account);
-      if (next && state.characters.length < maxSlots) {
-        els.nextUnlock.textContent = `Slot ${next.slot} ready — choose a class below.`;
-      } else if (next) {
-        els.nextUnlock.textContent = `Next slot (${next.slot}) unlocks at Account Level ${next.at}.`;
+
+    const cards = state.characters.map((char, i) => {
+      const cls = C.CLASSES[char.classId];
+      const total = S.characterTotalLevel(char);
+      const skills = C.SKILL_ORDER.map((sid) => {
+        const lv = char.skills[sid].level;
+        return `<span class="char-stat"><em>${skillName(sid).slice(0, 3)}</em> ${lv}</span>`;
+      }).join('');
+
+      return `
+        <article class="char-card" data-class="${char.classId}">
+          <div class="char-card-top">
+            <span class="char-icon">${cls.icon}</span>
+            <div class="char-card-title">
+              <strong>${cls.name}</strong>
+              <span class="char-meta">${cls.desc}</span>
+            </div>
+            <span class="char-total">Lv ${total}</span>
+          </div>
+          <div class="char-activity-pill ${char.activity ? 'active' : ''}">
+            ${activityLabel(char.activity)}
+          </div>
+          <div class="char-stats-row">${skills}</div>
+          <button type="button" class="btn-xs ghost" data-action="stop" data-char="${i}">Stop activity</button>
+        </article>`;
+    });
+
+    const slots = [];
+    for (let slot = 1; slot <= C.MAX_SLOTS; slot++) {
+      if (state.characters.length >= slot) continue;
+      const unlockAt = C.SLOT_UNLOCK_AT[slot - 1] ?? 999;
+      const ready = account >= unlockAt && state.characters.length === slot - 1;
+
+      if (ready && state.pendingSlot === slot) {
+        slots.push(`
+          <div class="slot-locked slot-ready">
+            <span>Slot ${slot} ready</span>
+            <button type="button" class="btn-xs primary" data-action="open-class" data-slot="${slot}">Choose class</button>
+          </div>`);
       } else {
-        els.nextUnlock.textContent = 'All character slots unlocked.';
+        slots.push(`
+          <div class="slot-locked">
+            <span>🔒 Slot ${slot}</span>
+            <span class="slot-req">Acct Lv ${unlockAt}</span>
+          </div>`);
       }
     }
-    if (els.gold) els.gold.textContent = formatNum(state.gold);
+
+    el.innerHTML = `
+      ${unlockHint}
+      <div class="char-grid">${cards.join('') || '<p class="empty-msg">Choose a class to begin your party.</p>'}</div>
+      ${slots.length ? `<div class="slot-row">${slots.join('')}</div>` : ''}`;
   }
 
-  function renderSkillRow(skillId, skill) {
-    const need = S.xpForLevel(skill.level);
-    return `
-      <div class="skill-row">
-        <span class="skill-name">${skillLabel(skillId)}</span>
-        <span class="skill-level">Lv ${skill.level}</span>
-        <span class="skill-xp">${formatNum(skill.xp)} / ${formatNum(need)} XP</span>
+  /* ── Skills tab ── */
+
+  function renderSkillsPanel() {
+    const el = panels.skills;
+    if (!el) return;
+
+    if (selectedSkillId) {
+      renderSkillDetail(el, selectedSkillId);
+      return;
+    }
+
+    el.innerHTML = `
+      <p class="panel-intro">Select a skill to view resources and assign characters.</p>
+      <div class="skill-grid">
+        ${C.SKILL_ORDER.map((sid) => {
+          const sk = C.SKILLS[sid];
+          const best = bestSkillLevel(sid);
+          const assigned = charsOnSkill(sid);
+          return `
+            <button type="button" class="skill-card" data-action="open-skill" data-skill="${sid}">
+              <span class="skill-card-icon">${sk.icon}</span>
+              <span class="skill-card-name">${sk.name}</span>
+              <span class="skill-card-lv">Best Lv ${best}</span>
+              <span class="skill-card-sub">${assigned.length} active</span>
+            </button>`;
+        }).join('')}
       </div>`;
   }
 
-  function renderCharacterCard(char, index) {
-    const cls = C.CLASSES[char.classId];
-    const total = S.characterTotalLevel(char);
-    const active = char.activity;
-    const skillsHtml = Object.entries(char.skills)
-      .map(([id, sk]) => renderSkillRow(id, sk))
-      .join('');
+  function renderSkillDetail(el, skillId) {
+    const sk = C.SKILLS[skillId];
+    const best = bestSkillLevel(skillId);
+    const assigned = charsOnSkill(skillId);
 
-    const buttons = C.ACTIVITIES.map(
-      (a) => `
-        <button type="button"
-          class="btn sm ${active === a.id ? 'active' : ''}"
-          data-action="set-activity"
-          data-char="${index}"
-          data-activity="${a.id}">
-          ${a.label}
-        </button>`
-    ).join('');
+    const tiers = sk.resources.length
+      ? sk.resources
+          .map((r) => {
+            const ok = best >= r.minLevel;
+            return `<li class="${ok ? 'unlocked' : 'locked'}">
+              <span>${r.name}</span>
+              <span>Lv ${r.minLevel}${ok ? '' : ' required'}</span>
+            </li>`;
+          })
+          .join('')
+      : `<li class="unlocked"><span>Gold</span><span>Always</span></li>
+         <li class="locked"><span>Mob drops</span><span>Coming soon</span></li>`;
 
-    return `
-      <article class="char-card" data-class="${char.classId}">
-        <header class="char-header">
-          <span class="char-icon">${cls.icon}</span>
-          <div>
-            <h3>${cls.name}</h3>
-            <p class="char-desc">${cls.desc}</p>
-          </div>
-          <span class="char-total">Total Lv ${total}</span>
-        </header>
-        <p class="char-activity">Activity: <strong>${activityLabel(active)}</strong></p>
-        <div class="skills">${skillsHtml}</div>
-        <div class="btn-row">${buttons}
-          <button type="button" class="btn sm ghost" data-action="stop" data-char="${index}">Stop</button>
+    const assignBtns = state.characters.length
+      ? state.characters
+          .map((char, i) => {
+            const on = char.activity === sk.activity;
+            return `
+              <button type="button" class="btn-sm ${on ? 'active' : ''}"
+                data-action="set-activity" data-char="${i}" data-activity="${sk.activity}">
+                ${charLabel(char)}${on ? ' ✓' : ''}
+              </button>`;
+          })
+          .join('')
+      : '<p class="empty-msg">Unlock a character first.</p>';
+
+    const assignedList = assigned.length
+      ? assigned.map(({ c }) => charLabel(c)).join(', ')
+      : 'None';
+
+    el.innerHTML = `
+      <button type="button" class="back-btn" data-action="close-skill">← Skills</button>
+      <header class="skill-detail-head">
+        <span class="skill-detail-icon">${sk.icon}</span>
+        <div>
+          <h2>${sk.name}</h2>
+          <p>${sk.desc}</p>
         </div>
-      </article>`;
+        <span class="skill-detail-lv">Best Lv ${best}</span>
+      </header>
+
+      <div class="detail-grid">
+        <section class="detail-box">
+          <h3>Resources</h3>
+          <ul class="tier-list">${tiers}</ul>
+        </section>
+        <section class="detail-box">
+          <h3>Assigned</h3>
+          <p class="assigned-text">${assignedList}</p>
+        </section>
+      </div>
+
+      <section class="detail-box">
+        <h3>Assign characters</h3>
+        <div class="btn-row">${assignBtns}</div>
+      </section>`;
   }
 
-  function renderLockedSlot(slotNum, accountLevel) {
-    const unlockAt = C.SLOT_UNLOCK_AT[slotNum - 1] ?? 999;
-    const locked = accountLevel < unlockAt || state.characters.length < slotNum - 1;
-    if (!locked && state.pendingSlot === slotNum) {
-      return `
-        <article class="char-card locked highlight">
-          <h3>Slot ${slotNum}</h3>
-          <p class="muted">Unlocked! Choose a class to begin.</p>
-          <button type="button" class="btn primary" data-action="open-class" data-slot="${slotNum}">
-            Choose class
-          </button>
-        </article>`;
-    }
-    if (state.characters.length >= slotNum) return '';
+  /* ── Resources tab ── */
 
-    return `
-      <article class="char-card locked">
-        <h3>Slot ${slotNum}</h3>
-        <p class="muted">Unlocks at Account Level ${unlockAt}</p>
-        <div class="lock-icon">🔒</div>
-      </article>`;
-  }
+  function renderResourcesPanel() {
+    const el = panels.resources;
+    if (!el) return;
 
-  function renderCharacters() {
-    if (!els.characters) return;
-    const account = S.accountTotalLevel(state);
-    let html = state.characters.map(renderCharacterCard).join('');
-    for (let slot = state.characters.length + 1; slot <= C.SLOT_UNLOCK_AT.length; slot++) {
-      html += renderLockedSlot(slot, account);
-    }
-    els.characters.innerHTML = html;
-  }
-
-  function renderResources() {
-    if (!els.resources) return;
     const groups = [
-      { title: 'Mining', ids: ['coal', 'copper', 'iron', 'gold'] },
-      { title: 'Woodcutting', ids: ['oak', 'spruce', 'birch', 'jungle'] },
-      { title: 'Fishing', ids: ['shrimp', 'trout', 'salmon', 'lobster'] },
+      { title: 'Mining', icon: '⛏', ids: ['coal', 'copper', 'iron', 'gold'] },
+      { title: 'Woodcutting', icon: '🪓', ids: ['oak', 'spruce', 'birch', 'jungle'] },
+      { title: 'Fishing', icon: '🎣', ids: ['shrimp', 'trout', 'salmon', 'lobster'] },
+      {
+        title: 'Combat',
+        icon: '🗡',
+        custom: `
+          <div class="res-item"><span>Gold</span><strong>${fmt(state.gold)}</strong></div>
+          <div class="res-item res-placeholder"><span>Mob drops</span><strong>—</strong></div>`,
+      },
     ];
-    els.resources.innerHTML = groups
-      .map(
-        (g) => `
-        <div class="resource-group">
-          <h4>${g.title}</h4>
-          <div class="resource-grid">
-            ${g.ids
+
+    el.innerHTML = groups
+      .map((g) => {
+        const items = g.custom
+          ? g.custom
+          : g.ids
               .map(
-                (id) => `
-              <div class="resource-item">
-                <span class="resource-name">${resourceName(id)}</span>
-                <span class="resource-amt">${formatNum(state.resources[id] || 0)}</span>
-              </div>`
+                (id) =>
+                  `<div class="res-item"><span>${resName(id)}</span><strong>${fmt(state.resources[id] || 0)}</strong></div>`
               )
-              .join('')}
-          </div>
-        </div>`
-      )
+              .join('');
+        return `
+          <section class="res-section">
+            <h3>${g.icon} ${g.title}</h3>
+            <div class="res-grid">${items}</div>
+          </section>`;
+      })
       .join('');
   }
 
-  function renderUpgrades() {
-    if (!els.upgrades) return;
-    els.upgrades.innerHTML = C.UPGRADES.map((res) => {
-      const nodes = res.nodes
-        .map((label, i) => {
-          const key = E.upgradeKey(res.id, i);
-          const level = state.upgrades[key] || 0;
-          const cost = E.upgradeCost(res.id, i, level);
-          const owned = state.resources[res.id] || 0;
-          const canBuy = owned >= cost;
-          const bonus = (level * C.UPGRADE_EFFICIENCY_PER_LEVEL * 100).toFixed(0);
-          return `
-            <div class="upgrade-node">
-              <div class="upgrade-head">
-                <span class="upgrade-name">${label}</span>
-                <span class="upgrade-lvl">Lv ${level}</span>
-              </div>
-              <p class="upgrade-effect">+${bonus}% ${res.name} efficiency</p>
-              <button type="button"
-                class="btn sm ${canBuy ? '' : 'disabled'}"
-                data-action="buy-upgrade"
-                data-resource="${res.id}"
-                data-node="${i}"
-                ${canBuy ? '' : 'disabled'}>
-                Upgrade (${formatNum(cost)} ${res.name})
-              </button>
-            </div>`;
-        })
-        .join('');
-      return `
-        <section class="upgrade-group">
-          <h4>${res.name}</h4>
-          <div class="upgrade-grid">${nodes}</div>
-        </section>`;
-    }).join('');
+  /* ── Worldroot tab ── */
+
+  function renderWorldrootPanel() {
+    const el = panels.worldroot;
+    if (!el) return;
+
+    el.innerHTML = `
+      <p class="panel-intro">Spend resources to grow the Worldroot. Each node levels infinitely.</p>
+      ${C.UPGRADES.map((res) => {
+        const nodes = res.nodes
+          .map((node, i) => {
+            const lv = E.nodeLevel(state, res.id, i);
+            const pct = E.nodeBonusPercent(state, res.id, i).toFixed(0);
+            const cost = E.upgradeCost(res.id, i, lv);
+            const owned = state.resources[res.id] || 0;
+            const can = owned >= cost;
+            return `
+              <div class="upgrade-row">
+                <div class="upgrade-info">
+                  <strong>${node.name}</strong>
+                  <span>Lv ${lv} · +${pct}% · ${node.desc.split(' per')[0]}</span>
+                </div>
+                <button type="button" class="btn-sm ${can ? '' : 'disabled'}"
+                  data-action="buy-upgrade" data-resource="${res.id}" data-node="${i}"
+                  ${can ? '' : 'disabled'}>
+                  ${fmt(cost)} ${res.name}
+                </button>
+              </div>`;
+          })
+          .join('');
+        return `
+          <section class="upgrade-section">
+            <h3>${res.name}</h3>
+            ${nodes}
+          </section>`;
+      }).join('')}`;
   }
+
+  /* ── Settings tab ── */
+
+  function renderSettingsPanel() {
+    const el = panels.settings;
+    if (!el) return;
+
+    const session = window.WorldrootSession;
+    const sessionText = session?.isCloud
+      ? `Cloud save · ${session.displayName}`
+      : 'Offline · this device only';
+
+    el.innerHTML = `
+      <section class="detail-box">
+        <h3>Save</h3>
+        <p class="settings-line">${sessionText}</p>
+        <div class="btn-row">
+          <button type="button" class="btn-sm ghost" data-action="go-menu">Main menu</button>
+          <button type="button" class="btn-sm danger" data-action="reset-save">Reset save</button>
+        </div>
+      </section>
+      <section class="detail-box">
+        <h3>Account</h3>
+        <p class="settings-line">Account Level: <strong>${fmt(S.accountTotalLevel(state))}</strong></p>
+        <p class="settings-line">Characters: <strong>${state.characters.length} / ${C.MAX_SLOTS}</strong></p>
+      </section>
+      <section class="detail-box">
+        <h3>Activity log</h3>
+        <ul id="activity-log" class="log"></ul>
+      </section>`;
+    renderLogEl();
+  }
+
+  /* ── Class modal ── */
 
   function renderClassModal() {
-    if (!els.classModal) return;
+    const modal = $('class-modal');
+    if (!modal) return;
     const show = !!state.pendingSlot;
-    els.classModal.hidden = !show;
+    modal.hidden = !show;
     if (!show) return;
 
-    els.classModalTitle.textContent = `Choose a class for Slot ${state.pendingSlot}`;
-    els.classOptions.innerHTML = Object.values(C.CLASSES)
+    $('class-modal-title').textContent = `Choose a class — Slot ${state.pendingSlot}`;
+    $('class-options').innerHTML = Object.values(C.CLASSES)
       .map(
         (cls) => `
         <button type="button" class="class-pick" data-action="pick-class" data-class="${cls.id}">
@@ -238,23 +390,64 @@
       .join('');
   }
 
+  /* ── Render orchestration ── */
+
+  function renderActivePanel() {
+    switch (activeTab) {
+      case 'characters':
+        renderCharactersPanel();
+        break;
+      case 'skills':
+        renderSkillsPanel();
+        break;
+      case 'resources':
+        renderResourcesPanel();
+        break;
+      case 'worldroot':
+        renderWorldrootPanel();
+        break;
+      case 'settings':
+        renderSettingsPanel();
+        break;
+      default:
+        break;
+    }
+  }
+
   function render() {
-    renderAccount();
-    renderCharacters();
-    renderResources();
-    renderUpgrades();
+    renderHud();
+    renderTabBar();
+    renderActivePanel();
     renderClassModal();
   }
+
+  /* ── Events ── */
 
   function handleClick(e) {
     const btn = e.target.closest('[data-action]');
     if (!btn) return;
-
     const action = btn.dataset.action;
+
+    if (action === 'switch-tab') {
+      switchTab(btn.dataset.tab);
+      return;
+    }
+
+    if (action === 'open-skill') {
+      selectedSkillId = btn.dataset.skill;
+      renderSkillsPanel();
+      return;
+    }
+
+    if (action === 'close-skill') {
+      selectedSkillId = null;
+      renderSkillsPanel();
+      return;
+    }
 
     if (action === 'pick-class') {
       S.addCharacter(state, btn.dataset.class);
-      addLog(`${C.CLASSES[btn.dataset.class].name} joined your party.`);
+      addLog(`${C.CLASSES[btn.dataset.class].name} joined.`);
       render();
       return;
     }
@@ -267,10 +460,8 @@
 
     if (action === 'set-activity') {
       const idx = Number(btn.dataset.char);
-      const act = btn.dataset.activity;
-      S.setActivity(state, idx, act);
-      const cls = C.CLASSES[state.characters[idx].classId];
-      addLog(`${cls.name} started ${activityLabel(act)}.`);
+      S.setActivity(state, idx, btn.dataset.activity);
+      addLog(`${charLabel(state.characters[idx])} → ${activityLabel(btn.dataset.activity)}`);
       render();
       return;
     }
@@ -278,7 +469,7 @@
     if (action === 'stop') {
       const idx = Number(btn.dataset.char);
       S.stopActivity(state, idx);
-      addLog(`${C.CLASSES[state.characters[idx].classId].name} stopped.`);
+      addLog(`${charLabel(state.characters[idx])} stopped.`);
       render();
       return;
     }
@@ -286,9 +477,9 @@
     if (action === 'buy-upgrade') {
       const resId = btn.dataset.resource;
       const node = Number(btn.dataset.node);
+      const def = C.UPGRADES.find((u) => u.id === resId);
       if (E.buyUpgrade(state, resId, node)) {
-        const def = C.UPGRADES.find((u) => u.id === resId);
-        addLog(`Upgraded ${def.nodes[node]}.`);
+        addLog(`Upgraded ${def.nodes[node].name}.`);
         render();
       }
       return;
@@ -297,10 +488,11 @@
     if (action === 'reset-save') {
       if (confirm('Reset all progress? This cannot be undone.')) {
         state = S.resetState();
+        selectedSkillId = null;
         if (window.WorldrootSession?.isCloud && window.WorldrootCloud?.flush) {
           window.WorldrootCloud.flush();
         }
-        addLog('Save cleared. Welcome to Worldroot.');
+        addLog('Save cleared.');
         render();
       }
       return;
@@ -308,48 +500,37 @@
 
     if (action === 'go-menu') {
       if (window.WorldrootGoMenu) window.WorldrootGoMenu();
-      return;
     }
   }
 
   function setSessionBadge(session) {
-    const el = document.getElementById('session-badge');
-    if (!el || !session) return;
-    if (session.isCloud) {
-      el.textContent = `Logged in as ${session.displayName} · Cloud save`;
-      el.className = 'session-badge cloud';
-    } else {
-      el.textContent = 'Offline mode · this device only';
-      el.className = 'session-badge offline';
-    }
+    /* session info lives in Settings tab now */
+    if (session && activeTab === 'settings') renderSettingsPanel();
   }
 
   function init(initialState) {
     state = initialState;
-    cacheElements();
+    C.TABS.forEach((t) => {
+      panels[t.id] = $(`panel-${t.id}`);
+    });
     document.body.addEventListener('click', handleClick);
-    render();
-  }
+    renderTabBar();
+    switchTab('characters');
 
-  function getState() {
-    return state;
-  }
-
-  function setState(next) {
-    state = next;
-  }
-
-  function refresh() {
-    render();
+    if (!state.characters.length) {
+      renderClassModal();
+    }
   }
 
   window.WorldrootUI = {
     init,
     render,
-    refresh,
+    refresh: render,
     addLog,
-    getState,
-    setState,
+    getState: () => state,
+    setState: (next) => {
+      state = next;
+    },
     setSessionBadge,
   };
 })();
