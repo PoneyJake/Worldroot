@@ -158,6 +158,13 @@
     return Math.floor(baseHp + hpBonus + combatLv * 5);
   }
 
+  function charMaxMp(state, char) {
+    const baseMp = C.BASE_CHAR_MP ?? 20;
+    const mpBonus = effectBonus(state, 'base_mp');
+    const combatLv = char.skills.combat?.level ?? 0;
+    return Math.floor(baseMp + mpBonus + combatLv * 2);
+  }
+
   function charDamage(state, char) {
     const dmgM = combatDamageMult(state, char);
     const baseDmg = effectBonus(state, 'base_damage');
@@ -365,13 +372,14 @@
     if (char.gatherCd < gatherIntervalTicks()) return event;
 
     char.gatherCd = 0;
-    const xpMult = 1 + skillXpBonus(state, skillId);
-    const xpGain = Math.floor(C.BASE_XP_PER_TICK * xpMult);
-    S.grantXp(skill, xpGain);
-    event.xpGain = xpGain;
 
     const amount = rollGatherAmount(state, char, skillId, vein);
     if (amount > 0) {
+      const xpMult = 1 + skillXpBonus(state, skillId);
+      const xpGain = Math.floor(C.BASE_XP_PER_TICK * xpMult);
+      S.grantXp(skill, xpGain);
+      event.xpGain = xpGain;
+
       const result = S.addToInventory(char, state, vein.resource, amount, skillId);
       event.resource = vein.resource;
       event.resourceAmount = result.added;
@@ -497,7 +505,7 @@
     upgradeLevel, upgradeCosts, upgradeBonusDisplay, upgradeBonusPercent, effectBonus,
     skillXpBonus, skillYieldBonus, skillMultiBonus,
     gatherEfficiency, gatherSuccessChance, gatherMultiChance, veinEffThreshold,
-    gatherRatePerMin, gatherIntervalTicks, charMaxHp, charDamage, mobMaxHp, dropChance,
+    gatherRatePerMin, gatherIntervalTicks, charMaxHp, charMaxMp, charDamage, mobMaxHp, dropChance,
     getTheoreticalCombatRates, smeltBatchCapacity,
     charStat, gatherStatMult, combatDamageMult,
     tick, buyUpgrade, canAffordUpgrade, findVein, findMonster,

@@ -1021,11 +1021,14 @@ body {
   height: 2rem;
 }
 
-.upgrade-card-cost .game-icon {
-  width: 1rem;
-  height: 1rem;
-  vertical-align: middle;
-  margin-right: 2px;
+.mob-drop-gold {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  font-size: 1.6rem;
+  line-height: 1;
 }
 
 .mob-drop-pct {
@@ -1066,8 +1069,16 @@ body {
 }
 
 .upgrade-card-cost {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   margin-right: 6px;
+}
+
+.upgrade-card-cost .game-icon {
+  width: 2rem;
+  height: 2rem;
+  flex-shrink: 0;
 }
 
 .upgrade-card-cost.met {
@@ -1210,6 +1221,112 @@ body {
   font-size: 0.68rem;
   text-transform: uppercase;
   margin-right: 4px;
+}
+
+.char-attrs-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.char-combat-xp {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.char-combat-xp .progress-bar.wide {
+  flex: 1;
+  height: 6px;
+}
+
+.char-stats-section {
+  margin-bottom: 16px;
+}
+
+.char-stats-heading {
+  margin: 0 0 10px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #6a7a66;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.char-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(108px, 1fr));
+  gap: 8px;
+}
+
+.char-stat-grid.compact {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.char-stat-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
+  background: #161e16;
+  border: 1px solid #243024;
+  border-radius: 8px;
+}
+
+.char-stat-label {
+  font-size: 0.68rem;
+  color: #6a7a66;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.char-stat-value {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #c8e6c3;
+}
+
+.char-gather-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 10px;
+}
+
+.char-gather-card {
+  padding: 12px;
+  background: #161e16;
+  border: 1px solid #243024;
+  border-radius: 10px;
+}
+
+.char-gather-head {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 10px;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.char-gather-head .progress-bar {
+  grid-column: 1 / -1;
+  height: 5px;
+}
+
+.char-gather-icon {
+  font-size: 1.2rem;
+}
+
+.char-gather-head strong {
+  display: block;
+  color: #dce6d8;
+  font-size: 0.9rem;
+}
+
+.char-gather-head span {
+  font-size: 0.75rem;
+  color: #6a7a66;
 }
 
 /* ── Upgrade Modal ── */

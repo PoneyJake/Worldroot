@@ -226,13 +226,85 @@
       </section>`;
   }
 
+  function renderCharStatCells(stats) {
+    return stats.map((s) => `
+      <div class="char-stat-cell">
+        <span class="char-stat-label">${s.label}</span>
+        <span class="char-stat-value">${s.value}</span>
+      </div>`).join('');
+  }
+
+  function renderCharCombatStats(char) {
+    const pct = (n) => `${(n * 100).toFixed(1)}%`;
+    const stats = [
+      { label: 'HP', value: fmt(E.charMaxHp(state, char)) },
+      { label: 'MP', value: fmt(E.charMaxMp(state, char)) },
+      { label: 'Damage', value: fmt(E.charDamage(state, char)) },
+      { label: 'Defence', value: fmt(E.effectBonus(state, 'base_defence')) },
+      { label: 'Accuracy', value: fmt(E.effectBonus(state, 'base_accuracy')) },
+      { label: 'Crit Chance', value: pct(E.effectBonus(state, 'crit_chance')) },
+      { label: 'Crit Damage', value: pct(E.effectBonus(state, 'crit_damage')) },
+      { label: 'Drop Rate', value: pct(E.dropChance(state)) },
+      { label: 'Gold Gain', value: pct(E.effectBonus(state, 'gold_gain')) },
+      { label: 'Carry Cap.', value: pct(E.effectBonus(state, 'carry_capacity')) },
+    ];
+    return `
+      <section class="char-stats-section">
+        <h3 class="char-stats-heading">Combat</h3>
+        <div class="char-stat-grid">${renderCharStatCells(stats)}</div>
+      </section>`;
+  }
+
+  function renderCharGatherStats(char) {
+    const gatherSkills = ['mining', 'woodcutting', 'fishing'];
+    const multiLabels = {
+      mining: 'Multi-Ore',
+      woodcutting: 'Multi-Log',
+      fishing: 'Multi-Catch',
+    };
+    const cards = gatherSkills.map((sid) => {
+      const sk = C.SKILLS[sid];
+      const lv = charSkillLevel(char, sid);
+      const eff = E.gatherEfficiency(state, char, sid);
+      const multi = (E.gatherMultiChance(state, char, sid) * 100).toFixed(1);
+      const xpPct = (E.skillXpBonus(state, sid) * 100).toFixed(0);
+      const carryPct = (E.effectBonus(state, `${sid}_carry`) * 100).toFixed(0);
+      return `
+        <article class="char-gather-card">
+          <div class="char-gather-head">
+            <span class="char-gather-icon">${sk.icon}</span>
+            <div>
+              <strong>${sk.name}</strong>
+              <span>Lv ${lv}</span>
+            </div>
+            <div class="progress-bar mini"><div class="progress-bar-fill" style="width:${xpProgress(char.skills[sid])}%"></div></div>
+          </div>
+          <div class="char-stat-grid compact">
+            ${renderCharStatCells([
+              { label: 'Efficiency', value: eff },
+              { label: 'Speed', value: `${C.GATHER_RATE_PER_MIN}/min` },
+              { label: multiLabels[sid], value: `${multi}%` },
+              { label: 'XP Bonus', value: `+${xpPct}%` },
+              { label: 'Carry Cap.', value: `+${carryPct}%` },
+            ])}
+          </div>
+        </article>`;
+    }).join('');
+
+    return `
+      <section class="char-stats-section">
+        <h3 class="char-stats-heading">Gathering</h3>
+        <div class="char-gather-grid">${cards}</div>
+      </section>`;
+  }
+
   function renderMobDrops(mob) {
     const dropPct = (E.dropChance(state) * 100).toFixed(1);
     const goldAmt = mob.goldMin === mob.goldMax
       ? `${mob.goldMin}`
       : `${mob.goldMin}–${mob.goldMax}`;
     const rows = [
-      `<div class="mob-drop-row"><span class="mob-drop-item">🪙 Gold</span><span class="mob-drop-pct">×${goldAmt}</span></div>`,
+      `<div class="mob-drop-row"><span class="mob-drop-item"><span class="mob-drop-gold">🪙</span> Gold</span><span class="mob-drop-pct">×${goldAmt}</span></div>`,
     ];
     if (mob.drop) {
       rows.push(
@@ -272,21 +344,11 @@
     let detail = '<p class="empty-msg">Choose a class to begin.</p>';
     if (char) {
       const cls = C.CLASSES[char.classId];
-      const skills = ['combat', 'mining', 'woodcutting', 'fishing'].map((sid) => {
-        const sk = C.SKILLS[sid];
-        const lv = charSkillLevel(char, sid);
-        return `
-          <div class="char-skill-item">
-            <span class="char-skill-icon">${sk.icon}</span>
-            <span class="char-skill-name">${sk.name}</span>
-            <span class="char-skill-lv">${lv}</span>
-            <div class="progress-bar mini"><div class="progress-bar-fill" style="width:${xpProgress(char.skills[sid])}%"></div></div>
-          </div>`;
-      }).join('');
-
       const str = E.charStat(state, char, 'strength').toFixed(1);
       const agi = E.charStat(state, char, 'agility').toFixed(1);
       const mag = E.charStat(state, char, 'magic').toFixed(1);
+      const combatLv = charSkillLevel(char, 'combat');
+      const combatXp = xpProgress(char.skills.combat);
 
       detail = `
         <div class="char-detail-head">
@@ -298,12 +360,18 @@
           </div>
           <div class="char-total-badge"><span>Total</span><strong>${S.characterTotalLevel(char)}</strong></div>
         </div>
-        <div class="char-stats-row" style="margin-bottom:12px">
+        <div class="char-attrs-row">
           <span class="char-stat"><em>STR</em> ${str}</span>
           <span class="char-stat"><em>AGI</em> ${agi}</span>
           <span class="char-stat"><em>MAG</em> ${mag}</span>
+          <span class="char-stat"><em>Combat</em> Lv ${combatLv}</span>
         </div>
-        <div class="char-skills-grid">${skills}</div>
+        <div class="char-combat-xp">
+          <span class="char-stat-label">Combat XP</span>
+          <div class="progress-bar mini wide"><div class="progress-bar-fill" style="width:${combatXp}%"></div></div>
+        </div>
+        ${renderCharCombatStats(char)}
+        ${renderCharGatherStats(char)}
         <p class="hint-bar">Select this hero, then open a skill page to assign them. Full inventory = lost loot.</p>
         <button type="button" class="btn-xs ghost" data-action="stop-selected">Stop activity</button>`;
     }
@@ -684,7 +752,7 @@
         const costLine = Object.entries(costs).map(([res, amt]) => {
           const owned = S.countInSlots(state.storageSlots, res);
           const met = owned >= amt ? 'met' : 'unmet';
-          return `<span class="upgrade-card-cost ${met}">${resIcon(res)} ${fmt(owned)}/${fmt(amt)}</span>`;
+          return `<span class="upgrade-card-cost ${met}">${resIcon(res, 'game-icon lg')} ${fmt(owned)}/${fmt(amt)}</span>`;
         }).join('');
         return `
           <button type="button" class="upgrade-card${canBuy ? ' can-buy' : ''}" data-action="buy-upgrade" data-upgrade="${node.id}" title="${node.desc}">

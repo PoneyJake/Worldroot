@@ -26,6 +26,7 @@ window.WorldrootConfig = {
   COMBAT_ATTACK_SEC: 1.5,
   COMBAT_RESPAWN_SEC: 10,
   BASE_CHAR_HP: 50,
+  BASE_CHAR_MP: 20,
   BASE_DROP_CHANCE: 0.2,
 
   SLOT_UNLOCK_AT: [0, 10, 25],
