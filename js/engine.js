@@ -100,45 +100,44 @@
     return Object.entries(costs).every(([res, amt]) => S.storageHas(state, res, amt));
   }
 
+  function veinEffThreshold(vein) {
+    const tier = Math.floor((vein?.minLevel ?? 0) / 5);
+    return C.VEIN_EFF_BASE + tier * C.VEIN_EFF_STEP;
+  }
+
   function gatherEfficiency(state, char, skillId) {
-    const skill = char.skills[skillId];
-    const lv = skill?.level ?? 0;
+    const lv = char.skills[skillId]?.level ?? 0;
     const yieldB = skillYieldBonus(state, skillId);
     const statM = gatherStatMult(state, char, skillId);
-    return Math.floor((5 + lv * 4 + yieldB * 15) * statM);
+    return Math.floor((lv * C.LEVEL_EFF_BONUS + yieldB) * statM);
   }
 
-  function gatherSuccessChance(state, char, skillId) {
+  function gatherMultiChance(state, char, skillId) {
+    const lv = char.skills[skillId]?.level ?? 0;
+    return lv * C.LEVEL_MULTI_BONUS + skillMultiBonus(state, skillId);
+  }
+
+  function gatherSuccessChance(state, char, skillId, vein) {
     const eff = gatherEfficiency(state, char, skillId);
-    if (eff < C.GATHER_MIN_EFFICIENCY) return 0;
-    if (eff >= C.GATHER_EFF_PER_TIER) return 100;
-    const range = C.GATHER_EFF_PER_TIER - C.GATHER_MIN_EFFICIENCY;
-    return Math.min(100, ((eff - C.GATHER_MIN_EFFICIENCY) / range) * 100);
+    const threshold = veinEffThreshold(vein);
+    if (eff >= threshold) return 100;
+    if (eff <= 0) return 0;
+    return Math.min(100, (eff / threshold) * 100);
   }
 
-  function gatherExtraOreChance(eff) {
-    return (eff % C.GATHER_EFF_PER_TIER) / C.GATHER_EFF_PER_TIER;
-  }
-
-  function gatherGuaranteedOres(eff) {
-    return Math.floor(eff / C.GATHER_EFF_PER_TIER);
-  }
-
-  function rollGatherAmount(state, char, skillId) {
+  function rollGatherAmount(state, char, skillId, vein) {
     const eff = gatherEfficiency(state, char, skillId);
-    if (eff < C.GATHER_MIN_EFFICIENCY) return 0;
+    const threshold = veinEffThreshold(vein);
+    let amount = 0;
 
-    let amount = gatherGuaranteedOres(eff);
-    if (Math.random() < gatherExtraOreChance(eff)) amount += 1;
-
-    if (amount === 0) {
-      const chance = gatherSuccessChance(state, char, skillId) / 100;
-      if (Math.random() < chance) amount = 1;
+    if (eff >= threshold) {
+      amount = 1;
+    } else if (eff > 0 && Math.random() < eff / threshold) {
+      amount = 1;
     }
 
-    if (amount > 0) {
-      const multiMult = skillMultiBonus(state, skillId);
-      if (Math.random() < multiMult * 0.1) amount += 1;
+    if (amount > 0 && Math.random() < gatherMultiChance(state, char, skillId)) {
+      amount += 1;
     }
 
     return amount;
@@ -212,7 +211,7 @@
 
   function smeltBatchCapacity(state) {
     const bonus = effectBonus(state, 'smelt_capacity');
-    return Math.max(1, 1 + Math.floor(bonus * 25));
+    return Math.floor(C.SMELT_BASE_CAPACITY * (1 + bonus));
   }
 
   function smeltSlotsUnlocked(state) {
@@ -371,7 +370,7 @@
     S.grantXp(skill, xpGain);
     event.xpGain = xpGain;
 
-    const amount = rollGatherAmount(state, char, skillId);
+    const amount = rollGatherAmount(state, char, skillId, vein);
     if (amount > 0) {
       const result = S.addToInventory(char, state, vein.resource, amount, skillId);
       event.resource = vein.resource;
@@ -497,7 +496,7 @@
   window.WorldrootEngine = {
     upgradeLevel, upgradeCosts, upgradeBonusDisplay, upgradeBonusPercent, effectBonus,
     skillXpBonus, skillYieldBonus, skillMultiBonus,
-    gatherEfficiency, gatherSuccessChance, gatherGuaranteedOres, gatherExtraOreChance,
+    gatherEfficiency, gatherSuccessChance, gatherMultiChance, veinEffThreshold,
     gatherRatePerMin, gatherIntervalTicks, charMaxHp, charDamage, mobMaxHp, dropChance,
     getTheoreticalCombatRates, smeltBatchCapacity,
     charStat, gatherStatMult, combatDamageMult,

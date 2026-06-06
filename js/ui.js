@@ -51,7 +51,7 @@
   }
 
   function renderSlotGrid(slots, maxSlots, opts = {}) {
-    const { isInventory = false, storeAction = null, takeAction = null } = opts;
+    const { isInventory = false, storeAction = null, takeAction = null, gridClass = '' } = opts;
     let html = '';
     for (let i = 0; i < maxSlots; i++) {
       const slot = slots[i];
@@ -77,7 +77,7 @@
           </div>`;
       }
     }
-    return `<div class="item-slot-grid">${html}</div>`;
+    return `<div class="item-slot-grid ${gridClass}">${html}</div>`;
   }
 
   function selectedIndex() {
@@ -226,8 +226,11 @@
 
   function renderMobDrops(mob) {
     const dropPct = (E.dropChance(state) * 100).toFixed(1);
+    const goldAmt = mob.goldMin === mob.goldMax
+      ? `${mob.goldMin}`
+      : `${mob.goldMin}–${mob.goldMax}`;
     const rows = [
-      `<div class="mob-drop-row"><span class="mob-drop-item">🪙 Gold</span><span class="mob-drop-pct">100%</span></div>`,
+      `<div class="mob-drop-row"><span class="mob-drop-item">🪙 Gold</span><span class="mob-drop-pct">×${goldAmt}</span></div>`,
     ];
     if (mob.drop) {
       rows.push(
@@ -345,7 +348,7 @@
       </header>
       ${renderCharSwitcher()}
       <p class="hint-bar">${charLabel(char)} — click → Storage on an item to move it</p>
-      ${renderSlotGrid(char.inventorySlots, slotCount, { isInventory: true, storeAction: 'store-inv' })}`;
+      ${renderSlotGrid(char.inventorySlots, slotCount, { isInventory: true, storeAction: 'store-inv', gridClass: 'grid-inv-4' })}`;
   }
 
   function renderStoragePanel() {
@@ -367,11 +370,11 @@
       <div class="storage-dual">
         <section class="storage-half">
           <h3 class="storage-half-title">${charLabel(char)}'s Inventory <span>${invFilled}/${invCount}</span></h3>
-          ${renderSlotGrid(char.inventorySlots, invCount, { isInventory: true, storeAction: 'store-inv' })}
+          ${renderSlotGrid(char.inventorySlots, invCount, { isInventory: true, storeAction: 'store-inv', gridClass: 'grid-inv-4' })}
         </section>
         <section class="storage-half">
           <h3 class="storage-half-title">Storage <span>${storFilled}/${state.storageSlots.length} · ∞ per resource</span></h3>
-          ${renderSlotGrid(state.storageSlots, state.storageSlots.length, { takeAction: 'take-storage' })}
+          ${renderSlotGrid(state.storageSlots, state.storageSlots.length, { takeAction: 'take-storage', gridClass: 'grid-storage-6' })}
         </section>
       </div>`;
   }
@@ -434,7 +437,7 @@
           <div class="activity-stats">
             <div class="activity-stat"><span class="activity-stat-label">XP/hr</span><span class="activity-stat-value">${fmt(rates.xpHr)}</span></div>
             <div class="activity-stat"><span class="activity-stat-label">Kills/hr</span><span class="activity-stat-value">${fmt(rates.killsHr)}</span></div>
-            <div class="activity-stat"><span class="activity-stat-label">Attack</span><span class="activity-stat-value">${C.COMBAT_ATTACK_SEC}s</span></div>
+            <div class="activity-stat"><span class="activity-stat-label">Attack speed</span><span class="activity-stat-value">${C.COMBAT_ATTACK_SEC}s</span></div>
           </div>
           ${renderMobDrops(mob)}
           ${locked ? `<p class="empty-msg">Requires Combat Lv ${mob.level}</p>` : `<div class="activity-actions">${renderAssignBtn('combat', mob.id, false)}</div>`}
@@ -456,9 +459,9 @@
   /* ── Gathering ── */
 
   function gatherStatLabels(skillId) {
-    if (skillId === 'mining') return { eff: 'Mining Efficiency', multi: 'Multi-Ore' };
-    if (skillId === 'woodcutting') return { eff: 'Woodcutting Efficiency', multi: 'Multi-Log' };
-    return { eff: 'Fishing Efficiency', multi: 'Multi-Catch' };
+    if (skillId === 'mining') return { eff: 'Mining Efficiency', multi: 'Multi-Ore', chance: 'Ore Chance' };
+    if (skillId === 'woodcutting') return { eff: 'Woodcutting Efficiency', multi: 'Multi-Log', chance: 'Log Chance' };
+    return { eff: 'Fishing Efficiency', multi: 'Multi-Catch', chance: 'Catch Chance' };
   }
 
   function renderGatheringPage(sk) {
@@ -467,15 +470,14 @@
     const best = char ? charSkillLevel(char, sk.id) : bestSkillLevel(sk.id);
     const labels = gatherStatLabels(sk.id);
     const eff = char ? E.gatherEfficiency(state, char, sk.id) : 0;
-    const success = char ? E.gatherSuccessChance(state, char, sk.id).toFixed(0) : 0;
-    const multiPct = char ? (E.effectBonus(state, `${sk.id}_multi`) * 100).toFixed(0) : 0;
-    const guaranteed = char ? E.gatherGuaranteedOres(eff) : 0;
-    const nextTier = C.GATHER_EFF_PER_TIER;
+    const multiPct = char ? (E.gatherMultiChance(state, char, sk.id) * 100).toFixed(1) : '0';
 
     const cards = veins.map((vein) => {
       const locked = best < vein.minLevel;
       const on = char?.activity === sk.activity && char?.target === vein.id;
       const pct = char ? xpProgress(char.skills[sk.id]) : 0;
+      const threshold = E.veinEffThreshold(vein);
+      const success = char ? E.gatherSuccessChance(state, char, sk.id, vein).toFixed(0) : 0;
       const xpHr = char && on ? Math.floor(C.GATHER_RATE_PER_MIN * 60 * C.BASE_XP_PER_TICK * (1 + E.skillXpBonus(state, sk.id))) : 0;
 
       return `
@@ -490,10 +492,9 @@
           <div class="activity-stats">
             <div class="activity-stat"><span class="activity-stat-label">Speed</span><span class="activity-stat-value">${C.GATHER_RATE_PER_MIN}/min</span></div>
             <div class="activity-stat"><span class="activity-stat-label">${labels.eff}</span><span class="activity-stat-value">${eff}</span></div>
-            <div class="activity-stat"><span class="activity-stat-label">1 Ore Chance</span><span class="activity-stat-value">${success}%</span></div>
-            <div class="activity-stat"><span class="activity-stat-label">Guaranteed</span><span class="activity-stat-value">${guaranteed} ore</span></div>
-            <div class="activity-stat"><span class="activity-stat-label">${labels.multi}</span><span class="activity-stat-value">+${multiPct}%</span></div>
-            <div class="activity-stat"><span class="activity-stat-label">Next +1 ore</span><span class="activity-stat-value">@${nextTier} eff</span></div>
+            <div class="activity-stat"><span class="activity-stat-label">${labels.chance}</span><span class="activity-stat-value">${success}%</span></div>
+            <div class="activity-stat"><span class="activity-stat-label">100% at</span><span class="activity-stat-value">${threshold} eff</span></div>
+            <div class="activity-stat"><span class="activity-stat-label">${labels.multi}</span><span class="activity-stat-value">${multiPct}%</span></div>
             ${on ? `<div class="activity-stat"><span class="activity-stat-label">XP/hr</span><span class="activity-stat-value">${fmt(xpHr)}</span></div>` : ''}
           </div>
           <div class="progress-bar"><div class="progress-bar-fill" style="width:${pct}%"></div></div>
@@ -505,7 +506,7 @@
     return `
       <header class="page-header">
         <span class="page-header-icon">${sk.icon}</span>
-        <div class="page-header-text"><h1>${sk.name}</h1><p>${sk.desc} · min ${C.GATHER_MIN_EFFICIENCY} eff to gather</p></div>
+        <div class="page-header-text"><h1>${sk.name}</h1><p>${sk.desc} · +${C.LEVEL_EFF_BONUS} eff & +${C.LEVEL_MULTI_BONUS * 100}% multi per level</p></div>
         <div class="page-header-stat"><span class="page-header-stat-label">${sk.name} Lv</span><span class="page-header-stat-value">${best}</span></div>
       </header>
       ${renderSkillStopHeader()}
@@ -526,20 +527,24 @@
         html += `<div class="item-slot empty"><span class="item-slot-empty">+</span></div>`;
         continue;
       }
-      const canLoad = smeltSlot?.ore && slot.resourceId === smeltSlot.ore
-        && (smeltSlot.oreLoaded || 0) < cap;
+      const isOre = C.SMELT_RECIPES.some((r) => r.ore === slot.resourceId);
+      const oreMatch = !smeltSlot?.ore || slot.resourceId === smeltSlot.ore;
+      const canLoad = isOre && oreMatch && (smeltSlot?.oreLoaded || 0) < cap;
       const loadBtn = canLoad
         ? `<button type="button" class="slot-action-btn" data-action="load-smelt" data-inv="${i}" data-smelt="${selectedSmeltSlot}">→ Smelter</button>`
         : '';
+      const dragAttr = canLoad ? 'true' : 'false';
       html += `
-        <div class="item-slot filled" title="${resName(slot.resourceId)}">
+        <div class="item-slot filled smelt-drag-source${canLoad ? ' can-drag' : ''}" draggable="${dragAttr}"
+          data-drag-type="smelt-ore" data-inv="${i}" data-resource="${slot.resourceId}"
+          title="${resName(slot.resourceId)}${canLoad ? ' — drag to smelter' : ''}">
           <span class="item-slot-qty">${fmt(slot.amount)}</span>
           <span class="item-slot-icon">${resIcon(slot.resourceId)}</span>
           <span class="item-slot-name">${resName(slot.resourceId)}</span>
           ${loadBtn}
         </div>`;
     }
-    return `<div class="item-slot-grid">${html}</div>`;
+    return `<div class="item-slot-grid grid-inv-4">${html}</div>`;
   }
 
   function renderSmeltingPage(sk) {
@@ -564,12 +569,12 @@
           </button>` : '';
 
       return `
-        <article class="activity-card${selected}" data-action="select-smelt-slot" data-slot="${i}">
+        <article class="activity-card smelt-drop-zone${selected}" data-action="select-smelt-slot" data-slot="${i}" data-smelt-slot="${i}">
           <strong>Smelter Slot ${i + 1}</strong>
           <div class="picker-row">${oreBtns}</div>
-          ${slot.ore ? `<p class="empty-msg">Ore loaded: ${fmt(slot.oreLoaded || 0)} / ${batchCap}</p>
+          ${slot.ore ? `<p class="empty-msg">Ore loaded: ${fmt(slot.oreLoaded || 0)} / ${batchCap} — drag ore here</p>
             <div class="progress-bar"><div class="progress-bar-fill" style="width:${pct}%"></div></div>
-            <p class="empty-msg">Smelting ${recipe?.name ?? slot.ore}…</p>` : '<p class="empty-msg">Pick ore type, then load from inventory</p>'}
+            <p class="empty-msg">Smelting ${recipe?.name ?? slot.ore}…</p>` : '<p class="empty-msg">Pick ore type, then drag from inventory</p>'}
           ${readyBtn}
           ${slot.ore ? `<button type="button" class="btn-xs ghost" data-action="clear-smelt" data-slot="${i}">Stop slot</button>` : ''}
         </article>`;
@@ -632,7 +637,7 @@
       ? `<section class="storage-half" style="margin-top:16px">
           <h3 class="storage-half-title">${charLabel(char)}'s Inventory</h3>
           ${renderCharSwitcher()}
-          ${renderSlotGrid(char.inventorySlots, S.inventorySlotCount(char), { isInventory: true })}
+          ${renderSlotGrid(char.inventorySlots, S.inventorySlotCount(char), { isInventory: true, gridClass: 'grid-inv-4' })}
         </section>` : '';
 
     return `
@@ -762,11 +767,7 @@
       return;
     }
     if (action === 'load-smelt') {
-      const char = selectedChar();
-      const cap = E.smeltBatchCapacity(state);
-      const n = char && S.loadOreToSmelt(state, char, Number(btn.dataset.inv), Number(btn.dataset.smelt), cap);
-      if (n > 0) addLog(`Loaded ${n} ore into smelter.`);
-      render();
+      loadSmeltFromDrag(btn.dataset.inv, btn.dataset.smelt);
       return;
     }
     if (action === 'stop-all-smelt') {
@@ -864,9 +865,52 @@
     if (action === 'go-menu' && window.WorldrootGoMenu) window.WorldrootGoMenu();
   }
 
+  function loadSmeltFromDrag(invIdx, smeltIdx) {
+    const char = selectedChar();
+    const cap = E.smeltBatchCapacity(state);
+    const n = char && S.loadOreToSmelt(state, char, Number(invIdx), Number(smeltIdx), cap);
+    if (n > 0) {
+      addLog(`Loaded ${n} ore into smelter slot ${Number(smeltIdx) + 1}.`);
+      render();
+    }
+  }
+
+  function initDragDrop() {
+    document.body.addEventListener('dragstart', (e) => {
+      const el = e.target.closest('[data-drag-type="smelt-ore"]');
+      if (!el || el.getAttribute('draggable') !== 'true') return;
+      e.dataTransfer.setData('application/worldroot-smelt', JSON.stringify({
+        inv: el.dataset.inv,
+        resource: el.dataset.resource,
+      }));
+      e.dataTransfer.effectAllowed = 'move';
+    });
+
+    document.body.addEventListener('dragover', (e) => {
+      if (e.target.closest('.smelt-drop-zone')) {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+      }
+    });
+
+    document.body.addEventListener('drop', (e) => {
+      const zone = e.target.closest('.smelt-drop-zone');
+      if (!zone) return;
+      e.preventDefault();
+      try {
+        const raw = e.dataTransfer.getData('application/worldroot-smelt');
+        if (!raw) return;
+        const { inv } = JSON.parse(raw);
+        selectedSmeltSlot = Number(zone.dataset.smeltSlot);
+        loadSmeltFromDrag(inv, zone.dataset.smeltSlot);
+      } catch { /* ignore */ }
+    });
+  }
+
   function init(initialState) {
     state = initialState;
     document.body.addEventListener('click', handleClick);
+    initDragDrop();
     renderSidebar();
     switchPage('characters');
   }
