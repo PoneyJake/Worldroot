@@ -19,7 +19,33 @@
   function resIcon(id) { return C.RESOURCE_ICONS?.[id] ?? '📦'; }
   function skillName(id) { return C.SKILLS[id]?.name ?? id; }
 
-  function renderSlotGrid(slots, maxSlots, isInventory) {
+  function renderCharSwitcher() {
+    if (!state.characters.length) return '';
+    const sel = selectedIndex();
+    return `
+      <div class="char-switcher">
+        ${state.characters.map((c, i) => {
+          const cls = C.CLASSES[c.classId];
+          return `<button type="button" class="char-switch-btn${i === sel ? ' active' : ''}"
+            data-action="select-char" data-char="${i}" title="${cls.name}">
+            <span class="char-switch-icon">${cls.icon}</span>
+          </button>`;
+        }).join('')}
+      </div>`;
+  }
+
+  function skillActivityBadges(skillId) {
+    const chars = state.characters.filter((c) => {
+      if (skillId === 'combat') return c.activity === 'combat';
+      const sk = C.SKILLS[skillId];
+      return sk && c.activity === sk.activity;
+    });
+    if (!chars.length) return '';
+    return `<span class="sidebar-skill-chars">${chars.map((c) => C.CLASSES[c.classId].icon).join('')}</span>`;
+  }
+
+  function renderSlotGrid(slots, maxSlots, opts = {}) {
+    const { isInventory = false, storeAction = null, takeAction = null } = opts;
     let html = '';
     for (let i = 0; i < maxSlots; i++) {
       const slot = slots[i];
@@ -28,13 +54,20 @@
       } else {
         const maxStack = isInventory
           ? S.stackCapacityForResource(state, slot.resourceId)
-          : C.BASE_STACK_SIZE;
+          : (C.STORAGE_STACK_MAX ?? 999999999);
+        const maxLabel = isInventory ? `/${maxStack}` : '';
+        const actionBtn = storeAction
+          ? `<button type="button" class="slot-action-btn" data-action="${storeAction}" data-slot="${i}">→ Storage</button>`
+          : takeAction
+            ? `<button type="button" class="slot-action-btn" data-action="${takeAction}" data-slot="${i}">→ Inv</button>`
+            : '';
         html += `
           <div class="item-slot filled" title="${resName(slot.resourceId)}">
             <span class="item-slot-qty">${fmt(slot.amount)}</span>
             <span class="item-slot-icon">${resIcon(slot.resourceId)}</span>
             <span class="item-slot-name">${resName(slot.resourceId)}</span>
-            <span class="item-slot-max">/${maxStack}</span>
+            <span class="item-slot-max">${maxLabel}</span>
+            ${actionBtn}
           </div>`;
       }
     }
@@ -123,12 +156,13 @@
       const badge = item.comingSoon ? '<span class="sidebar-btn-badge">Soon</span>' : '';
       const sel = item.id === 'characters' && selectedChar()
         ? `<span class="sidebar-btn-badge">${charLabel(selectedChar()).split(' ')[0]}</span>` : '';
+      const skillChars = item.type === 'skill' ? skillActivityBadges(item.id) : '';
       html += `
         <button type="button" class="sidebar-btn${isActive ? ' active' : ''}${soon}"
           data-action="switch-page" data-page="${item.id}" ${item.comingSoon ? 'disabled' : ''}>
           <span class="sidebar-btn-icon">${item.icon}</span>
           <span class="sidebar-btn-label">${item.label}</span>
-          ${badge || sel}
+          ${skillChars}${badge || sel}
         </button>`;
     }
     el.innerHTML = html;
@@ -253,38 +287,89 @@
       <header class="page-header">
         <span class="page-header-icon">🎒</span>
         <div class="page-header-text">
-          <h1>${charLabel(char)}'s Inventory</h1>
+          <h1>Inventory</h1>
           <p>${filled} / ${slotCount} slots · overflow is lost</p>
         </div>
       </header>
-      ${renderSlotGrid(char.inventorySlots, slotCount, true)}`;
+      ${renderCharSwitcher()}
+      <p class="hint-bar">${charLabel(char)} — click → Storage on an item to move it</p>
+      ${renderSlotGrid(char.inventorySlots, slotCount, { isInventory: true, storeAction: 'store-inv' })}`;
   }
 
   function renderStoragePanel() {
-    const filled = state.storageSlots.filter(Boolean).length;
+    const char = selectedChar();
+    if (!char) return '<p class="empty-msg">Create a character first.</p>';
+    const invCount = S.inventorySlotCount(char);
+    const invFilled = char.inventorySlots.filter(Boolean).length;
+    const storFilled = state.storageSlots.filter(Boolean).length;
 
     return `
       <header class="page-header">
         <span class="page-header-icon">📦</span>
         <div class="page-header-text">
           <h1>Storage</h1>
-          <p>${filled} / ${state.storageSlots.length} slots · shared by all characters</p>
+          <p>Move items between inventory and shared storage</p>
         </div>
       </header>
-      ${renderSlotGrid(state.storageSlots, state.storageSlots.length, false)}`;
+      ${renderCharSwitcher()}
+      <div class="storage-dual">
+        <section class="storage-half">
+          <h3 class="storage-half-title">${charLabel(char)}'s Inventory <span>${invFilled}/${invCount}</span></h3>
+          ${renderSlotGrid(char.inventorySlots, invCount, { isInventory: true, storeAction: 'store-inv' })}
+        </section>
+        <section class="storage-half">
+          <h3 class="storage-half-title">Storage <span>${storFilled}/${state.storageSlots.length} · ∞ per resource</span></h3>
+          ${renderSlotGrid(state.storageSlots, state.storageSlots.length, { takeAction: 'take-storage' })}
+        </section>
+      </div>`;
   }
 
   /* ── Combat ── */
 
+  function renderCombatArena(char) {
+    if (!char || char.activity !== 'combat' || !char.target) return '';
+    const monster = C.MONSTERS.find((m) => m.id === char.target);
+    if (!monster) return '';
+    const cs = char.combatState;
+    const cls = C.CLASSES[char.classId];
+    const charHp = cs?.charHp ?? E.charMaxHp(state, char);
+    const charMax = cs?.charMaxHp ?? E.charMaxHp(state, char);
+    const mobHp = cs?.mobHp ?? E.mobMaxHp(monster);
+    const mobMax = cs?.mobMaxHp ?? E.mobMaxHp(monster);
+    const charPct = charMax ? Math.max(0, (charHp / charMax) * 100) : 0;
+    const mobPct = mobMax ? Math.max(0, (mobHp / mobMax) * 100) : 0;
+    const dropPct = ((C.BASE_DROP_CHANCE + E.effectBonus(state, 'drop_rate')) * 100).toFixed(0);
+
+    return `
+      <div class="combat-arena">
+        <div class="combat-fighter player">
+          <span class="fighter-icon">${cls.icon}</span>
+          <span class="fighter-name">${cls.name}</span>
+          <div class="hp-bar"><div class="hp-bar-fill player" style="width:${charPct}%"></div></div>
+          <span class="hp-text">${fmt(charHp)} / ${fmt(charMax)} HP · ${E.charDamage(state, char)} dmg</span>
+        </div>
+        <div class="combat-vs">⚔</div>
+        <div class="combat-fighter mob">
+          <span class="fighter-icon">${monster.icon}</span>
+          <span class="fighter-name">${monster.name}</span>
+          <div class="hp-bar"><div class="hp-bar-fill mob" style="width:${mobPct}%"></div></div>
+          <span class="hp-text">${fmt(mobHp)} / ${fmt(mobMax)} HP · ${monster.damage} dmg</span>
+          <span class="combat-mob-meta">${monster.drop ? `${monster.drop.name} ${dropPct}%` : ''} · Gold ${monster.goldMin}–${monster.goldMax}</span>
+        </div>
+      </div>`;
+  }
+
   function renderCombatPage(sk) {
     const char = selectedChar();
     const best = char ? charSkillLevel(char, 'combat') : bestSkillLevel('combat');
+    const arena = renderCombatArena(char);
     const cards = C.MONSTERS.map((mob) => {
       const xpHr = E.getRatePerHour(state, 'xp', 'combat');
       const killsHr = E.getRatePerHour(state, 'kills', mob.id);
       const lootHr = mob.drop ? E.getRatePerHour(state, 'loot', mob.drop.id) : 0;
       const locked = best < mob.level;
       const on = char?.activity === 'combat' && char?.target === mob.id;
+      const dropPct = ((C.BASE_DROP_CHANCE + E.effectBonus(state, 'drop_rate')) * 100).toFixed(0);
 
       return `
         <article class="activity-card ${locked ? 'locked' : ''}">
@@ -292,25 +377,27 @@
             <span class="activity-card-icon">${mob.icon}</span>
             <div class="activity-card-title">
               <strong>${mob.name}</strong>
-              <span>Lv ${mob.level}${mob.drop ? ` · ${mob.drop.name}` : ''}</span>
+              <span>Lv ${mob.level} · ${E.mobMaxHp(mob)} HP · ${mob.damage} dmg</span>
             </div>
           </div>
           <div class="activity-stats">
             <div class="activity-stat"><span class="activity-stat-label">XP/hr</span><span class="activity-stat-value">${fmt(xpHr)}</span></div>
             <div class="activity-stat"><span class="activity-stat-label">Kills/hr</span><span class="activity-stat-value">${fmt(killsHr)}</span></div>
             <div class="activity-stat"><span class="activity-stat-label">Loot/hr</span><span class="activity-stat-value">${fmt(lootHr)}</span></div>
+            <div class="activity-stat"><span class="activity-stat-label">Drop</span><span class="activity-stat-value">${dropPct}%</span></div>
           </div>
           ${locked ? `<p class="empty-msg">Requires Combat Lv ${mob.level}</p>` : `<div class="activity-actions">${renderAssignBtn('combat', mob.id, false)}</div>`}
-          ${on ? '<p class="activity-assigned"><strong>Active on selected hero</strong></p>' : ''}
+          ${on ? '<p class="activity-assigned"><strong>Fighting now</strong></p>' : ''}
         </article>`;
     }).join('');
 
     return `
       <header class="page-header">
         <span class="page-header-icon">${sk.icon}</span>
-        <div class="page-header-text"><h1>${sk.name}</h1><p>${sk.desc}</p></div>
+        <div class="page-header-text"><h1>${sk.name}</h1><p>Fight monsters — earn XP, gold, and loot on kills</p></div>
         <div class="page-header-stat"><span class="page-header-stat-label">Combat Lv</span><span class="page-header-stat-value">${best}</span></div>
       </header>
+      ${arena}
       <div class="activity-grid">${cards}</div>`;
   }
 
@@ -320,7 +407,7 @@
     const veins = C.VEINS[sk.id] ?? [];
     const char = selectedChar();
     const best = char ? charSkillLevel(char, sk.id) : bestSkillLevel(sk.id);
-    const speed = char ? E.skillSpeed(state, sk.id, char) : 1;
+    const ratePerMin = char ? E.gatherRatePerMin(state, sk.id, char) : C.GATHER_RATE_PER_MIN;
 
     const cards = veins.map((vein) => {
       const xpHr = E.getRatePerHour(state, 'xp', sk.id);
@@ -339,7 +426,7 @@
             </div>
           </div>
           <div class="activity-stats">
-            <div class="activity-stat"><span class="activity-stat-label">${sk.name} Speed</span><span class="activity-stat-value">${speed.toFixed(2)}</span></div>
+            <div class="activity-stat"><span class="activity-stat-label">Speed</span><span class="activity-stat-value">${ratePerMin}/min</span></div>
             <div class="activity-stat"><span class="activity-stat-label">XP/hr</span><span class="activity-stat-value">${fmt(xpHr)}</span></div>
             <div class="activity-stat"><span class="activity-stat-label">${resName(vein.resource)}/hr</span><span class="activity-stat-value">${fmt(resHr)}</span></div>
           </div>
@@ -368,8 +455,9 @@
       if (locked) return `<div class="activity-card locked"><strong>Slot ${i + 1}</strong><p class="empty-msg">Unlocks at Smelting Lv ${C.SMELT_SLOT_UNLOCKS[i]}</p></div>`;
       const recipe = C.SMELT_RECIPES.find((r) => r.ore === slot.ore);
       const pct = slot.ore ? Math.min(100, (slot.progress / C.SMELT_TICKS_PER_ORE) * 100) : 0;
-      const oreOpts = C.SMELT_RECIPES.map((r) =>
-        `<option value="${r.ore}" ${slot.ore === r.ore ? 'selected' : ''}>${r.name}</option>`
+      const oreBtns = C.SMELT_RECIPES.map((r) =>
+        `<button type="button" class="btn-xs picker-btn${slot.ore === r.ore ? ' active' : ''}"
+          data-action="pick-smelt" data-slot="${i}" data-ore="${r.ore}">${r.name}</button>`
       ).join('');
 
       const readyBtn = slot.ready > 0
@@ -380,9 +468,7 @@
       return `
         <article class="activity-card">
           <strong>Smelter Slot ${i + 1}</strong>
-          <select class="slot-select" data-action="set-smelt" data-slot="${i}">
-            <option value="">— Select ore —</option>${oreOpts}
-          </select>
+          <div class="picker-row">${oreBtns}</div>
           ${slot.ore ? `<div class="progress-bar"><div class="progress-bar-fill" style="width:${pct}%"></div></div>
             <p class="empty-msg">Smelting ${recipe?.name ?? slot.ore}… (uses Storage ore)</p>` : ''}
           ${readyBtn}
@@ -409,9 +495,12 @@
       if (locked) return `<div class="activity-card locked"><strong>Slot ${i + 1}</strong><p class="empty-msg">Unlocks at Producing Lv ${C.UNLOCK_LEVELS[i]}</p></div>`;
       const def = C.PRODUCE_ITEMS.find((p) => p.id === slot.item);
       const pct = slot.item && def ? Math.min(100, (slot.progress / def.ticks) * 100) : 0;
-      const itemOpts = C.PRODUCE_ITEMS.map((p) => {
+      const itemBtns = C.PRODUCE_ITEMS.map((p) => {
         const ok = lv >= p.minLevel;
-        return `<option value="${p.id}" ${slot.item === p.id ? 'selected' : ''} ${ok ? '' : 'disabled'}>${p.name} (Lv ${p.minLevel})</option>`;
+        const cls = slot.item === p.id ? ' active' : '';
+        const dis = ok ? '' : ' disabled';
+        return `<button type="button" class="btn-xs picker-btn${cls}" data-action="pick-produce"
+          data-slot="${i}" data-item="${p.id}"${dis}>${p.name}</button>`;
       }).join('');
 
       const readyBtn = slot.ready > 0
@@ -422,9 +511,7 @@
       return `
         <article class="activity-card">
           <strong>Producer Slot ${i + 1}</strong>
-          <select class="slot-select" data-action="set-produce" data-slot="${i}">
-            <option value="">— Select product —</option>${itemOpts}
-          </select>
+          <div class="picker-row">${itemBtns}</div>
           ${slot.item ? `<div class="progress-bar"><div class="progress-bar-fill" style="width:${pct}%"></div></div>
             <p class="empty-msg">Producing ${def?.name ?? slot.item}…${slot.ready ? ` · ${slot.ready} ready` : ''}</p>` : ''}
           ${readyBtn}
@@ -573,7 +660,12 @@
     renderSidebar();
     renderMainPanel();
     renderClassModal();
-    renderUpgradeModal();
+    if (!selectedUpgradeId) {
+      const modal = $('upgrade-modal');
+      if (modal) modal.hidden = true;
+    } else {
+      renderUpgradeModal();
+    }
   }
 
   function handleClick(e) {
@@ -625,6 +717,40 @@
       render();
       return;
     }
+
+    if (action === 'store-inv') {
+      const char = selectedChar();
+      if (char && S.transferInvToStorage(state, char, Number(btn.dataset.slot))) {
+        addLog('Moved item to storage.');
+        render();
+      }
+      return;
+    }
+
+    if (action === 'take-storage') {
+      const char = selectedChar();
+      if (char && S.transferStorageToInv(state, char, Number(btn.dataset.slot))) {
+        addLog('Moved item to inventory.');
+        render();
+      } else {
+        addLog('Inventory full — could not take item.');
+      }
+      render();
+      return;
+    }
+
+    if (action === 'pick-smelt') {
+      E.setSmeltSlot(state, Number(btn.dataset.slot), btn.dataset.ore);
+      render();
+      return;
+    }
+
+    if (action === 'pick-produce') {
+      if (btn.disabled) return;
+      E.setProduceSlot(state, Number(btn.dataset.slot), btn.dataset.item);
+      render();
+      return;
+    }
     if (action === 'reset-save') {
       if (confirm('Reset all progress?')) {
         state = S.resetState();
@@ -638,29 +764,9 @@
     if (action === 'go-menu' && window.WorldrootGoMenu) window.WorldrootGoMenu();
   }
 
-  function handleChange(e) {
-    const el = e.target.closest('[data-action]');
-    if (!el) return;
-    if (el.dataset.action === 'set-smelt') {
-      const idx = Number(el.dataset.slot);
-      const ore = el.value || null;
-      if (ore) E.setSmeltSlot(state, idx, ore);
-      else E.clearSmeltSlot(state, idx);
-      render();
-    }
-    if (el.dataset.action === 'set-produce') {
-      const idx = Number(el.dataset.slot);
-      const item = el.value || null;
-      if (item) E.setProduceSlot(state, idx, item);
-      else E.clearProduceSlot(state, idx);
-      render();
-    }
-  }
-
   function init(initialState) {
     state = initialState;
     document.body.addEventListener('click', handleClick);
-    document.body.addEventListener('change', handleChange);
     renderSidebar();
     switchPage(state.characters.length ? 'characters' : 'combat');
     if (!state.characters.length) renderClassModal();

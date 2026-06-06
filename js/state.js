@@ -70,6 +70,8 @@
       target: null,
       inventorySlots: emptySlotArray(C.BASE_INVENTORY_SLOTS),
       extraBagSlots: 0,
+      gatherCd: 0,
+      combatState: null,
     };
   }
 
@@ -156,6 +158,8 @@
       skills,
       inventorySlots,
       extraBagSlots: c.extraBagSlots ?? 0,
+      gatherCd: c.gatherCd ?? 0,
+      combatState: c.combatState ?? null,
     };
   }
 
@@ -338,8 +342,34 @@
   }
 
   function addToStorage(state, resourceId, amount) {
-    const maxStack = C.BASE_STACK_SIZE;
+    const maxStack = C.STORAGE_STACK_MAX ?? 999999999;
     return addToSlots(state.storageSlots, resourceId, amount, maxStack, state.storageSlots.length);
+  }
+
+  function transferInvToStorage(state, char, slotIdx) {
+    const slot = char.inventorySlots[slotIdx];
+    if (!slot || slot.amount <= 0) return false;
+    const result = addToStorage(state, slot.resourceId, slot.amount);
+    if (result.added > 0) {
+      char.inventorySlots[slotIdx] = null;
+      saveState(state);
+      return true;
+    }
+    return false;
+  }
+
+  function transferStorageToInv(state, char, slotIdx) {
+    const slot = state.storageSlots[slotIdx];
+    if (!slot || slot.amount <= 0) return false;
+    const skillId = RESOURCE_SKILL_MAP[slot.resourceId] || 'combat';
+    const result = addToInventory(char, state, slot.resourceId, slot.amount, skillId);
+    if (result.added > 0) {
+      slot.amount -= result.added;
+      if (slot.amount <= 0) state.storageSlots[slotIdx] = null;
+      saveState(state);
+      return true;
+    }
+    return false;
   }
 
   function storageHas(state, resourceId, amount) {
@@ -352,7 +382,8 @@
 
   function loadState() {
     const keys = [
-      getSaveKey(), 'worldroot_save_v3', 'worldroot_save_offline_v3',
+      getSaveKey(), 'worldroot_save_v4', 'worldroot_save_offline_v4',
+      'worldroot_save_v3', 'worldroot_save_offline_v3',
       'worldroot_save_v2', 'worldroot_save_offline_v2',
     ];
     for (const key of keys) {
@@ -410,6 +441,8 @@
     if (!char) return;
     char.activity = activityId;
     char.target = targetId ?? null;
+    char.gatherCd = 0;
+    if (activityId !== 'combat') char.combatState = null;
     saveState(state);
   }
 
@@ -418,6 +451,8 @@
     if (!char) return;
     char.activity = null;
     char.target = null;
+    char.gatherCd = 0;
+    char.combatState = null;
     saveState(state);
   }
 
@@ -448,5 +483,6 @@
     stackCapacity, inventorySlotCount, countInSlots, countEmptySlots,
     addToInventory, addToStorage, removeFromStorage, storageHas,
     addToSlots, removeFromSlots, carryEffectForSkill, stackCapacityForResource,
+    transferInvToStorage, transferStorageToInv,
   };
 })();

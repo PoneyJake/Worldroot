@@ -108,6 +108,56 @@
     return Math.floor((1 + lv * 0.05 + yieldB) * statM * 100) / 100;
   }
 
+  function gatherIntervalTicks(state, skillId, char) {
+    const speed = skillSpeed(state, skillId, char);
+    return Math.max(1, Math.floor(C.GATHER_INTERVAL_TICKS / speed));
+  }
+
+  function gatherRatePerMin(state, skillId, char) {
+    const interval = gatherIntervalTicks(state, skillId, char);
+    const tickSec = C.TICK_MS / 1000;
+    const actionsPerMin = 60 / (interval * tickSec);
+    return Math.floor(actionsPerMin * 100) / 100;
+  }
+
+  function charMaxHp(state, char) {
+    const baseHp = C.BASE_CHAR_HP;
+    const hpBonus = effectBonus(state, 'base_hp');
+    const combatLv = char.skills.combat?.level ?? 0;
+    return Math.floor(baseHp + hpBonus + combatLv * 5);
+  }
+
+  function charDamage(state, char) {
+    const dmgM = combatDamageMult(state, char);
+    const baseDmg = effectBonus(state, 'base_damage');
+    const combatLv = char.skills.combat?.level ?? 0;
+    return Math.max(1, Math.floor(4 * dmgM + baseDmg + combatLv * 0.5));
+  }
+
+  function mobMaxHp(monster) {
+    return monster.hp + monster.level * 5;
+  }
+
+  function initCombatState(state, char, monster) {
+    const maxHp = mobMaxHp(monster);
+    const charHp = charMaxHp(state, char);
+    char.combatState = {
+      mobId: monster.id,
+      mobHp: maxHp,
+      mobMaxHp: maxHp,
+      charHp,
+      charMaxHp: charHp,
+    };
+  }
+
+  function ensureCombatState(state, char, monster) {
+    const cs = char.combatState;
+    if (!cs || cs.mobId !== monster.id) {
+      initCombatState(state, char, monster);
+    }
+    return char.combatState;
+  }
+
   function smeltSlotsUnlocked(state) {
     return C.SMELT_SLOT_UNLOCKS.filter((req) => state.smelting.skill.level >= req).length;
   }
@@ -182,38 +232,67 @@
     const skill = char.skills[skillId];
     if (!skill) return null;
 
-    const xpMult = 1 + skillXpBonus(state, skillId);
-    const xpGain = Math.floor(C.BASE_XP_PER_TICK * xpMult);
-    S.grantXp(skill, xpGain);
-
     const event = {
       charClass: char.classId, activity: char.activity, target: char.target,
-      xpGain, skill: skillId, resource: null, resourceAmount: 0, gold: 0,
+      xpGain: 0, skill: skillId, resource: null, resourceAmount: 0, gold: 0,
       kill: false, monster: null, loot: null, lootAmount: 0, lost: 0,
+      charHp: null, mobHp: null,
     };
 
     if (char.activity === 'combat') {
       const monster = findMonster(char.target);
       if (skill.level < monster.level) return event;
 
-      const goldMult = 1 + effectBonus(state, 'gold_gain');
-      const dropMult = 1 + effectBonus(state, 'drop_rate');
-      event.kill = true;
-      event.monster = monster.id;
+      const cs = ensureCombatState(state, char, monster);
+      event.charHp = cs.charHp;
+      event.mobHp = cs.mobHp;
 
-      if (monster.drop) {
-        const dropAmt = Math.max(1, Math.floor(monster.drop.amount * dropMult));
-        const result = S.addToInventory(char, state, monster.drop.id, dropAmt, 'combat');
-        event.loot = monster.drop.id;
-        event.lootAmount = result.added;
-        event.lost = result.lost;
-      }
+      const charDmg = charDamage(state, char);
+      const defence = effectBonus(state, 'base_defence');
+      const mobDmg = Math.max(1, Math.floor(monster.damage - defence * 0.5));
 
-      const dmgM = combatDamageMult(state, char);
-      const goldGain = Math.floor((monster.level + 1) * 0.5 * goldMult * dmgM);
-      if (goldGain > 0) {
-        state.gold += goldGain;
-        event.gold = goldGain;
+      cs.mobHp -= charDmg;
+      event.mobHp = cs.mobHp;
+
+      if (cs.mobHp <= 0) {
+        const xpMult = 1 + skillXpBonus(state, 'combat');
+        const xpGain = Math.floor(C.BASE_XP_PER_TICK * 3 * xpMult);
+        S.grantXp(skill, xpGain);
+        event.xpGain = xpGain;
+        event.kill = true;
+        event.monster = monster.id;
+
+        const goldMult = 1 + effectBonus(state, 'gold_gain');
+        const goldMin = monster.goldMin ?? 1;
+        const goldMax = monster.goldMax ?? goldMin;
+        const goldGain = Math.floor((goldMin + Math.random() * (goldMax - goldMin + 1)) * goldMult);
+        if (goldGain > 0) {
+          state.gold += goldGain;
+          event.gold = goldGain;
+        }
+
+        const dropChance = C.BASE_DROP_CHANCE + effectBonus(state, 'drop_rate');
+        if (monster.drop && Math.random() < dropChance) {
+          const dropAmt = monster.drop.amount;
+          const result = S.addToInventory(char, state, monster.drop.id, dropAmt, 'combat');
+          event.loot = monster.drop.id;
+          event.lootAmount = result.added;
+          event.lost = result.lost;
+        }
+
+        cs.mobHp = cs.mobMaxHp;
+        cs.charHp = Math.min(cs.charMaxHp, cs.charHp + Math.floor(cs.charMaxHp * 0.1));
+        event.mobHp = cs.mobHp;
+        event.charHp = cs.charHp;
+      } else {
+        cs.charHp -= mobDmg;
+        event.charHp = cs.charHp;
+        if (cs.charHp <= 0) {
+          cs.charHp = cs.charMaxHp;
+          char.activity = null;
+          char.target = null;
+          char.combatState = null;
+        }
       }
       return event;
     }
@@ -221,9 +300,18 @@
     const vein = findVein(skillId, char.target);
     if (!vein || skill.level < vein.minLevel) return event;
 
-    const speed = skillSpeed(state, skillId, char);
+    char.gatherCd = (char.gatherCd || 0) + 1;
+    const interval = gatherIntervalTicks(state, skillId, char);
+    if (char.gatherCd < interval) return event;
+
+    char.gatherCd = 0;
+    const xpMult = 1 + skillXpBonus(state, skillId);
+    const xpGain = Math.floor(C.BASE_XP_PER_TICK * xpMult);
+    S.grantXp(skill, xpGain);
+    event.xpGain = xpGain;
+
     const multiMult = skillMultiBonus(state, skillId);
-    let amount = Math.max(1, Math.floor(C.BASE_RESOURCE_PER_TICK * speed));
+    let amount = Math.max(1, Math.floor(C.BASE_RESOURCE_PER_TICK * skillSpeed(state, skillId, char)));
     if (Math.random() < multiMult * 0.1) {
       amount += Math.max(1, Math.floor(C.BASE_RESOURCE_PER_TICK * gatherStatMult(state, char, skillId)));
     }
@@ -349,6 +437,7 @@
   window.WorldrootEngine = {
     upgradeLevel, upgradeCosts, upgradeBonusDisplay, upgradeBonusPercent, effectBonus,
     skillXpBonus, skillYieldBonus, skillMultiBonus, skillSpeed,
+    gatherIntervalTicks, gatherRatePerMin, charMaxHp, charDamage, mobMaxHp,
     charStat, gatherStatMult, combatDamageMult,
     tick, buyUpgrade, canAffordUpgrade, findVein, findMonster,
     getRatePerHour, findUpgradeNode, smeltSlotsUnlocked, produceSlotsUnlocked,
