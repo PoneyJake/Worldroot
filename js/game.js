@@ -670,7 +670,7 @@ window.WorldrootConfig = {
     document.querySelectorAll('.tab-btn').forEach((btn) => {
       btn.classList.toggle('active', btn.dataset.tab === tabId);
     });
-    Object.entries(panels).forEach(([id, el) => {
+    Object.entries(panels).forEach(([id, el]) => {
       el.classList.toggle('hidden', id !== tabId);
     });
     renderActivePanel();
