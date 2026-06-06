@@ -16,7 +16,17 @@
   function $(id) { return document.getElementById(id); }
   function fmt(n) { return Math.floor(n).toLocaleString(); }
   function resName(id) { return C.RESOURCE_NAMES?.[id] ?? id; }
-  function resIcon(id) { return C.RESOURCE_ICONS?.[id] ?? '📦'; }
+  function iconSrc(key) {
+    const file = C.GAME_ICONS?.[key];
+    if (!file) return null;
+    return `${C.ICON_BASE}/${file}.png`;
+  }
+  function iconHtml(key, className = 'game-icon') {
+    const src = iconSrc(key);
+    if (!src) return `<span class="${className} icon-fallback">?</span>`;
+    return `<img class="${className}" src="${src}" alt="" draggable="false" loading="lazy" />`;
+  }
+  function resIcon(id) { return iconHtml(id, 'game-icon'); }
   function skillName(id) { return C.SKILLS[id]?.name ?? id; }
 
   function renderCharSwitcher() {
@@ -407,7 +417,7 @@
         </div>
         <div class="combat-vs">⚔</div>
         <div class="combat-fighter mob">
-          <span class="fighter-icon">${monster.icon}</span>
+          <span class="fighter-icon">${iconHtml(monster.id, 'game-icon xl')}</span>
           <span class="fighter-name">${monster.name}</span>
           <div class="hp-bar"><div class="hp-bar-fill mob" style="width:${mobPct}%"></div></div>
           <span class="hp-text">${fmt(mobHp)} / ${fmt(mobMax)} HP · ${monster.damage} dmg</span>
@@ -428,7 +438,7 @@
       return `
         <article class="activity-card ${locked ? 'locked' : ''}">
           <div class="activity-card-head">
-            <span class="activity-card-icon">${mob.icon}</span>
+            <span class="activity-card-icon">${iconHtml(mob.id, 'game-icon lg')}</span>
             <div class="activity-card-title">
               <strong>${mob.name}</strong>
               <span>Lv ${mob.level} · ${E.mobMaxHp(mob)} HP · ${mob.damage} dmg</span>
@@ -483,7 +493,7 @@
       return `
         <article class="activity-card ${locked ? 'locked' : ''}">
           <div class="activity-card-head">
-            <span class="activity-card-icon">${vein.icon}</span>
+            <span class="activity-card-icon">${iconHtml(vein.icon, 'game-icon lg')}</span>
             <div class="activity-card-title">
               <strong>${vein.name}</strong>
               <span>${resIcon(vein.resource)} ${resName(vein.resource)} · Lv ${vein.minLevel}</span>

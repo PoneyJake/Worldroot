@@ -127,6 +127,34 @@
     return slots;
   }
 
+  const RESOURCE_ID_MIGRATE = {
+    goblin_ear: 'wisp_essence',
+    wolf_fur: 'gloomspore',
+    bandit_emblem: 'bat_wing_membrane',
+  };
+
+  const MONSTER_ID_MIGRATE = {
+    goblin_scout: 'will_o_wisp',
+    dire_wolf: 'gloomcap',
+    forest_bandit: 'spore_bat',
+  };
+
+  function migrateResourceId(id) {
+    return RESOURCE_ID_MIGRATE[id] || id;
+  }
+
+  function migrateMonsterId(id) {
+    return MONSTER_ID_MIGRATE[id] || id;
+  }
+
+  function migrateSlotArray(slots) {
+    if (!Array.isArray(slots)) return slots;
+    for (const slot of slots) {
+      if (slot?.resourceId) slot.resourceId = migrateResourceId(slot.resourceId);
+    }
+    return slots;
+  }
+
   function migrateUpgrades(oldUpgrades) {
     const u = emptyUpgrades();
     if (!oldUpgrades || typeof oldUpgrades !== 'object') return u;
@@ -153,16 +181,24 @@
       fishing: { ...defaultSkill(), ...c.skills?.fishing },
     };
 
+    const target = c.activity === 'combat' && c.target
+      ? migrateMonsterId(c.target)
+      : (c.target ?? null);
+    let combatState = c.combatState ?? null;
+    if (combatState?.mobId) {
+      combatState = { ...combatState, mobId: migrateMonsterId(combatState.mobId) };
+    }
+
     return {
       classId: c.classId,
       activity: c.activity ?? null,
-      target: c.target ?? null,
+      target,
       skills,
-      inventorySlots,
+      inventorySlots: migrateSlotArray(inventorySlots),
       extraBagSlots: c.extraBagSlots ?? 0,
       gatherCd: c.gatherCd ?? 0,
       combatCd: c.combatCd ?? 0,
-      combatState: c.combatState ?? null,
+      combatState,
     };
   }
 
@@ -171,17 +207,30 @@
     state.gold = data.gold ?? 0;
 
     if (Array.isArray(data.storageSlots)) {
-      state.storageSlots = data.storageSlots;
+      state.storageSlots = migrateSlotArray(data.storageSlots);
     } else {
       state.storageSlots = migrateDictToSlots(data.storage || data.resources, C.BASE_STORAGE_SLOTS);
     }
     while (state.storageSlots.length < C.BASE_STORAGE_SLOTS) state.storageSlots.push(null);
 
+    if (data.rateStats) {
+      const rs = { ...defaultRateStats(), ...data.rateStats };
+      const kills = {};
+      for (const [k, v] of Object.entries(rs.kills || {})) {
+        kills[migrateMonsterId(k)] = (kills[migrateMonsterId(k)] || 0) + v;
+      }
+      rs.kills = kills;
+      const loot = {};
+      for (const [k, v] of Object.entries(rs.loot || {})) {
+        loot[migrateResourceId(k)] = (loot[migrateResourceId(k)] || 0) + v;
+      }
+      rs.loot = loot;
+      state.rateStats = rs;
+    }
+
     state.upgrades = migrateUpgrades(data.upgrades);
     state.pendingSlot = data.pendingSlot ?? (data.characters?.length ? null : 1);
     state.selectedCharIndex = data.selectedCharIndex ?? 0;
-    if (data.rateStats) state.rateStats = { ...defaultRateStats(), ...data.rateStats };
-
     if (data.producing) {
       state.producing = {
         skill: { ...defaultSkill(), ...data.producing.skill },
@@ -272,7 +321,8 @@
     copper_bar: 'mining', iron_bar: 'mining', gold_bar: 'mining', platinum_bar: 'mining',
     oak: 'woodcutting', spruce: 'woodcutting', birch: 'woodcutting', jungle: 'woodcutting',
     shrimp: 'fishing', trout: 'fishing', salmon: 'fishing', lobster: 'fishing',
-    slime_gel: 'combat', goblin_ear: 'combat', wolf_fur: 'combat', bandit_emblem: 'combat',
+    slime_gel: 'combat', wisp_essence: 'combat', gloomspore: 'combat', bat_wing_membrane: 'combat',
+    goblin_ear: 'combat', wolf_fur: 'combat', bandit_emblem: 'combat',
     twine: 'producing', wooden_pegs: 'producing', iron_nails: 'producing', resin: 'producing',
   };
 

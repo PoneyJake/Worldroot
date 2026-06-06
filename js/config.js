@@ -85,44 +85,44 @@ window.WorldrootConfig = {
 
   VEINS: {
     mining: [
-      { id: 'copper_vein', name: 'Copper Vein', resource: 'copper', minLevel: 0, icon: '🟤' },
-      { id: 'iron_vein', name: 'Iron Vein', resource: 'iron', minLevel: 5, icon: '⬜' },
-      { id: 'gold_vein', name: 'Gold Vein', resource: 'gold', minLevel: 10, icon: '🟡' },
-      { id: 'platinum_vein', name: 'Platinum Vein', resource: 'platinum', minLevel: 15, icon: '💎' },
+      { id: 'copper_vein', name: 'Copper Vein', resource: 'copper', minLevel: 0, icon: 'copper_vein' },
+      { id: 'iron_vein', name: 'Iron Vein', resource: 'iron', minLevel: 5, icon: 'iron_vein' },
+      { id: 'gold_vein', name: 'Gold Vein', resource: 'gold', minLevel: 10, icon: 'gold_vein' },
+      { id: 'platinum_vein', name: 'Platinum Vein', resource: 'platinum', minLevel: 15, icon: 'platinum_vein' },
     ],
     woodcutting: [
-      { id: 'oak_grove', name: 'Oak Grove', resource: 'oak', minLevel: 0, icon: '🌳' },
-      { id: 'spruce_grove', name: 'Spruce Grove', resource: 'spruce', minLevel: 5, icon: '🌲' },
-      { id: 'birch_grove', name: 'Birch Grove', resource: 'birch', minLevel: 10, icon: '🌿' },
-      { id: 'jungle_grove', name: 'Jungle Grove', resource: 'jungle', minLevel: 15, icon: '🌴' },
+      { id: 'oak_grove', name: 'Oak Grove', resource: 'oak', minLevel: 0, icon: 'oak_grove' },
+      { id: 'spruce_grove', name: 'Spruce Grove', resource: 'spruce', minLevel: 5, icon: 'spruce_grove' },
+      { id: 'birch_grove', name: 'Birch Grove', resource: 'birch', minLevel: 10, icon: 'birch_grove' },
+      { id: 'jungle_grove', name: 'Jungle Grove', resource: 'jungle', minLevel: 15, icon: 'jungle_grove' },
     ],
     fishing: [
-      { id: 'shrimp_spot', name: 'Shrimp Spot', resource: 'shrimp', minLevel: 0, icon: '🦐' },
-      { id: 'trout_spot', name: 'Trout Spot', resource: 'trout', minLevel: 5, icon: '🐟' },
-      { id: 'salmon_spot', name: 'Salmon Spot', resource: 'salmon', minLevel: 10, icon: '🐠' },
-      { id: 'lobster_spot', name: 'Lobster Spot', resource: 'lobster', minLevel: 15, icon: '🦞' },
+      { id: 'shrimp_spot', name: 'Shrimp Spot', resource: 'shrimp', minLevel: 0, icon: 'shrimp' },
+      { id: 'trout_spot', name: 'Trout Spot', resource: 'trout', minLevel: 5, icon: 'trout' },
+      { id: 'salmon_spot', name: 'Salmon Spot', resource: 'salmon', minLevel: 10, icon: 'salmon' },
+      { id: 'lobster_spot', name: 'Lobster Spot', resource: 'lobster', minLevel: 15, icon: 'lobster' },
     ],
   },
 
   MONSTERS: [
-    { id: 'forest_slime', name: 'Forest Slime', level: 0, icon: '🫠', hp: 20, damage: 2, goldMin: 1, goldMax: 3, drop: { id: 'slime_gel', name: 'Slime Gel', amount: 1 } },
-    { id: 'goblin_scout', name: 'Goblin Scout', level: 5, icon: '👺', hp: 45, damage: 4, goldMin: 3, goldMax: 6, drop: { id: 'goblin_ear', name: 'Goblin Ear', amount: 1 } },
-    { id: 'dire_wolf', name: 'Dire Wolf', level: 10, icon: '🐺', hp: 80, damage: 7, goldMin: 5, goldMax: 10, drop: { id: 'wolf_fur', name: 'Wolf Fur', amount: 1 } },
-    { id: 'forest_bandit', name: 'Forest Bandit', level: 15, icon: '🥷', hp: 120, damage: 10, goldMin: 8, goldMax: 15, drop: { id: 'bandit_emblem', name: 'Bandit Emblem', amount: 1 } },
+    { id: 'forest_slime', name: 'Forest Slime', level: 0, hp: 20, damage: 2, goldMin: 1, goldMax: 3, drop: { id: 'slime_gel', name: 'Ectoplasm', amount: 1 } },
+    { id: 'will_o_wisp', name: 'Will-O-Wisp', level: 5, hp: 45, damage: 4, goldMin: 3, goldMax: 6, drop: { id: 'wisp_essence', name: 'Wisp Essence', amount: 1 } },
+    { id: 'gloomcap', name: 'Gloomcap', level: 10, hp: 80, damage: 7, goldMin: 5, goldMax: 10, drop: { id: 'gloomspore', name: 'Gloomspore', amount: 1 } },
+    { id: 'spore_bat', name: 'Spore Bat', level: 15, hp: 120, damage: 10, goldMin: 8, goldMax: 15, drop: { id: 'bat_wing_membrane', name: 'Bat Wing Membrane', amount: 1 } },
   ],
 
   SMELT_RECIPES: [
-    { ore: 'copper', bar: 'copper_bar', name: 'Copper Bar', icon: '🟫' },
-    { ore: 'iron', bar: 'iron_bar', name: 'Iron Bar', icon: '▫️' },
-    { ore: 'gold', bar: 'gold_bar', name: 'Gold Bar', icon: '🟨' },
-    { ore: 'platinum', bar: 'platinum_bar', name: 'Platinum Bar', icon: '⬜' },
+    { ore: 'copper', bar: 'copper_bar', name: 'Copper Bar' },
+    { ore: 'iron', bar: 'iron_bar', name: 'Iron Bar' },
+    { ore: 'gold', bar: 'gold_bar', name: 'Gold Bar' },
+    { ore: 'platinum', bar: 'platinum_bar', name: 'Platinum Bar' },
   ],
 
   PRODUCE_ITEMS: [
-    { id: 'twine', name: 'Twine', minLevel: 0, icon: '🧶', output: 1, ticks: 8, xp: 8 },
-    { id: 'wooden_pegs', name: 'Wooden Pegs', minLevel: 5, icon: '📌', output: 1, ticks: 12, xp: 12 },
-    { id: 'iron_nails', name: 'Iron Nails', minLevel: 10, icon: '🔩', output: 1, ticks: 16, xp: 16 },
-    { id: 'resin', name: 'Resin', minLevel: 15, icon: '🍯', output: 1, ticks: 20, xp: 20 },
+    { id: 'twine', name: 'Twine', minLevel: 0, output: 1, ticks: 8, xp: 8 },
+    { id: 'wooden_pegs', name: 'Wooden Pegs', minLevel: 5, output: 1, ticks: 12, xp: 12 },
+    { id: 'iron_nails', name: 'Iron Nails', minLevel: 10, output: 1, ticks: 16, xp: 16 },
+    { id: 'resin', name: 'Resin', minLevel: 15, output: 1, ticks: 20, xp: 20 },
   ],
 
   ACTIVITIES: [
@@ -137,7 +137,7 @@ window.WorldrootConfig = {
     'copper_bar', 'iron_bar', 'gold_bar', 'platinum_bar',
     'oak', 'spruce', 'birch', 'jungle',
     'shrimp', 'trout', 'salmon', 'lobster',
-    'slime_gel', 'goblin_ear', 'wolf_fur', 'bandit_emblem',
+    'slime_gel', 'wisp_essence', 'gloomspore', 'bat_wing_membrane',
     'twine', 'wooden_pegs', 'iron_nails', 'resin',
   ],
 
@@ -146,17 +146,21 @@ window.WorldrootConfig = {
     copper_bar: 'Copper Bar', iron_bar: 'Iron Bar', gold_bar: 'Gold Bar', platinum_bar: 'Platinum Bar',
     oak: 'Oak Log', spruce: 'Spruce Log', birch: 'Birch Log', jungle: 'Jungle Log',
     shrimp: 'Shrimp', trout: 'Trout', salmon: 'Salmon', lobster: 'Lobster',
-    slime_gel: 'Slime Gel', goblin_ear: 'Goblin Ear', wolf_fur: 'Wolf Fur', bandit_emblem: 'Bandit Emblem',
+    slime_gel: 'Ectoplasm', wisp_essence: 'Wisp Essence', gloomspore: 'Gloomspore', bat_wing_membrane: 'Bat Wing Membrane',
     twine: 'Twine', wooden_pegs: 'Wooden Pegs', iron_nails: 'Iron Nails', resin: 'Resin',
   },
 
-  RESOURCE_ICONS: {
-    copper: '🟤', iron: '⬜', gold: '🟡', platinum: '💎',
-    copper_bar: '🟫', iron_bar: '▫️', gold_bar: '🟨', platinum_bar: '⬜',
-    oak: '🌳', spruce: '🌲', birch: '🌿', jungle: '🌴',
-    shrimp: '🦐', trout: '🐟', salmon: '🐠', lobster: '🦞',
-    slime_gel: '🧴', goblin_ear: '👂', wolf_fur: '🧶', bandit_emblem: '🎖️',
-    twine: '🧶', wooden_pegs: '📌', iron_nails: '🔩', resin: '🍯',
+  ICON_BASE: 'assets/icons',
+  GAME_ICONS: {
+    forest_slime: 'forest_slime', will_o_wisp: 'will_o_wisp', gloomcap: 'gloomcap', spore_bat: 'spore_bat',
+    slime_gel: 'slime_gel', wisp_essence: 'wisp_essence', gloomspore: 'gloomspore', bat_wing_membrane: 'bat_wing_membrane',
+    copper: 'copper', iron: 'iron', gold: 'gold', platinum: 'platinum',
+    copper_bar: 'copper_bar', iron_bar: 'iron_bar', gold_bar: 'gold_bar', platinum_bar: 'platinum_bar',
+    copper_vein: 'copper_vein', iron_vein: 'iron_vein', gold_vein: 'gold_vein', platinum_vein: 'platinum_vein',
+    oak: 'oak', spruce: 'spruce', birch: 'birch', jungle: 'jungle',
+    oak_grove: 'oak_grove', spruce_grove: 'spruce_grove', birch_grove: 'birch_grove', jungle_grove: 'jungle_grove',
+    shrimp: 'shrimp', trout: 'trout', salmon: 'salmon', lobster: 'lobster',
+    twine: 'twine', wooden_pegs: 'wooden_pegs', iron_nails: 'iron_nails', resin: 'resin',
   },
 
   CARRY_EFFECT_BY_SKILL: {
@@ -177,7 +181,7 @@ window.WorldrootConfig = {
         { id: 'base_accuracy', name: '+ Base Accuracy', effect: 'base_accuracy', bonusType: 'flat', desc: 'Increases hit accuracy', costRes: 'twine', baseCost: 25 },
         { id: 'base_defence', name: '+ Base Defence', effect: 'base_defence', bonusType: 'flat', desc: 'Increases base defence', costRes: 'iron', baseCost: 20 },
         { id: 'crit_damage', name: '+% Crit Damage', effect: 'crit_damage', bonusType: 'percent', desc: 'Increases critical damage', costRes: 'wooden_pegs', baseCost: 30 },
-        { id: 'crit_chance', name: '+% Crit Chance', effect: 'crit_chance', bonusType: 'percent', desc: 'Increases critical chance', costRes: 'bandit_emblem', baseCost: 30 },
+        { id: 'crit_chance', name: '+% Crit Chance', effect: 'crit_chance', bonusType: 'percent', desc: 'Increases critical chance', costRes: 'bat_wing_membrane', baseCost: 30 },
         { id: 'drop_rate', name: '+% Drop Rate', effect: 'drop_rate', bonusType: 'percent', desc: 'Increases loot drop rate', costRes: 'platinum_bar', baseCost: 25 },
         { id: 'strength', name: '+ Strength', effect: 'strength', bonusType: 'flat', desc: 'Increases strength', costRes: 'spruce', baseCost: 25 },
         { id: 'agility', name: '+ Agility', effect: 'agility', bonusType: 'flat', desc: 'Increases agility', costRes: 'trout', baseCost: 25 },
@@ -191,7 +195,7 @@ window.WorldrootConfig = {
       nodes: [
         { id: 'base_mining_eff', name: '+ Base Mining Efficiency', effect: 'mining_yield', bonusType: 'flat', desc: 'Mine more ore per action', costRes: 'oak', baseCost: 30 },
         { id: 'mining_carry', name: '+% Carrying Capacity', effect: 'mining_carry', bonusType: 'percent', desc: 'More ore per inventory slot', costRes: 'trout', baseCost: 25 },
-        { id: 'multi_ore', name: '+% Multi-Ore Chance', effect: 'mining_multi', bonusType: 'percent', desc: 'Chance for extra ore', costRes: 'wolf_fur', baseCost: 35 },
+        { id: 'multi_ore', name: '+% Multi-Ore Chance', effect: 'mining_multi', bonusType: 'percent', desc: 'Chance for extra ore', costRes: 'gloomspore', baseCost: 35 },
         { id: 'mining_xp', name: '+% Mining Exp Gain', effect: 'mining_xp', bonusType: 'percent', desc: 'More mining XP', costRes: 'wooden_pegs', baseCost: 30 },
       ],
     },
@@ -210,7 +214,7 @@ window.WorldrootConfig = {
         { id: 'base_fish_eff', name: '+ Base Fishing Efficiency', effect: 'fishing_yield', bonusType: 'flat', desc: 'Catch more fish per action', costRes: 'copper', baseCost: 30 },
         { id: 'fish_carry', name: '+% Carrying Capacity', effect: 'fishing_carry', bonusType: 'percent', desc: 'More fish per inventory slot', costRes: 'spruce', baseCost: 25 },
         { id: 'multi_fish', name: '+% Multi-Catch Chance', effect: 'fishing_multi', bonusType: 'percent', desc: 'Chance for extra fish', costRes: 'gold_bar', baseCost: 35 },
-        { id: 'fish_xp', name: '+% Fishing Exp Gain', effect: 'fishing_xp', bonusType: 'percent', desc: 'More fishing XP', costRes: 'goblin_ear', baseCost: 30 },
+        { id: 'fish_xp', name: '+% Fishing Exp Gain', effect: 'fishing_xp', bonusType: 'percent', desc: 'More fishing XP', costRes: 'wisp_essence', baseCost: 30 },
       ],
     },
     {
