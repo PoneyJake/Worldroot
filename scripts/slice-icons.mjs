@@ -2,123 +2,83 @@ import sharp from 'sharp';
 import fs from 'fs';
 import path from 'path';
 
-const SRC = 'assets/icons/spritesheet.png';
+const SRC_DIR = process.env.ICON_SRC || 'C:/Worldroot/Image crop';
 const OUT = 'assets/icons';
+const MAX = 96;
+const PAD = 6;
 
-const W = 80;
-const H = 68;
-
-const LEFT_X = [20, 118, 208, 258];
-const MID_X = [450, 535, 620, 705];
-const LOG_X = [808, 906];
-const ROW_Y = [78, 203, 388, 453];
-
-function left(row, col) {
-  return { left: LEFT_X[col], top: ROW_Y[row] };
-}
-
-function mid(row, col) {
-  return { left: MID_X[col], top: ROW_Y[row] };
-}
-
-function log(row, col) {
-  return { left: LOG_X[col], top: ROW_Y[row] };
-}
-
-const SLICES = {
-  forest_slime: left(0, 0),
-  will_o_wisp: left(0, 1),
-  gloomcap: left(0, 2),
-  spore_bat: left(0, 3),
-  slime_gel: left(1, 0),
-  wisp_essence: left(1, 1),
-  gloomspore: left(1, 2),
-  bat_wing_membrane: left(1, 3),
-  shrimp: left(2, 0),
-  trout: left(2, 1),
-  salmon: left(2, 2),
-  lobster: left(2, 3),
-  copper_bar: left(3, 0),
-  iron_bar: left(3, 1),
-  gold_bar: left(3, 2),
-  platinum_bar: left(3, 3),
-
-  copper: mid(0, 0),
-  iron: mid(0, 1),
-  gold: mid(0, 2),
-  platinum: mid(0, 3),
-  copper_vein: mid(1, 0),
-  iron_vein: mid(1, 1),
-  gold_vein: mid(1, 2),
-  platinum_vein: mid(1, 3),
-
-  oak_grove: { left: MID_X[0], top: 388 },
-  spruce_grove: { left: MID_X[1], top: 388 },
-  birch_grove: { left: MID_X[2], top: 388 },
-  jungle_grove: { left: MID_X[3], top: 388 },
-
-  twine: { left: 485, top: 565 },
-  wooden_pegs: { left: 575, top: 565 },
-  iron_nails: { left: 655, top: 565 },
-  resin: { left: 715, top: 565 },
-
-  oak: log(0, 0),
-  spruce: log(0, 1),
-  birch: log(1, 0),
-  jungle: log(1, 1),
+const ICONS = {
+  forest_slime: 'Slime-jukebox-bg-removed.png',
+  will_o_wisp: 'Will-O-Wisp-jukebox-bg-removed.png',
+  gloomcap: 'Gloomcap-jukebox-bg-removed.png',
+  spore_bat: 'Spore Bat-jukebox-bg-removed.png',
+  slime_gel: 'Ectoplasm-jukebox-bg-removed.png',
+  wisp_essence: 'Wisp Essence-jukebox-bg-removed.png',
+  gloomspore: 'Gloomspore-jukebox-bg-removed.png',
+  bat_wing_membrane: 'Bat Wing Membrane-jukebox-bg-removed.png',
+  shrimp: 'Shrimp-jukebox-bg-removed.png',
+  trout: 'Trout-jukebox-bg-removed.png',
+  salmon: 'Salmon-jukebox-bg-removed.png',
+  lobster: 'Lobster-jukebox-bg-removed.png',
+  copper_bar: 'Copper Bar-jukebox-bg-removed.png',
+  iron_bar: 'Iron Bar-jukebox-bg-removed.png',
+  gold_bar: 'Gold Bar-jukebox-bg-removed.png',
+  platinum_bar: 'Platinum Bar-jukebox-bg-removed.png',
+  copper: 'Copper Ore-jukebox-bg-removed.png',
+  iron: 'Iron Ore-jukebox-bg-removed.png',
+  gold: 'Gold Ore-jukebox-bg-removed.png',
+  platinum: 'Platinum Ore-jukebox-bg-removed.png',
+  copper_vein: 'Copper Vein-jukebox-bg-removed.png',
+  iron_vein: 'Iron Vein-jukebox-bg-removed.png',
+  gold_vein: 'Gold Vein-jukebox-bg-removed.png',
+  platinum_vein: 'Platinum Vein-jukebox-bg-removed.png',
+  oak_grove: 'Oak Tree-jukebox-bg-removed.png',
+  spruce_grove: 'Spruce Tree-jukebox-bg-removed.png',
+  birch_grove: 'Birch Tree-jukebox-bg-removed.png',
+  jungle_grove: 'Jungle Tree-jukebox-bg-removed.png',
+  oak: 'Oak Log-jukebox-bg-removed.png',
+  spruce: 'Spruce Log-jukebox-bg-removed.png',
+  birch: 'Birch Log-jukebox-bg-removed.png',
+  jungle: 'Jungle Log-jukebox-bg-removed.png',
+  twine: 'Twine-jukebox-bg-removed.png',
+  wooden_pegs: 'Wooden Pegs-jukebox-bg-removed.png',
+  iron_nails: 'Iron Nails-jukebox-bg-removed.png',
+  resin: 'Resin-jukebox-bg-removed.png',
 };
 
-function stripCheckerboard(data) {
-  for (let i = 0; i < data.length; i += 4) {
-    const r = data[i];
-    const g = data[i + 1];
-    const b = data[i + 2];
-    const isWhite = r >= 245 && g >= 245 && b >= 245;
-    const isGray =
-      r >= 210 &&
-      r <= 242 &&
-      g >= 210 &&
-      g <= 242 &&
-      b >= 210 &&
-      b <= 242 &&
-      Math.abs(r - g) <= 6 &&
-      Math.abs(g - b) <= 6;
-    if (isWhite || isGray) {
-      data[i + 3] = 0;
-    }
+async function exportIcon(name, file) {
+  const src = path.join(SRC_DIR, file);
+  if (!fs.existsSync(src)) {
+    throw new Error(`missing source icon: ${src}`);
   }
-}
 
-async function exportIcon(name, rect) {
-  const { data, info } = await sharp(SRC)
-    .extract({ ...rect, width: W, height: H })
+  await sharp(src)
     .ensureAlpha()
-    .raw()
-    .toBuffer({ resolveWithObject: true });
-
-  stripCheckerboard(data);
-
-  await sharp(data, {
-    raw: { width: info.width, height: info.height, channels: 4 },
-  })
     .trim()
+    .resize(MAX - PAD * 2, MAX - PAD * 2, {
+      fit: 'inside',
+      withoutEnlargement: false,
+    })
     .extend({
-      top: 6,
-      bottom: 6,
-      left: 6,
-      right: 6,
+      top: PAD,
+      bottom: PAD,
+      left: PAD,
+      right: PAD,
       background: { r: 0, g: 0, b: 0, alpha: 0 },
     })
     .png()
     .toFile(path.join(OUT, `${name}.png`));
 
-  console.log('wrote', name, rect);
+  console.log('wrote', name, '<-', file);
 }
 
 async function main() {
+  if (!fs.existsSync(SRC_DIR)) {
+    throw new Error(`icon source folder not found: ${SRC_DIR}`);
+  }
   fs.mkdirSync(OUT, { recursive: true });
-  for (const [name, rect] of Object.entries(SLICES)) {
-    await exportIcon(name, rect);
+  for (const [name, file] of Object.entries(ICONS)) {
+    await exportIcon(name, file);
   }
 }
 
