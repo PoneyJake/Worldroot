@@ -770,13 +770,15 @@
           if (unlock) {
             const owned = S.countInSlots(state.storageSlots, unlock.resource);
             const resMet = owned >= unlock.resourceAmt ? 'met' : 'unmet';
-            const goldMet = state.gold >= unlock.gold ? 'met' : 'unmet';
-            costLine = `
-              <span class="upgrade-card-cost ${resMet}">${resIcon(unlock.resource, 'game-icon lg')} ${fmt(owned)}/${fmt(unlock.resourceAmt)}</span>
-              <span class="upgrade-card-cost ${goldMet}"><span class="mob-drop-gold">🪙</span> ${fmt(state.gold)}/${fmt(unlock.gold)}</span>`;
+            costLine = `<span class="upgrade-card-cost ${resMet}">${resIcon(unlock.resource, 'game-icon lg')} ${fmt(owned)}/${fmt(unlock.resourceAmt)}</span>`;
             actionLabel = `Unlock → Lv ${targetMax}`;
           }
         } else {
+          const goldCost = E.upgradeLevelGoldCost(state, node.id);
+          if (goldCost != null) {
+            const goldMet = state.gold >= goldCost ? 'met' : 'unmet';
+            costLine = `<span class="upgrade-card-cost ${goldMet}"><span class="mob-drop-gold">🪙</span> ${fmt(state.gold)}/${fmt(goldCost)}</span>`;
+          }
           actionLabel = `Upgrade → Lv ${lv + 1}`;
         }
 
@@ -795,7 +797,7 @@
     return `
       <header class="page-header">
         <span class="page-header-icon">🌳</span>
-        <div class="page-header-text"><h1>World Tree</h1><p>Pay resources + gold to unlock tiers (5 levels each), then click to level up</p></div>
+        <div class="page-header-text"><h1>World Tree</h1><p>Spend resources to unlock each tier cap (5 levels), then gold to level up within it</p></div>
       </header>
       <div class="branch-grid">${branches}</div>`;
   }
@@ -906,9 +908,9 @@
         }
         render();
       } else if (wasUnlock) {
-        addLog(`Not enough resources or gold to unlock ${found.node.name}.`);
+        addLog(`Not enough resources to unlock ${found.node.name}.`);
       } else {
-        addLog(`${found.node.name} is at its current tier cap — unlock the next tier first.`);
+        addLog(`Not enough gold to upgrade ${found.node.name}, or it is at its current tier cap.`);
       }
       return;
     }

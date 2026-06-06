@@ -38,9 +38,15 @@
     const found = findUpgradeNode(nodeId);
     if (!found) return null;
     const resAmt = C.UPGRADE_UNLOCK_RESOURCES[tierIndex];
-    const goldAmt = C.UPGRADE_UNLOCK_GOLD[tierIndex];
-    if (resAmt == null || goldAmt == null) return null;
-    return { resource: found.node.costRes, resourceAmt: resAmt, gold: goldAmt };
+    if (resAmt == null) return null;
+    return { resource: found.node.costRes, resourceAmt: resAmt };
+  }
+
+  function upgradeLevelGoldCost(state, nodeId) {
+    const tiers = upgradeTierCount(state, nodeId);
+    if (tiers <= 0) return null;
+    const gold = C.UPGRADE_LEVEL_GOLD[tiers - 1];
+    return gold == null ? null : gold;
   }
 
   function upgradeUnlockTargetMax(tierIndex) {
@@ -51,12 +57,15 @@
     if (!upgradeNeedsUnlock(state, nodeId)) return false;
     const costs = upgradeUnlockCosts(nodeId, upgradeUnlockIndex(state, nodeId));
     if (!costs) return false;
-    return S.storageHas(state, costs.resource, costs.resourceAmt) && state.gold >= costs.gold;
+    return S.storageHas(state, costs.resource, costs.resourceAmt);
   }
 
   function canLevelUpgrade(state, nodeId) {
     const lv = upgradeLevel(state, nodeId);
-    return lv < upgradeMaxLevel(state, nodeId) && lv < C.UPGRADE_MAX_LEVEL && !upgradeNeedsUnlock(state, nodeId);
+    if (lv >= upgradeMaxLevel(state, nodeId) || lv >= C.UPGRADE_MAX_LEVEL) return false;
+    if (upgradeNeedsUnlock(state, nodeId)) return false;
+    const goldCost = upgradeLevelGoldCost(state, nodeId);
+    return goldCost != null && state.gold >= goldCost;
   }
 
   function upgradeCosts(nodeId, currentLevel) {
@@ -478,9 +487,7 @@
     const costs = upgradeUnlockCosts(nodeId, tierIdx);
     if (!costs) return false;
     if (!S.storageHas(state, costs.resource, costs.resourceAmt)) return false;
-    if (state.gold < costs.gold) return false;
     S.removeFromStorage(state, costs.resource, costs.resourceAmt);
-    state.gold -= costs.gold;
     if (!state.upgradeTiers) state.upgradeTiers = {};
     state.upgradeTiers[nodeId] = tierIdx + 1;
     S.saveState(state);
@@ -492,6 +499,8 @@
       return unlockUpgradeTier(state, nodeId);
     }
     if (!canLevelUpgrade(state, nodeId)) return false;
+    const goldCost = upgradeLevelGoldCost(state, nodeId);
+    state.gold -= goldCost;
     const current = upgradeLevel(state, nodeId);
     state.upgrades[nodeId] = current + 1;
     S.saveState(state);
@@ -584,7 +593,7 @@
 
   window.WorldrootEngine = {
     upgradeLevel, upgradeTierCount, upgradeMaxLevel, upgradeNeedsUnlock, upgradeUnlockCosts,
-    upgradeUnlockTargetMax, canUnlockUpgrade, canLevelUpgrade, unlockUpgradeTier,
+    upgradeLevelGoldCost, upgradeUnlockTargetMax, canUnlockUpgrade, canLevelUpgrade, unlockUpgradeTier,
     upgradeCosts, upgradeBonusDisplay, upgradeBonusPercent, effectBonus,
     skillXpBonus, skillYieldBonus, skillMultiBonus,
     gatherEfficiency, gatherStatBonus, gatherSuccessChance, gatherSuccessPercent, gatherMultiChance,
