@@ -464,8 +464,32 @@
     return countInSlots(state.storageSlots, resourceId) >= amount;
   }
 
+  function countResourceOwned(state, resourceId) {
+    let total = countInSlots(state.storageSlots, resourceId);
+    for (const char of state.characters) {
+      total += countInSlots(char.inventorySlots, resourceId);
+    }
+    return total;
+  }
+
+  function resourceHas(state, resourceId, amount) {
+    return countResourceOwned(state, resourceId) >= amount;
+  }
+
   function removeFromStorage(state, resourceId, amount) {
     return removeFromSlots(state.storageSlots, resourceId, amount);
+  }
+
+  function removeResourceOwned(state, resourceId, amount) {
+    let remaining = amount;
+    remaining -= removeFromSlots(state.storageSlots, resourceId, remaining);
+    if (remaining > 0) {
+      for (const char of state.characters) {
+        if (remaining <= 0) break;
+        remaining -= removeFromSlots(char.inventorySlots, resourceId, remaining);
+      }
+    }
+    return amount - remaining;
   }
 
   function countInInventory(char, resourceId) {
@@ -628,6 +652,7 @@
     defaultSmeltSlots, defaultProduceSlots, emptySlotArray,
     stackCapacity, inventorySlotCount, countInSlots, countEmptySlots,
     addToInventory, addToStorage, removeFromStorage, storageHas,
+    countResourceOwned, resourceHas, removeResourceOwned,
     addToSlots, removeFromSlots, carryEffectForSkill, stackCapacityForResource,
     transferInvToStorage, transferStorageToInv,
     countInInventory, removeFromInventorySlot, loadOreToSmelt,

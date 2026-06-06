@@ -768,7 +768,7 @@
           const unlock = E.upgradeUnlockCosts(node.id, tierIdx);
           const targetMax = E.upgradeUnlockTargetMax(tierIdx);
           if (unlock) {
-            const owned = S.countInSlots(state.storageSlots, unlock.resource);
+            const owned = S.countResourceOwned(state, unlock.resource);
             const resMet = owned >= unlock.resourceAmt ? 'met' : 'unmet';
             costLine = `<span class="upgrade-card-cost ${resMet}">${resIcon(unlock.resource, 'game-icon lg')} ${fmt(owned)}/${fmt(unlock.resourceAmt)}</span>`;
             actionLabel = `Unlock → Lv ${targetMax}`;
