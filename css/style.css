@@ -857,11 +857,108 @@ body {
   line-height: 1;
 }
 
-.sidebar-skill-chars {
+.sidebar-skill-lv {
   margin-left: auto;
+  font-size: 0.68rem;
+  color: #6a8a66;
+  font-weight: 700;
+}
+
+.sidebar-skill-chars {
   font-size: 0.85rem;
   letter-spacing: -2px;
   opacity: 0.9;
+}
+
+.sidebar-alert {
+  color: #e8c040;
+  font-weight: 800;
+  font-size: 0.9rem;
+  margin-left: 4px;
+}
+
+.page-stop-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.mob-drops {
+  margin: 10px 0;
+  padding: 8px 10px;
+  background: #121812;
+  border-radius: 6px;
+}
+
+.mob-drop-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.8rem;
+  padding: 3px 0;
+}
+
+.mob-drop-item {
+  color: #9aaa96;
+}
+
+.mob-drop-pct {
+  color: #5a9a52;
+  font-weight: 600;
+}
+
+.combat-respawn {
+  font-size: 0.78rem;
+  color: #e8c040;
+  margin: 0;
+}
+
+.inline-class-pick {
+  margin-top: 16px;
+  padding: 16px;
+  background: #161e16;
+  border: 1px solid #3a5a38;
+  border-radius: 10px;
+}
+
+.inline-class-pick h3 {
+  margin: 0 0 12px;
+  font-size: 0.9rem;
+  color: #a8d5a2;
+}
+
+.smelt-slot-selected {
+  border-color: #5a9a52 !important;
+  box-shadow: 0 0 0 1px #3a6a38;
+}
+
+.upgrade-card-costs {
+  display: block;
+  width: 100%;
+  margin-top: 6px;
+  font-size: 0.72rem;
+}
+
+.upgrade-card-cost {
+  display: inline-block;
+  margin-right: 6px;
+}
+
+.upgrade-card-cost.met {
+  color: #5a9a52;
+}
+
+.upgrade-card-cost.unmet {
+  color: #c08080;
+}
+
+.upgrade-card.can-buy {
+  border-color: #4a7a44;
+}
+
+.upgrade-card.can-buy:hover {
+  border-color: #5a9a52;
+  background: #1e2e1e;
 }
 
 .storage-dual {

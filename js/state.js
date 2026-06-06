@@ -37,10 +37,10 @@
 
   function defaultSmeltSlots() {
     return [
-      { ore: null, progress: 0, ready: 0, readyBar: null },
-      { ore: null, progress: 0, ready: 0, readyBar: null },
-      { ore: null, progress: 0, ready: 0, readyBar: null },
-      { ore: null, progress: 0, ready: 0, readyBar: null },
+      { ore: null, oreLoaded: 0, progress: 0, ready: 0, readyBar: null },
+      { ore: null, oreLoaded: 0, progress: 0, ready: 0, readyBar: null },
+      { ore: null, oreLoaded: 0, progress: 0, ready: 0, readyBar: null },
+      { ore: null, oreLoaded: 0, progress: 0, ready: 0, readyBar: null },
     ];
   }
 
@@ -71,6 +71,7 @@
       inventorySlots: emptySlotArray(C.BASE_INVENTORY_SLOTS),
       extraBagSlots: 0,
       gatherCd: 0,
+      combatCd: 0,
       combatState: null,
     };
   }
@@ -159,6 +160,7 @@
       inventorySlots,
       extraBagSlots: c.extraBagSlots ?? 0,
       gatherCd: c.gatherCd ?? 0,
+      combatCd: c.combatCd ?? 0,
       combatState: c.combatState ?? null,
     };
   }
@@ -194,6 +196,7 @@
         skill: { ...defaultSkill(), ...data.smelting.skill },
         slots: (data.smelting.slots || defaultSmeltSlots()).map((s) => ({
           ore: s.ore ?? null,
+          oreLoaded: s.oreLoaded ?? 0,
           progress: s.progress ?? 0,
           ready: s.ready ?? 0,
           readyBar: s.readyBar ?? null,
@@ -380,6 +383,33 @@
     return removeFromSlots(state.storageSlots, resourceId, amount);
   }
 
+  function countInInventory(char, resourceId) {
+    return countInSlots(char.inventorySlots, resourceId);
+  }
+
+  function removeFromInventorySlot(char, slotIdx, amount) {
+    const slot = char.inventorySlots[slotIdx];
+    if (!slot || slot.amount <= 0) return 0;
+    const take = Math.min(amount, slot.amount);
+    slot.amount -= take;
+    if (slot.amount <= 0) char.inventorySlots[slotIdx] = null;
+    return take;
+  }
+
+  function loadOreToSmelt(state, char, invSlotIdx, smeltSlotIdx, maxLoad) {
+    const invSlot = char.inventorySlots[invSlotIdx];
+    const smeltSlot = state.smelting.slots[smeltSlotIdx];
+    if (!invSlot || !smeltSlot?.ore) return 0;
+    if (invSlot.resourceId !== smeltSlot.ore) return 0;
+    const space = Math.max(0, maxLoad - (smeltSlot.oreLoaded || 0));
+    if (space <= 0) return 0;
+    const take = Math.min(space, invSlot.amount);
+    const removed = removeFromInventorySlot(char, invSlotIdx, take);
+    smeltSlot.oreLoaded = (smeltSlot.oreLoaded || 0) + removed;
+    saveState(state);
+    return removed;
+  }
+
   function loadState() {
     const keys = [
       getSaveKey(), 'worldroot_save_v4', 'worldroot_save_offline_v4',
@@ -442,6 +472,7 @@
     char.activity = activityId;
     char.target = targetId ?? null;
     char.gatherCd = 0;
+    char.combatCd = 0;
     if (activityId !== 'combat') char.combatState = null;
     saveState(state);
   }
@@ -452,7 +483,28 @@
     char.activity = null;
     char.target = null;
     char.gatherCd = 0;
+    char.combatCd = 0;
     char.combatState = null;
+    saveState(state);
+  }
+
+  function stopAllSmelting(state) {
+    for (const slot of state.smelting.slots) {
+      slot.ore = null;
+      slot.oreLoaded = 0;
+      slot.progress = 0;
+      slot.ready = 0;
+      slot.readyBar = null;
+    }
+    saveState(state);
+  }
+
+  function stopAllProducing(state) {
+    for (const slot of state.producing.slots) {
+      slot.item = null;
+      slot.progress = 0;
+      slot.ready = 0;
+    }
     saveState(state);
   }
 
@@ -484,5 +536,7 @@
     addToInventory, addToStorage, removeFromStorage, storageHas,
     addToSlots, removeFromSlots, carryEffectForSkill, stackCapacityForResource,
     transferInvToStorage, transferStorageToInv,
+    countInInventory, removeFromInventorySlot, loadOreToSmelt,
+    stopAllSmelting, stopAllProducing,
   };
 })();

@@ -100,24 +100,56 @@
     return Object.entries(costs).every(([res, amt]) => S.storageHas(state, res, amt));
   }
 
-  function skillSpeed(state, skillId, char) {
+  function gatherEfficiency(state, char, skillId) {
     const skill = char.skills[skillId];
     const lv = skill?.level ?? 0;
     const yieldB = skillYieldBonus(state, skillId);
     const statM = gatherStatMult(state, char, skillId);
-    return Math.floor((1 + lv * 0.05 + yieldB) * statM * 100) / 100;
+    return Math.floor((5 + lv * 4 + yieldB * 15) * statM);
   }
 
-  function gatherIntervalTicks(state, skillId, char) {
-    const speed = skillSpeed(state, skillId, char);
-    return Math.max(1, Math.floor(C.GATHER_INTERVAL_TICKS / speed));
+  function gatherSuccessChance(state, char, skillId) {
+    const eff = gatherEfficiency(state, char, skillId);
+    if (eff < C.GATHER_MIN_EFFICIENCY) return 0;
+    if (eff >= C.GATHER_EFF_PER_TIER) return 100;
+    const range = C.GATHER_EFF_PER_TIER - C.GATHER_MIN_EFFICIENCY;
+    return Math.min(100, ((eff - C.GATHER_MIN_EFFICIENCY) / range) * 100);
   }
 
-  function gatherRatePerMin(state, skillId, char) {
-    const interval = gatherIntervalTicks(state, skillId, char);
-    const tickSec = C.TICK_MS / 1000;
-    const actionsPerMin = 60 / (interval * tickSec);
-    return Math.floor(actionsPerMin * 100) / 100;
+  function gatherExtraOreChance(eff) {
+    return (eff % C.GATHER_EFF_PER_TIER) / C.GATHER_EFF_PER_TIER;
+  }
+
+  function gatherGuaranteedOres(eff) {
+    return Math.floor(eff / C.GATHER_EFF_PER_TIER);
+  }
+
+  function rollGatherAmount(state, char, skillId) {
+    const eff = gatherEfficiency(state, char, skillId);
+    if (eff < C.GATHER_MIN_EFFICIENCY) return 0;
+
+    let amount = gatherGuaranteedOres(eff);
+    if (Math.random() < gatherExtraOreChance(eff)) amount += 1;
+
+    if (amount === 0) {
+      const chance = gatherSuccessChance(state, char, skillId) / 100;
+      if (Math.random() < chance) amount = 1;
+    }
+
+    if (amount > 0) {
+      const multiMult = skillMultiBonus(state, skillId);
+      if (Math.random() < multiMult * 0.1) amount += 1;
+    }
+
+    return amount;
+  }
+
+  function gatherRatePerMin() {
+    return C.GATHER_RATE_PER_MIN;
+  }
+
+  function gatherIntervalTicks() {
+    return C.GATHER_INTERVAL_TICKS;
   }
 
   function charMaxHp(state, char) {
@@ -138,6 +170,23 @@
     return monster.hp + monster.level * 5;
   }
 
+  function dropChance(state) {
+    return C.BASE_DROP_CHANCE + effectBonus(state, 'drop_rate');
+  }
+
+  function getTheoreticalCombatRates(state, char, monster) {
+    if (!char || (char.skills.combat?.level ?? 0) < monster.level) {
+      return { xpHr: 0, killsHr: 0 };
+    }
+    const attacksPerHr = 3600 / C.COMBAT_ATTACK_SEC;
+    const dmg = charDamage(state, char);
+    const hitsPerKill = Math.ceil(mobMaxHp(monster) / Math.max(1, dmg));
+    const killsHr = Math.floor(attacksPerHr / hitsPerKill);
+    const xpMult = 1 + skillXpBonus(state, 'combat');
+    const xpPerKill = Math.floor(C.BASE_XP_PER_TICK * 3 * xpMult);
+    return { xpHr: killsHr * xpPerKill, killsHr };
+  }
+
   function initCombatState(state, char, monster) {
     const maxHp = mobMaxHp(monster);
     const charHp = charMaxHp(state, char);
@@ -147,6 +196,7 @@
       mobMaxHp: maxHp,
       charHp,
       charMaxHp: charHp,
+      respawnSec: 0,
     };
   }
 
@@ -154,8 +204,15 @@
     const cs = char.combatState;
     if (!cs || cs.mobId !== monster.id) {
       initCombatState(state, char, monster);
+    } else if (cs.respawnSec === undefined) {
+      cs.respawnSec = 0;
     }
     return char.combatState;
+  }
+
+  function smeltBatchCapacity(state) {
+    const bonus = effectBonus(state, 'smelt_capacity');
+    return Math.max(1, 1 + Math.floor(bonus * 25));
   }
 
   function smeltSlotsUnlocked(state) {
@@ -174,7 +231,7 @@
 
     for (let i = 0; i < slotsOpen; i++) {
       const slot = state.smelting.slots[i];
-      if (!slot.ore) continue;
+      if (!slot.ore || (slot.oreLoaded || 0) < 1) continue;
       const recipe = C.SMELT_RECIPES.find((r) => r.ore === slot.ore);
       if (!recipe) continue;
 
@@ -182,12 +239,7 @@
       slot.progress += 1;
       if (slot.progress < ticksNeeded) continue;
 
-      if (!S.storageHas(state, slot.ore, 1)) {
-        slot.progress = 0;
-        continue;
-      }
-
-      S.removeFromStorage(state, slot.ore, 1);
+      slot.oreLoaded -= 1;
       let bars = 1;
       if (Math.random() < multiMult * 0.1) bars += 1;
       slot.ready = (slot.ready || 0) + bars;
@@ -247,6 +299,19 @@
       event.charHp = cs.charHp;
       event.mobHp = cs.mobHp;
 
+      if (cs.respawnSec > 0) {
+        cs.respawnSec = Math.max(0, cs.respawnSec - C.TICK_MS / 1000);
+        if (cs.respawnSec <= 0) {
+          cs.charHp = cs.charMaxHp;
+          event.charHp = cs.charHp;
+        }
+        return event;
+      }
+
+      char.combatCd = (char.combatCd || 0) + C.TICK_MS / 1000;
+      if (char.combatCd < C.COMBAT_ATTACK_SEC) return event;
+      char.combatCd = 0;
+
       const charDmg = charDamage(state, char);
       const defence = effectBonus(state, 'base_defence');
       const mobDmg = Math.max(1, Math.floor(monster.damage - defence * 0.5));
@@ -271,8 +336,8 @@
           event.gold = goldGain;
         }
 
-        const dropChance = C.BASE_DROP_CHANCE + effectBonus(state, 'drop_rate');
-        if (monster.drop && Math.random() < dropChance) {
+        const chance = dropChance(state);
+        if (monster.drop && Math.random() < chance) {
           const dropAmt = monster.drop.amount;
           const result = S.addToInventory(char, state, monster.drop.id, dropAmt, 'combat');
           event.loot = monster.drop.id;
@@ -281,17 +346,14 @@
         }
 
         cs.mobHp = cs.mobMaxHp;
-        cs.charHp = Math.min(cs.charMaxHp, cs.charHp + Math.floor(cs.charMaxHp * 0.1));
         event.mobHp = cs.mobHp;
         event.charHp = cs.charHp;
       } else {
         cs.charHp -= mobDmg;
         event.charHp = cs.charHp;
         if (cs.charHp <= 0) {
-          cs.charHp = cs.charMaxHp;
-          char.activity = null;
-          char.target = null;
-          char.combatState = null;
+          cs.charHp = 0;
+          cs.respawnSec = C.COMBAT_RESPAWN_SEC;
         }
       }
       return event;
@@ -301,8 +363,7 @@
     if (!vein || skill.level < vein.minLevel) return event;
 
     char.gatherCd = (char.gatherCd || 0) + 1;
-    const interval = gatherIntervalTicks(state, skillId, char);
-    if (char.gatherCd < interval) return event;
+    if (char.gatherCd < gatherIntervalTicks()) return event;
 
     char.gatherCd = 0;
     const xpMult = 1 + skillXpBonus(state, skillId);
@@ -310,16 +371,13 @@
     S.grantXp(skill, xpGain);
     event.xpGain = xpGain;
 
-    const multiMult = skillMultiBonus(state, skillId);
-    let amount = Math.max(1, Math.floor(C.BASE_RESOURCE_PER_TICK * skillSpeed(state, skillId, char)));
-    if (Math.random() < multiMult * 0.1) {
-      amount += Math.max(1, Math.floor(C.BASE_RESOURCE_PER_TICK * gatherStatMult(state, char, skillId)));
+    const amount = rollGatherAmount(state, char, skillId);
+    if (amount > 0) {
+      const result = S.addToInventory(char, state, vein.resource, amount, skillId);
+      event.resource = vein.resource;
+      event.resourceAmount = result.added;
+      event.lost = result.lost;
     }
-
-    const result = S.addToInventory(char, state, vein.resource, amount, skillId);
-    event.resource = vein.resource;
-    event.resourceAmount = result.added;
-    event.lost = result.lost;
     return event;
   }
 
@@ -371,6 +429,7 @@
     const slot = state.smelting.slots[slotIndex];
     if (!slot) return false;
     slot.ore = oreId;
+    slot.oreLoaded = 0;
     slot.progress = 0;
     slot.ready = 0;
     slot.readyBar = null;
@@ -392,6 +451,7 @@
     const slot = state.smelting.slots[slotIndex];
     if (!slot) return;
     slot.ore = null;
+    slot.oreLoaded = 0;
     slot.progress = 0;
     slot.ready = 0;
     slot.readyBar = null;
@@ -436,8 +496,10 @@
 
   window.WorldrootEngine = {
     upgradeLevel, upgradeCosts, upgradeBonusDisplay, upgradeBonusPercent, effectBonus,
-    skillXpBonus, skillYieldBonus, skillMultiBonus, skillSpeed,
-    gatherIntervalTicks, gatherRatePerMin, charMaxHp, charDamage, mobMaxHp,
+    skillXpBonus, skillYieldBonus, skillMultiBonus,
+    gatherEfficiency, gatherSuccessChance, gatherGuaranteedOres, gatherExtraOreChance,
+    gatherRatePerMin, gatherIntervalTicks, charMaxHp, charDamage, mobMaxHp, dropChance,
+    getTheoreticalCombatRates, smeltBatchCapacity,
     charStat, gatherStatMult, combatDamageMult,
     tick, buyUpgrade, canAffordUpgrade, findVein, findMonster,
     getRatePerHour, findUpgradeNode, smeltSlotsUnlocked, produceSlotsUnlocked,
