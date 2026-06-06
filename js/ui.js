@@ -764,7 +764,7 @@
         if (atMax) {
           actionLabel = 'Max level';
         } else if (needsUnlock) {
-          const tierIdx = E.upgradeUnlockIndex(state, node.id);
+          const tierIdx = E.upgradeTierCount(state, node.id);
           const unlock = E.upgradeUnlockCosts(node.id, tierIdx);
           const targetMax = E.upgradeUnlockTargetMax(tierIdx);
           if (unlock) {
