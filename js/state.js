@@ -400,23 +400,26 @@
     return addToSlots(state.storageSlots, resourceId, amount, maxStack, state.storageSlots.length);
   }
 
-  function transferInvToStorage(state, char, slotIdx) {
+  function transferInvToStorage(state, char, slotIdx, amount = null) {
     const slot = char.inventorySlots[slotIdx];
     if (!slot || slot.amount <= 0) return false;
-    const result = addToStorage(state, slot.resourceId, slot.amount);
+    const transferAmt = amount == null ? slot.amount : Math.min(amount, slot.amount);
+    const result = addToStorage(state, slot.resourceId, transferAmt);
     if (result.added > 0) {
-      char.inventorySlots[slotIdx] = null;
+      slot.amount -= result.added;
+      if (slot.amount <= 0) char.inventorySlots[slotIdx] = null;
       saveState(state);
       return true;
     }
     return false;
   }
 
-  function transferStorageToInv(state, char, slotIdx) {
+  function transferStorageToInv(state, char, slotIdx, amount = null) {
     const slot = state.storageSlots[slotIdx];
     if (!slot || slot.amount <= 0) return false;
+    const transferAmt = amount == null ? slot.amount : Math.min(amount, slot.amount);
     const skillId = RESOURCE_SKILL_MAP[slot.resourceId] || 'combat';
-    const result = addToInventory(char, state, slot.resourceId, slot.amount, skillId);
+    const result = addToInventory(char, state, slot.resourceId, transferAmt, skillId);
     if (result.added > 0) {
       slot.amount -= result.added;
       if (slot.amount <= 0) state.storageSlots[slotIdx] = null;

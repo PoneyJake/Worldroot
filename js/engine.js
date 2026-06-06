@@ -109,7 +109,7 @@
     const lv = char.skills[skillId]?.level ?? 0;
     const yieldB = skillYieldBonus(state, skillId);
     const statM = gatherStatMult(state, char, skillId);
-    return Math.floor((lv * C.LEVEL_EFF_BONUS + yieldB) * statM);
+    return C.BASE_GATHER_EFFICIENCY + Math.floor((lv * C.LEVEL_EFF_BONUS + yieldB) * statM);
   }
 
   function gatherMultiChance(state, char, skillId) {

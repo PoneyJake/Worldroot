@@ -61,29 +61,21 @@
   }
 
   function renderSlotGrid(slots, maxSlots, opts = {}) {
-    const { isInventory = false, storeAction = null, takeAction = null, gridClass = '' } = opts;
+    const { transferType = null, gridClass = '' } = opts;
     let html = '';
     for (let i = 0; i < maxSlots; i++) {
       const slot = slots[i];
       if (!slot) {
         html += `<div class="item-slot empty"><span class="item-slot-empty">+</span></div>`;
       } else {
-        const maxStack = isInventory
-          ? S.stackCapacityForResource(state, slot.resourceId)
-          : (C.STORAGE_STACK_MAX ?? 999999999);
-        const maxLabel = isInventory ? `/${maxStack}` : '';
-        const actionBtn = storeAction
-          ? `<button type="button" class="slot-action-btn" data-action="${storeAction}" data-slot="${i}">→ Storage</button>`
-          : takeAction
-            ? `<button type="button" class="slot-action-btn" data-action="${takeAction}" data-slot="${i}">→ Inv</button>`
-            : '';
+        const transferAttr = transferType
+          ? ` data-transfer-type="${transferType}" data-slot="${i}"`
+          : '';
         html += `
-          <div class="item-slot filled" title="${resName(slot.resourceId)}">
+          <div class="item-slot filled${transferType ? ' transferable' : ''}" title="${resName(slot.resourceId)}${transferType ? ' — double-click: move 1 · shift+click: move all' : ''}"${transferAttr}>
             <span class="item-slot-qty">${fmt(slot.amount)}</span>
             <span class="item-slot-icon">${resIcon(slot.resourceId)}</span>
             <span class="item-slot-name">${resName(slot.resourceId)}</span>
-            <span class="item-slot-max">${maxLabel}</span>
-            ${actionBtn}
           </div>`;
       }
     }
@@ -244,7 +236,7 @@
     ];
     if (mob.drop) {
       rows.push(
-        `<div class="mob-drop-row"><span class="mob-drop-item">${resIcon(mob.drop.id)} ${resName(mob.drop.id)}</span><span class="mob-drop-pct">${dropPct}%</span></div>`
+        `<div class="mob-drop-row"><span class="mob-drop-item">${resIcon(mob.drop.id, 'game-icon lg')} ${resName(mob.drop.id)}</span><span class="mob-drop-pct">${dropPct}%</span></div>`
       );
     }
     return `<div class="mob-drops">${rows.join('')}</div>`;
@@ -357,8 +349,8 @@
         </div>
       </header>
       ${renderCharSwitcher()}
-      <p class="hint-bar">${charLabel(char)} — click → Storage on an item to move it</p>
-      ${renderSlotGrid(char.inventorySlots, slotCount, { isInventory: true, storeAction: 'store-inv', gridClass: 'grid-inv-4' })}`;
+      <p class="hint-bar">${charLabel(char)} — double-click to move 1 to storage · shift+click to move all</p>
+      ${renderSlotGrid(char.inventorySlots, slotCount, { transferType: 'inv', gridClass: 'grid-inv-4' })}`;
   }
 
   function renderStoragePanel() {
@@ -373,18 +365,18 @@
         <span class="page-header-icon">📦</span>
         <div class="page-header-text">
           <h1>Storage</h1>
-          <p>Move items between inventory and shared storage</p>
+          <p>Double-click to move 1 · shift+click to move all</p>
         </div>
       </header>
       ${renderCharSwitcher()}
       <div class="storage-dual">
         <section class="storage-half">
           <h3 class="storage-half-title">${charLabel(char)}'s Inventory <span>${invFilled}/${invCount}</span></h3>
-          ${renderSlotGrid(char.inventorySlots, invCount, { isInventory: true, storeAction: 'store-inv', gridClass: 'grid-inv-4' })}
+          ${renderSlotGrid(char.inventorySlots, invCount, { transferType: 'inv', gridClass: 'grid-inv-4' })}
         </section>
         <section class="storage-half">
           <h3 class="storage-half-title">Storage <span>${storFilled}/${state.storageSlots.length} · ∞ per resource</span></h3>
-          ${renderSlotGrid(state.storageSlots, state.storageSlots.length, { takeAction: 'take-storage', gridClass: 'grid-storage-6' })}
+          ${renderSlotGrid(state.storageSlots, state.storageSlots.length, { transferType: 'storage', gridClass: 'grid-storage-6' })}
         </section>
       </div>`;
   }
@@ -417,7 +409,7 @@
         </div>
         <div class="combat-vs">⚔</div>
         <div class="combat-fighter mob">
-          <span class="fighter-icon">${iconHtml(monster.id, 'game-icon xl')}</span>
+          <span class="fighter-icon">${iconHtml(monster.id, 'game-icon xxl')}</span>
           <span class="fighter-name">${monster.name}</span>
           <div class="hp-bar"><div class="hp-bar-fill mob" style="width:${mobPct}%"></div></div>
           <span class="hp-text">${fmt(mobHp)} / ${fmt(mobMax)} HP · ${monster.damage} dmg</span>
@@ -438,7 +430,7 @@
       return `
         <article class="activity-card ${locked ? 'locked' : ''}">
           <div class="activity-card-head">
-            <span class="activity-card-icon">${iconHtml(mob.id, 'game-icon lg')}</span>
+            <span class="activity-card-icon">${iconHtml(mob.id, 'game-icon xl')}</span>
             <div class="activity-card-title">
               <strong>${mob.name}</strong>
               <span>Lv ${mob.level} · ${E.mobMaxHp(mob)} HP · ${mob.damage} dmg</span>
@@ -493,10 +485,10 @@
       return `
         <article class="activity-card ${locked ? 'locked' : ''}">
           <div class="activity-card-head">
-            <span class="activity-card-icon">${iconHtml(vein.icon, 'game-icon lg')}</span>
+            <span class="activity-card-icon">${iconHtml(vein.icon, 'game-icon gather')}</span>
             <div class="activity-card-title">
               <strong>${vein.name}</strong>
-              <span>${resIcon(vein.resource)} ${resName(vein.resource)} · Lv ${vein.minLevel}</span>
+              <span>Lv ${vein.minLevel}</span>
             </div>
           </div>
           <div class="activity-stats">
@@ -573,10 +565,12 @@
       ).join('');
       const selected = i === selectedSmeltSlot ? ' smelt-slot-selected' : '';
 
-      const readyBtn = slot.ready > 0
-        ? `<button type="button" class="btn-sm primary" data-action="collect-smelt" data-slot="${i}">
-            Collect ${fmt(slot.ready)} ${resName(slot.readyBar)} → Storage
-          </button>` : '';
+      const readySlot = slot.ready > 0
+        ? `<div class="produce-ready-slot transferable" data-collect-type="smelt" data-slot="${i}" title="Double-click to collect all into storage">
+            <span class="item-slot-qty">${fmt(slot.ready)}</span>
+            <span class="item-slot-icon">${resIcon(slot.readyBar)}</span>
+            <span class="item-slot-name">${resName(slot.readyBar)}</span>
+          </div>` : '';
 
       return `
         <article class="activity-card smelt-drop-zone${selected}" data-action="select-smelt-slot" data-slot="${i}" data-smelt-slot="${i}">
@@ -585,7 +579,7 @@
           ${slot.ore ? `<p class="empty-msg">Ore loaded: ${fmt(slot.oreLoaded || 0)} / ${batchCap} — drag ore here</p>
             <div class="progress-bar"><div class="progress-bar-fill" style="width:${pct}%"></div></div>
             <p class="empty-msg">Smelting ${recipe?.name ?? slot.ore}…</p>` : '<p class="empty-msg">Pick ore type, then drag from inventory</p>'}
-          ${readyBtn}
+          ${readySlot}
           ${slot.ore ? `<button type="button" class="btn-xs ghost" data-action="clear-smelt" data-slot="${i}">Stop slot</button>` : ''}
         </article>`;
     }).join('');
@@ -600,7 +594,7 @@
     return `
       <header class="page-header">
         <span class="page-header-icon">${sk.icon}</span>
-        <div class="page-header-text"><h1>${sk.name}</h1><p>Load ore from inventory into smelters (capacity ${batchCap} per slot)</p></div>
+        <div class="page-header-text"><h1>${sk.name}</h1><p>Load ore from inventory into smelters — double-click ready bars to collect</p></div>
         <div class="page-header-stat"><span class="page-header-stat-label">Smelting Lv</span><span class="page-header-stat-value">${lv}</span></div>
       </header>
       ${renderSkillStopHeader('stop-all-smelt')}
@@ -626,18 +620,20 @@
           data-slot="${i}" data-item="${p.id}"${dis}>${p.name}</button>`;
       }).join('');
 
-      const readyBtn = slot.ready > 0
-        ? `<button type="button" class="btn-sm primary" data-action="collect-produce" data-slot="${i}">
-            Collect ${fmt(slot.ready)} ${def?.name ?? slot.item} → Inventory
-          </button>` : '';
+      const readySlot = slot.ready > 0
+        ? `<div class="produce-ready-slot transferable" data-collect-type="produce" data-slot="${i}" title="Double-click to collect all into inventory">
+            <span class="item-slot-qty">${fmt(slot.ready)}</span>
+            <span class="item-slot-icon">${resIcon(slot.item)}</span>
+            <span class="item-slot-name">${def?.name ?? resName(slot.item)}</span>
+          </div>` : '';
 
       return `
         <article class="activity-card">
           <strong>Producer Slot ${i + 1}</strong>
           <div class="picker-row">${itemBtns}</div>
           ${slot.item ? `<div class="progress-bar"><div class="progress-bar-fill" style="width:${pct}%"></div></div>
-            <p class="empty-msg">Producing ${def?.name ?? slot.item}…${slot.ready ? ` · ${slot.ready} ready` : ''}</p>` : ''}
-          ${readyBtn}
+            <p class="empty-msg">Producing ${def?.name ?? slot.item}…</p>` : ''}
+          ${readySlot}
           ${slot.item ? `<button type="button" class="btn-xs ghost" data-action="clear-produce" data-slot="${i}">Stop slot</button>` : ''}
         </article>`;
     }).join('');
@@ -653,7 +649,7 @@
     return `
       <header class="page-header">
         <span class="page-header-icon">${sk.icon}</span>
-        <div class="page-header-text"><h1>${sk.name}</h1><p>Passive production — collect items into your selected hero's inventory</p></div>
+        <div class="page-header-text"><h1>${sk.name}</h1><p>Passive production — double-click ready items to collect into inventory</p></div>
         <div class="page-header-stat"><span class="page-header-stat-label">Producing Lv</span><span class="page-header-stat-value">${lv}</span></div>
       </header>
       ${renderSkillStopHeader('stop-all-produce')}
@@ -812,44 +808,6 @@
       return;
     }
 
-    if (action === 'collect-produce') {
-      const result = E.collectProduce(state, Number(btn.dataset.slot), selectedIndex());
-      if (result.collected > 0) {
-        addLog(`Collected ${result.collected} items into inventory.`);
-        if (result.lost > 0) addLog(`${result.lost} items lost — inventory full.`);
-      }
-      render();
-      return;
-    }
-
-    if (action === 'collect-smelt') {
-      const n = E.collectSmelt(state, Number(btn.dataset.slot));
-      if (n > 0) addLog(`Collected ${n} bars into storage.`);
-      render();
-      return;
-    }
-
-    if (action === 'store-inv') {
-      const char = selectedChar();
-      if (char && S.transferInvToStorage(state, char, Number(btn.dataset.slot))) {
-        addLog('Moved item to storage.');
-        render();
-      }
-      return;
-    }
-
-    if (action === 'take-storage') {
-      const char = selectedChar();
-      if (char && S.transferStorageToInv(state, char, Number(btn.dataset.slot))) {
-        addLog('Moved item to inventory.');
-        render();
-      } else {
-        addLog('Inventory full — could not take item.');
-      }
-      render();
-      return;
-    }
-
     if (action === 'pick-smelt') {
       selectedSmeltSlot = Number(btn.dataset.slot);
       E.setSmeltSlot(state, Number(btn.dataset.slot), btn.dataset.ore);
@@ -917,9 +875,76 @@
     });
   }
 
+  function handleSlotTransfer(el, all) {
+    const type = el.dataset.transferType;
+    const slotIdx = Number(el.dataset.slot);
+    if (type === 'inv') {
+      const char = selectedChar();
+      if (char && S.transferInvToStorage(state, char, slotIdx, all ? null : 1)) {
+        addLog(all ? 'Moved stack to storage.' : 'Moved 1 to storage.');
+        render();
+      }
+      return;
+    }
+    if (type === 'storage') {
+      const char = selectedChar();
+      if (char && S.transferStorageToInv(state, char, slotIdx, all ? null : 1)) {
+        addLog(all ? 'Moved stack to inventory.' : 'Moved 1 to inventory.');
+        render();
+      } else {
+        addLog('Inventory full — could not take item.');
+      }
+      render();
+    }
+  }
+
+  function handleCollectDbl(el) {
+    const type = el.dataset.collectType;
+    const slotIdx = Number(el.dataset.slot);
+    if (type === 'produce') {
+      const result = E.collectProduce(state, slotIdx, selectedIndex());
+      if (result.collected > 0) {
+        addLog(`Collected ${result.collected} items into inventory.`);
+        if (result.lost > 0) addLog(`${result.lost} items lost — inventory full.`);
+      }
+      render();
+      return;
+    }
+    if (type === 'smelt') {
+      const n = E.collectSmelt(state, slotIdx);
+      if (n > 0) addLog(`Collected ${n} bars into storage.`);
+      render();
+    }
+  }
+
+  function handlePointerSlot(e) {
+    const collectEl = e.target.closest('[data-collect-type]');
+    if (collectEl && e.type === 'dblclick') {
+      e.preventDefault();
+      handleCollectDbl(collectEl);
+      return;
+    }
+
+    const slotEl = e.target.closest('[data-transfer-type]');
+    if (!slotEl) return;
+
+    if (e.type === 'dblclick') {
+      e.preventDefault();
+      handleSlotTransfer(slotEl, false);
+      return;
+    }
+
+    if (e.type === 'click' && e.shiftKey) {
+      e.preventDefault();
+      handleSlotTransfer(slotEl, true);
+    }
+  }
+
   function init(initialState) {
     state = initialState;
     document.body.addEventListener('click', handleClick);
+    document.body.addEventListener('dblclick', handlePointerSlot);
+    document.body.addEventListener('click', handlePointerSlot, true);
     initDragDrop();
     renderSidebar();
     switchPage('characters');
