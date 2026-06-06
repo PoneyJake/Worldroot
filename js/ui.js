@@ -768,7 +768,7 @@
           const unlock = E.upgradeUnlockCosts(node.id, tierIdx);
           const targetMax = E.upgradeUnlockTargetMax(tierIdx);
           if (unlock) {
-            const owned = S.countResourceOwned(state, unlock.resource);
+            const owned = S.countInventoryOwned(state, unlock.resource);
             const resMet = owned >= unlock.resourceAmt ? 'met' : 'unmet';
             costLine = `<span class="upgrade-card-cost ${resMet}">${resIcon(unlock.resource, 'game-icon lg')} ${fmt(owned)}/${fmt(unlock.resourceAmt)}</span>`;
             actionLabel = `Unlock → Lv ${targetMax}`;
@@ -797,7 +797,7 @@
     return `
       <header class="page-header">
         <span class="page-header-icon">🌳</span>
-        <div class="page-header-text"><h1>World Tree</h1><p>Spend resources to unlock each tier cap (5 levels), then gold to level up within it</p></div>
+        <div class="page-header-text"><h1>World Tree</h1><p>Spend inventory resources to unlock each tier cap (5 levels), then gold to level up within it</p></div>
       </header>
       <div class="branch-grid">${branches}</div>`;
   }
@@ -908,7 +908,7 @@
         }
         render();
       } else if (wasUnlock) {
-        addLog(`Not enough resources to unlock ${found.node.name}.`);
+        addLog(`Not enough ${C.RESOURCE_NAMES[found.node.costRes] || 'resources'} in inventory to unlock ${found.node.name}.`);
       } else {
         addLog(`Not enough gold to upgrade ${found.node.name}, or it is at its current tier cap.`);
       }

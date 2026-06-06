@@ -57,7 +57,7 @@
     if (!upgradeNeedsUnlock(state, nodeId)) return false;
     const costs = upgradeUnlockCosts(nodeId, upgradeUnlockIndex(state, nodeId));
     if (!costs) return false;
-    return S.resourceHas(state, costs.resource, costs.resourceAmt);
+    return S.inventoryResourceHas(state, costs.resource, costs.resourceAmt);
   }
 
   function canLevelUpgrade(state, nodeId) {
@@ -486,8 +486,8 @@
     const tierIdx = upgradeUnlockIndex(state, nodeId);
     const costs = upgradeUnlockCosts(nodeId, tierIdx);
     if (!costs) return false;
-    if (!S.resourceHas(state, costs.resource, costs.resourceAmt)) return false;
-    S.removeResourceOwned(state, costs.resource, costs.resourceAmt);
+    if (!S.inventoryResourceHas(state, costs.resource, costs.resourceAmt)) return false;
+    S.removeFromInventoryOwned(state, costs.resource, costs.resourceAmt);
     if (!state.upgradeTiers) state.upgradeTiers = {};
     state.upgradeTiers[nodeId] = tierIdx + 1;
     S.saveState(state);
