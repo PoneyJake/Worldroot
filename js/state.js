@@ -1,6 +1,11 @@
 /** Worldroot — save/load and state helpers. */
 
 (function () {
+  if (!window.WorldrootConfig) {
+    console.error('[Worldroot] config.js did not load before state.js');
+    return;
+  }
+
   const { SAVE_KEY, SAVE_KEY_OFFLINE, RESOURCE_IDS, CLASSES, SLOT_UNLOCK_AT } = window.WorldrootConfig;
 
   let playMode = 'offline';
@@ -110,8 +115,8 @@
   }
 
   function characterTotalLevel(char) {
-    if (!char) return 0;
-    return Object.values(char.skills).reduce((sum, sk) => sum + sk.level, 0);
+    if (!char?.skills) return 0;
+    return Object.values(char.skills).reduce((sum, sk) => sum + (sk?.level ?? 1), 0);
   }
 
   function accountTotalLevel(state) {

@@ -129,7 +129,7 @@
       const cls = C.CLASSES[char.classId];
       const total = S.characterTotalLevel(char);
       const skills = SKILL_ORDER.map((sid) => {
-        const lv = char.skills[sid].level;
+        const lv = char.skills[sid]?.level ?? 1;
         return `<span class="char-stat"><em>${skillName(sid).slice(0, 3)}</em> ${lv}</span>`;
       }).join('');
 
@@ -544,43 +544,61 @@
     setSessionBadge,
   };
 
+  function showBootError(msg) {
+    const panel = document.getElementById('panel-characters');
+    if (panel) {
+      panel.classList.remove('hidden');
+      panel.innerHTML = `<p class="empty-msg" style="color:#e8a0a0">${msg}</p>`;
+    }
+    const bar = document.getElementById('tab-bar');
+    if (bar) bar.innerHTML = '<button type="button" class="tab-btn active" disabled>Error</button>';
+  }
+
   /** Boot game immediately — do not wait for auth module. */
   function autoBoot() {
-    const S = window.WorldrootState;
-    const E = window.WorldrootEngine;
-    if (!TABS.length || !S || !E) return;
+    try {
+      const S = window.WorldrootState;
+      const E = window.WorldrootEngine;
+      if (!S || !E) {
+        showBootError('Game failed to load. Hard refresh (Ctrl+Shift+R) or try Play offline from the home page.');
+        return;
+      }
 
-    const mode = sessionStorage.getItem('worldroot_play_mode');
-    S.setPlayMode(mode === 'cloud' ? 'cloud' : 'offline');
+      const mode = sessionStorage.getItem('worldroot_play_mode');
+      S.setPlayMode(mode === 'cloud' ? 'cloud' : 'offline');
 
-    window.WorldrootSession = window.WorldrootSession || {
-      isCloud: mode === 'cloud',
-      isOffline: mode !== 'cloud',
-      displayName: 'Offline',
-    };
+      window.WorldrootSession = window.WorldrootSession || {
+        isCloud: mode === 'cloud',
+        isOffline: mode !== 'cloud',
+        displayName: 'Offline',
+      };
 
-    if (window.__worldrootBooted) return;
-    window.__worldrootBooted = true;
+      if (window.__worldrootBooted) return;
+      window.__worldrootBooted = true;
 
-    const gameState = S.loadState();
-    init(gameState);
+      const gameState = S.loadState();
+      init(gameState);
 
-    if (!gameState.characters.length) {
-      addLog('Welcome to Worldroot. Choose your first class.');
-    } else {
-      addLog('Welcome back to Worldroot.');
+      if (!gameState.characters.length) {
+        addLog('Welcome to Worldroot. Choose your first class.');
+      } else {
+        addLog('Welcome back to Worldroot.');
+      }
+
+      setInterval(() => {
+        E.tick(getState());
+        S.refreshPendingSlot(getState());
+        refresh();
+      }, C?.TICK_MS ?? 1000);
+
+      window.addEventListener('beforeunload', () => {
+        S.saveState(getState());
+        if (window.WorldrootCloud?.flush) window.WorldrootCloud.flush();
+      });
+    } catch (err) {
+      console.error('[Worldroot] boot failed:', err);
+      showBootError(`Game error: ${err.message}. Try Reset save in Settings or clear browser data for this site.`);
     }
-
-    setInterval(() => {
-      E.tick(getState());
-      S.refreshPendingSlot(getState());
-      refresh();
-    }, C.TICK_MS);
-
-    window.addEventListener('beforeunload', () => {
-      S.saveState(getState());
-      if (window.WorldrootCloud?.flush) window.WorldrootCloud.flush();
-    });
   }
 
   if (document.readyState === 'loading') {

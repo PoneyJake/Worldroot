@@ -1,6 +1,11 @@
 /** Worldroot — tick logic, resources, upgrades. */
 
 (function () {
+  if (!window.WorldrootConfig) {
+    console.error('[Worldroot] config.js did not load before engine.js');
+    return;
+  }
+
   const C = window.WorldrootConfig;
   const S = window.WorldrootState;
 

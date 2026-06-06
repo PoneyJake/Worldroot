@@ -23,12 +23,16 @@
     </header>
 
     <nav class="tab-bar" id="tab-bar">
-      <button type="button" class="tab-btn active" disabled>Loading…</button>
+      <button type="button" class="tab-btn active" data-action="switch-tab" data-tab="characters">Characters</button>
+      <button type="button" class="tab-btn" data-action="switch-tab" data-tab="skills">Skills</button>
+      <button type="button" class="tab-btn" data-action="switch-tab" data-tab="resources">Resources</button>
+      <button type="button" class="tab-btn" data-action="switch-tab" data-tab="worldroot">Worldroot</button>
+      <button type="button" class="tab-btn" data-action="switch-tab" data-tab="settings">Settings</button>
     </nav>
 
     <main class="tab-content">
       <section id="panel-characters" class="tab-panel" data-tab="characters">
-        <p class="panel-intro">Loading game…</p>
+        <p class="panel-intro">Choose a class to begin your party.</p>
       </section>
       <section id="panel-skills" class="tab-panel hidden" data-tab="skills"></section>
       <section id="panel-resources" class="tab-panel hidden" data-tab="resources"></section>
@@ -45,10 +49,10 @@
     </div>
   </div>
 
-  <script src="js/config.js?v=4"></script>
-  <script src="js/state.js?v=4"></script>
-  <script src="js/engine.js?v=4"></script>
-  <script src="js/ui.js?v=4"></script>
-  <script type="module" src="js/gameBootstrap.js?v=4"></script>
+  <script src="js/config.js?v=5"></script>
+  <script src="js/state.js?v=5"></script>
+  <script src="js/engine.js?v=5"></script>
+  <script src="js/ui.js?v=5"></script>
+  <script type="module" src="js/gameBootstrap.js?v=5"></script>
 </body>
 </html>
