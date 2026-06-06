@@ -396,6 +396,113 @@ body {
   gap: 6px;
 }
 
+/* ── Character rail layout ── */
+
+.char-layout {
+  display: flex;
+  gap: 16px;
+  min-height: 320px;
+}
+
+.char-rail {
+  width: 160px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.char-rail-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 12px;
+  border: 1px solid #2a382a;
+  border-radius: 10px;
+  background: #161e16;
+  color: #8a9a86;
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+}
+
+.char-rail-btn:hover {
+  border-color: #4a7a44;
+  background: #1a241a;
+}
+
+.char-rail-btn.active {
+  border-color: #5a9a52;
+  background: #1e301e;
+  color: #c8e6c3;
+  box-shadow: inset 3px 0 0 #5a9a52;
+}
+
+.char-rail-icon {
+  font-size: 1.4rem;
+}
+
+.char-rail-name {
+  font-weight: 700;
+  font-size: 0.88rem;
+}
+
+.char-rail-lv {
+  font-size: 0.72rem;
+  color: #6a7a66;
+}
+
+.char-detail {
+  flex: 1;
+  background: #121812;
+  border: 1px solid #1e2a1e;
+  border-radius: 12px;
+  padding: 18px;
+}
+
+.char-detail-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+.char-detail-head h2 {
+  margin: 0;
+  color: #dce6d8;
+}
+
+.char-portrait.lg {
+  width: 64px;
+  height: 64px;
+  font-size: 2rem;
+}
+
+.slot-select {
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid #334030;
+  background: #0f1410;
+  color: #dce6d8;
+  font-size: 0.85rem;
+  margin: 8px 0;
+}
+
+.progress-bar.mini {
+  height: 4px;
+  flex: 1;
+  min-width: 40px;
+}
+
+.char-skill-item {
+  display: grid;
+  grid-template-columns: auto 1fr auto 60px;
+  align-items: center;
+  gap: 8px;
+}
+
 /* ── Characters ── */
 
 .char-grid {
