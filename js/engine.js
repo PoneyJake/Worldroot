@@ -69,11 +69,14 @@
     return base + effectBonus(state, statName);
   }
 
-  function gatherStatMult(state, char, skillId) {
+  function gatherStatBonus(state, char, skillId) {
     const sk = C.SKILLS[skillId];
     const statName = sk?.gatherStat || C.CLASSES[char.classId]?.gatherStat || 'strength';
-    const stat = charStat(state, char, statName);
-    return 1 + stat * C.STAT_SCALE;
+    return Math.floor(charStat(state, char, statName));
+  }
+
+  function gatherStatMult(state, char, skillId) {
+    return 1;
   }
 
   function combatDamageMult(state, char) {
@@ -108,8 +111,8 @@
   function gatherEfficiency(state, char, skillId) {
     const lv = char.skills[skillId]?.level ?? 0;
     const yieldB = skillYieldBonus(state, skillId);
-    const statM = gatherStatMult(state, char, skillId);
-    return C.BASE_GATHER_EFFICIENCY + Math.floor((lv * C.LEVEL_EFF_BONUS + yieldB) * statM);
+    const statB = gatherStatBonus(state, char, skillId);
+    return C.BASE_GATHER_EFFICIENCY + Math.floor(lv * C.LEVEL_EFF_BONUS + yieldB) + statB;
   }
 
   function gatherMultiChance(state, char, skillId) {
@@ -152,24 +155,25 @@
   }
 
   function charMaxHp(state, char) {
-    const baseHp = C.BASE_CHAR_HP;
-    const hpBonus = effectBonus(state, 'base_hp');
-    const combatLv = char.skills.combat?.level ?? 0;
-    return Math.floor(baseHp + hpBonus + combatLv * 5);
+    return Math.floor(C.BASE_CHAR_HP + effectBonus(state, 'base_hp'));
   }
 
   function charMaxMp(state, char) {
-    const baseMp = C.BASE_CHAR_MP ?? 20;
-    const mpBonus = effectBonus(state, 'base_mp');
-    const combatLv = char.skills.combat?.level ?? 0;
-    return Math.floor(baseMp + mpBonus + combatLv * 2);
+    return Math.floor(C.BASE_CHAR_MP + effectBonus(state, 'base_mp'));
   }
 
   function charDamage(state, char) {
-    const dmgM = combatDamageMult(state, char);
+    const cls = C.CLASSES[char.classId];
+    const statName = cls?.combatStat || 'strength';
+    const combatStat = charStat(state, char, statName);
     const baseDmg = effectBonus(state, 'base_damage');
-    const combatLv = char.skills.combat?.level ?? 0;
-    return Math.max(1, Math.floor(4 * dmgM + baseDmg + combatLv * 0.5));
+    const pctDmg = effectBonus(state, 'pct_damage');
+    const raw = C.BASE_CHAR_DAMAGE + baseDmg + combatStat;
+    return Math.max(1, Math.floor(raw * (1 + pctDmg)));
+  }
+
+  function dropBonus(state) {
+    return effectBonus(state, 'drop_rate');
   }
 
   function mobMaxHp(monster) {
@@ -504,8 +508,8 @@
   window.WorldrootEngine = {
     upgradeLevel, upgradeCosts, upgradeBonusDisplay, upgradeBonusPercent, effectBonus,
     skillXpBonus, skillYieldBonus, skillMultiBonus,
-    gatherEfficiency, gatherSuccessChance, gatherMultiChance, veinEffThreshold,
-    gatherRatePerMin, gatherIntervalTicks, charMaxHp, charMaxMp, charDamage, mobMaxHp, dropChance,
+    gatherEfficiency, gatherStatBonus, gatherSuccessChance, gatherMultiChance, veinEffThreshold,
+    gatherRatePerMin, gatherIntervalTicks, charMaxHp, charMaxMp, charDamage, mobMaxHp, dropChance, dropBonus,
     getTheoreticalCombatRates, smeltBatchCapacity,
     charStat, gatherStatMult, combatDamageMult,
     tick, buyUpgrade, canAffordUpgrade, findVein, findMonster,

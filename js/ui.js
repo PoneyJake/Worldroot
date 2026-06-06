@@ -26,7 +26,22 @@
     if (!src) return `<span class="${className} icon-fallback">?</span>`;
     return `<img class="${className}" src="${src}" alt="" draggable="false" loading="lazy" />`;
   }
-  function resIcon(id) { return iconHtml(id, 'game-icon'); }
+  function resTipText(id) {
+    return resName(id);
+  }
+
+  function resIcon(id, className = 'game-icon') {
+    const tip = resTipText(id);
+    return `<span class="res-tip-wrap" data-res-tip="${tip}">${iconHtml(id, className)}</span>`;
+  }
+
+  function classPortraitHtml(classId, className = 'class-portrait-img') {
+    const cls = C.CLASSES[classId];
+    const file = cls?.portrait;
+    if (!file) return `<span class="${className} fallback">${cls?.icon ?? '?'}</span>`;
+    const src = `${C.PORTRAIT_BASE}/${file}.png`;
+    return `<img class="${className}" src="${src}" alt="${cls.name}" draggable="false" loading="lazy" />`;
+  }
   function skillName(id) { return C.SKILLS[id]?.name ?? id; }
 
   function renderCharSwitcher() {
@@ -74,7 +89,7 @@
         html += `
           <div class="item-slot filled${transferType ? ' transferable' : ''}" title="${resName(slot.resourceId)}${transferType ? ' — double-click: move 1 · shift+click: move all' : ''}"${transferAttr}>
             <span class="item-slot-qty">${fmt(slot.amount)}</span>
-            <span class="item-slot-icon">${resIcon(slot.resourceId)}</span>
+            <span class="item-slot-icon">${resIcon(slot.resourceId, 'game-icon')}</span>
             <span class="item-slot-name">${resName(slot.resourceId)}</span>
           </div>`;
       }
@@ -215,7 +230,7 @@
     if (account < unlockAt) return '';
     const picks = Object.values(C.CLASSES).map((cls) => `
       <button type="button" class="class-pick" data-action="pick-class" data-class="${cls.id}">
-        <span class="class-pick-icon">${cls.icon}</span>
+        <span class="class-pick-icon">${classPortraitHtml(cls.id, 'class-portrait-img pick')}</span>
         <span class="class-pick-name">${cls.name}</span>
         <span class="class-pick-desc">${cls.desc}</span>
       </button>`).join('');
@@ -244,14 +259,20 @@
       { label: 'Accuracy', value: fmt(E.effectBonus(state, 'base_accuracy')) },
       { label: 'Crit Chance', value: pct(E.effectBonus(state, 'crit_chance')) },
       { label: 'Crit Damage', value: pct(E.effectBonus(state, 'crit_damage')) },
-      { label: 'Drop Rate', value: pct(E.dropChance(state)) },
+      { label: 'Drop Rate', value: pct(E.dropBonus(state)) },
       { label: 'Gold Gain', value: pct(E.effectBonus(state, 'gold_gain')) },
       { label: 'Carry Cap.', value: pct(E.effectBonus(state, 'carry_capacity')) },
+    ];
+    const attrs = [
+      { label: 'STR', value: fmt(E.charStat(state, char, 'strength')) },
+      { label: 'AGI', value: fmt(E.charStat(state, char, 'agility')) },
+      { label: 'MAG', value: fmt(E.charStat(state, char, 'magic')) },
     ];
     return `
       <section class="char-stats-section">
         <h3 class="char-stats-heading">Combat</h3>
         <div class="char-stat-grid">${renderCharStatCells(stats)}</div>
+        <div class="char-stat-grid attrs">${renderCharStatCells(attrs)}</div>
       </section>`;
   }
 
@@ -334,7 +355,7 @@
       return `
         <button type="button" class="char-rail-btn${active ? ' active' : ''}"
           data-action="select-char" data-char="${i}">
-          <span class="char-rail-icon">${cls.icon}</span>
+          <span class="char-rail-icon">${classPortraitHtml(char.classId, 'class-portrait-img sm')}</span>
           <span class="char-rail-name">${cls.name}</span>
           <span class="char-rail-lv">Lv ${S.characterTotalLevel(char)}</span>
         </button>`;
@@ -344,31 +365,16 @@
     let detail = '<p class="empty-msg">Choose a class to begin.</p>';
     if (char) {
       const cls = C.CLASSES[char.classId];
-      const str = E.charStat(state, char, 'strength').toFixed(1);
-      const agi = E.charStat(state, char, 'agility').toFixed(1);
-      const mag = E.charStat(state, char, 'magic').toFixed(1);
-      const combatLv = charSkillLevel(char, 'combat');
-      const combatXp = xpProgress(char.skills.combat);
 
       detail = `
         <div class="char-detail-head">
-          <div class="char-portrait lg">${cls.icon}</div>
+          <div class="char-portrait lg">${classPortraitHtml(char.classId)}</div>
           <div>
             <h2>${cls.name}</h2>
             <p class="char-meta">${cls.desc}</p>
             <div class="char-activity-pill ${char.activity ? 'active' : ''}">▶ ${activityLabel(char)}</div>
           </div>
           <div class="char-total-badge"><span>Total</span><strong>${S.characterTotalLevel(char)}</strong></div>
-        </div>
-        <div class="char-attrs-row">
-          <span class="char-stat"><em>STR</em> ${str}</span>
-          <span class="char-stat"><em>AGI</em> ${agi}</span>
-          <span class="char-stat"><em>MAG</em> ${mag}</span>
-          <span class="char-stat"><em>Combat</em> Lv ${combatLv}</span>
-        </div>
-        <div class="char-combat-xp">
-          <span class="char-stat-label">Combat XP</span>
-          <div class="progress-bar mini wide"><div class="progress-bar-fill" style="width:${combatXp}%"></div></div>
         </div>
         ${renderCharCombatStats(char)}
         ${renderCharGatherStats(char)}
@@ -469,7 +475,7 @@
     return `
       <div class="combat-arena">
         <div class="combat-fighter player">
-          <span class="fighter-icon">${cls.icon}</span>
+          <span class="fighter-icon">${classPortraitHtml(char.classId, 'class-portrait-img arena')}</span>
           <span class="fighter-name">${cls.name}</span>
           <div class="hp-bar"><div class="hp-bar-fill player" style="width:${charPct}%"></div></div>
           <span class="hp-text">${fmt(charHp)} / ${fmt(charMax)} HP · ${E.charDamage(state, char)} dmg</span>
@@ -609,7 +615,7 @@
           data-drag-type="smelt-ore" data-inv="${i}" data-resource="${slot.resourceId}"
           title="${resName(slot.resourceId)}${canLoad ? ' — drag to smelter' : ''}">
           <span class="item-slot-qty">${fmt(slot.amount)}</span>
-          <span class="item-slot-icon">${resIcon(slot.resourceId)}</span>
+          <span class="item-slot-icon">${resIcon(slot.resourceId, 'game-icon')}</span>
           <span class="item-slot-name">${resName(slot.resourceId)}</span>
           ${loadBtn}
         </div>`;
@@ -1008,12 +1014,40 @@
     }
   }
 
+  function initResourceTooltips() {
+    let tip = document.getElementById('res-tooltip');
+    if (!tip) {
+      tip = document.createElement('div');
+      tip.id = 'res-tooltip';
+      tip.className = 'res-tooltip-float';
+      tip.hidden = true;
+      document.body.appendChild(tip);
+    }
+
+    document.body.addEventListener('mouseover', (e) => {
+      const wrap = e.target.closest('[data-res-tip]');
+      if (!wrap) {
+        tip.hidden = true;
+        return;
+      }
+      tip.textContent = wrap.dataset.resTip;
+      tip.hidden = false;
+    });
+
+    document.body.addEventListener('mousemove', (e) => {
+      if (tip.hidden) return;
+      tip.style.left = `${e.clientX + 14}px`;
+      tip.style.top = `${e.clientY + 14}px`;
+    });
+  }
+
   function init(initialState) {
     state = initialState;
     document.body.addEventListener('click', handleClick);
     document.body.addEventListener('dblclick', handlePointerSlot);
     document.body.addEventListener('click', handlePointerSlot, true);
     initDragDrop();
+    initResourceTooltips();
     renderSidebar();
     switchPage('characters');
   }

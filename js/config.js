@@ -25,8 +25,9 @@ window.WorldrootConfig = {
   LEVEL_MULTI_BONUS: 0.005,
   COMBAT_ATTACK_SEC: 1.5,
   COMBAT_RESPAWN_SEC: 10,
-  BASE_CHAR_HP: 50,
-  BASE_CHAR_MP: 20,
+  BASE_CHAR_HP: 20,
+  BASE_CHAR_MP: 10,
+  BASE_CHAR_DAMAGE: 5,
   BASE_DROP_CHANCE: 0.2,
 
   SLOT_UNLOCK_AT: [0, 10, 25],
@@ -56,22 +57,22 @@ window.WorldrootConfig = {
 
   CLASSES: {
     warrior: {
-      id: 'warrior', name: 'Warrior', icon: '⚔',
-      desc: 'Strength scales mining & combat damage',
+      id: 'warrior', name: 'Warrior', icon: '⚔', portrait: 'warrior',
+      desc: '+1 STR → +1 Mining efficiency',
       combatStat: 'strength', gatherStat: 'strength',
-      baseStats: { strength: 5, agility: 2, magic: 2 },
+      baseStats: { strength: 0, agility: 0, magic: 0 },
     },
     archer: {
-      id: 'archer', name: 'Archer', icon: '🏹',
-      desc: 'Agility scales woodcutting & combat damage',
+      id: 'archer', name: 'Archer', icon: '🏹', portrait: 'archer',
+      desc: '+1 AGI → +1 Woodcutting efficiency',
       combatStat: 'agility', gatherStat: 'agility',
-      baseStats: { strength: 2, agility: 5, magic: 2 },
+      baseStats: { strength: 0, agility: 0, magic: 0 },
     },
     sorcerer: {
-      id: 'sorcerer', name: 'Sorcerer', icon: '✦',
-      desc: 'Magic scales fishing & combat damage',
+      id: 'sorcerer', name: 'Sorcerer', icon: '✦', portrait: 'sorcerer',
+      desc: '+1 MAG → +1 Fishing efficiency',
       combatStat: 'magic', gatherStat: 'magic',
-      baseStats: { strength: 2, agility: 2, magic: 5 },
+      baseStats: { strength: 0, agility: 0, magic: 0 },
     },
   },
 
@@ -153,6 +154,7 @@ window.WorldrootConfig = {
   },
 
   ICON_BASE: 'assets/icons',
+  PORTRAIT_BASE: 'assets/characters',
   GAME_ICONS: {
     forest_slime: 'forest_slime', will_o_wisp: 'will_o_wisp', gloomcap: 'gloomcap', spore_bat: 'spore_bat',
     slime_gel: 'slime_gel', wisp_essence: 'wisp_essence', gloomspore: 'gloomspore', bat_wing_membrane: 'bat_wing_membrane',

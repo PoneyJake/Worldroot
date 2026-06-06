@@ -519,9 +519,72 @@ body {
 }
 
 .char-portrait.lg {
-  width: 64px;
-  height: 64px;
+  width: 96px;
+  height: 96px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  background: #161e16;
+  border: 1px solid #2a382a;
+  overflow: hidden;
+}
+
+.class-portrait-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+  pointer-events: none;
+}
+
+.class-portrait-img.sm {
+  width: 36px;
+  height: 36px;
+}
+
+.class-portrait-img.pick {
+  width: 72px;
+  height: 72px;
+}
+
+.class-portrait-img.arena {
+  width: 5.5rem;
+  height: 5.5rem;
+}
+
+.class-portrait-img.fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   font-size: 2rem;
+}
+
+.res-tip-wrap {
+  display: inline-flex;
+  align-items: center;
+  position: relative;
+}
+
+.res-tooltip-float {
+  position: fixed;
+  z-index: 10000;
+  padding: 6px 10px;
+  background: #121812;
+  border: 1px solid #4a7a48;
+  border-radius: 6px;
+  color: #dce6d8;
+  font-size: 0.8rem;
+  font-weight: 600;
+  pointer-events: none;
+  white-space: nowrap;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.45);
+}
+
+.char-stat-grid.attrs {
+  margin-top: 8px;
+  max-width: 360px;
 }
 
 .slot-select {
@@ -755,6 +818,7 @@ body {
   text-align: left;
   color: inherit;
   transition: border-color 0.12s, background 0.12s;
+  overflow: visible;
 }
 
 .upgrade-card:hover {
