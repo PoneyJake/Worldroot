@@ -5,6 +5,16 @@
   const S = window.WorldrootState;
   const E = window.WorldrootEngine;
 
+  const TABS = C?.TABS ?? [
+    { id: 'characters', label: 'Characters' },
+    { id: 'skills', label: 'Skills' },
+    { id: 'resources', label: 'Resources' },
+    { id: 'worldroot', label: 'Worldroot' },
+    { id: 'settings', label: 'Settings' },
+  ];
+  const SKILL_ORDER = C?.SKILL_ORDER ?? ['combat', 'mining', 'woodcutting', 'fishing'];
+  const MAX_SLOTS = C?.MAX_SLOTS ?? 3;
+
   let state = null;
   let activeTab = 'characters';
   let selectedSkillId = null;
@@ -87,7 +97,7 @@
   function renderTabBar() {
     const bar = $('tab-bar');
     if (!bar) return;
-    bar.innerHTML = C.TABS.map(
+    bar.innerHTML = TABS.map(
       (t) =>
         `<button type="button" class="tab-btn ${t.id === activeTab ? 'active' : ''}" data-action="switch-tab" data-tab="${t.id}">${t.label}</button>`
     ).join('');
@@ -118,7 +128,7 @@
     const cards = state.characters.map((char, i) => {
       const cls = C.CLASSES[char.classId];
       const total = S.characterTotalLevel(char);
-      const skills = C.SKILL_ORDER.map((sid) => {
+      const skills = SKILL_ORDER.map((sid) => {
         const lv = char.skills[sid].level;
         return `<span class="char-stat"><em>${skillName(sid).slice(0, 3)}</em> ${lv}</span>`;
       }).join('');
@@ -142,7 +152,7 @@
     });
 
     const slots = [];
-    for (let slot = 1; slot <= C.MAX_SLOTS; slot++) {
+    for (let slot = 1; slot <= MAX_SLOTS; slot++) {
       if (state.characters.length >= slot) continue;
       const unlockAt = C.SLOT_UNLOCK_AT[slot - 1] ?? 999;
       const ready = account >= unlockAt && state.characters.length === slot - 1;
@@ -182,7 +192,7 @@
     el.innerHTML = `
       <p class="panel-intro">Select a skill to view resources and assign characters.</p>
       <div class="skill-grid">
-        ${C.SKILL_ORDER.map((sid) => {
+        ${SKILL_ORDER.map((sid) => {
           const sk = C.SKILLS[sid];
           const best = bestSkillLevel(sid);
           const assigned = charsOnSkill(sid);
@@ -359,7 +369,7 @@
       <section class="detail-box">
         <h3>Account</h3>
         <p class="settings-line">Account Level: <strong>${fmt(S.accountTotalLevel(state))}</strong></p>
-        <p class="settings-line">Characters: <strong>${state.characters.length} / ${C.MAX_SLOTS}</strong></p>
+        <p class="settings-line">Characters: <strong>${state.characters.length} / ${MAX_SLOTS}</strong></p>
       </section>
       <section class="detail-box">
         <h3>Activity log</h3>
@@ -510,7 +520,7 @@
 
   function init(initialState) {
     state = initialState;
-    C.TABS.forEach((t) => {
+    TABS.forEach((t) => {
       panels[t.id] = $(`panel-${t.id}`);
     });
     document.body.addEventListener('click', handleClick);
@@ -538,7 +548,7 @@
   function autoBoot() {
     const S = window.WorldrootState;
     const E = window.WorldrootEngine;
-    if (!C?.TABS || !S || !E) return;
+    if (!TABS.length || !S || !E) return;
 
     const mode = sessionStorage.getItem('worldroot_play_mode');
     S.setPlayMode(mode === 'cloud' ? 'cloud' : 'offline');
