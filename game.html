@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Worldroot — Play</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <header class="top-bar">
+    <div class="brand">
+      <a href="index.html" class="brand-link">
+        <h1>Worldroot</h1>
+      </a>
+      <p class="subtitle">Idle adventure — grow your party, gather resources, deepen the roots</p>
+    </div>
+    <div class="account-stats">
+      <p id="session-badge" class="session-badge"></p>
+      <div class="stat-block">
+        <span class="stat-label">Account Level</span>
+        <span id="account-level" class="stat-value">0</span>
+      </div>
+      <div class="stat-block">
+        <span class="stat-label">Gold</span>
+        <span id="gold-total" class="stat-value">0</span>
+      </div>
+      <button type="button" class="btn ghost sm" id="btn-menu" data-action="go-menu">Main menu</button>
+      <button type="button" class="btn danger sm" data-action="reset-save">Reset save</button>
+    </div>
+  </header>
+
+  <p id="next-unlock" class="unlock-banner"></p>
+
+  <main class="layout">
+    <section class="panel wide">
+      <h2>Characters</h2>
+      <div id="characters" class="char-grid"></div>
+    </section>
+
+    <section class="panel">
+      <h2>Resources</h2>
+      <div id="resources" class="resources-wrap"></div>
+    </section>
+
+    <section class="panel wide">
+      <h2>Worldroot Upgrades</h2>
+      <p class="panel-note">Each resource has 3 upgrade paths. Costs scale with level (+1% efficiency per level).</p>
+      <div id="upgrades" class="upgrades-wrap"></div>
+    </section>
+
+    <section class="panel wide">
+      <h2>Activity Log</h2>
+      <ul id="log" class="log"></ul>
+    </section>
+  </main>
+
+  <div id="class-modal" class="modal" hidden>
+    <div class="modal-backdrop"></div>
+    <div class="modal-card">
+      <h2 id="class-modal-title">Choose a class</h2>
+      <div id="class-options" class="class-options"></div>
+    </div>
+  </div>
+
+  <script src="js/config.js"></script>
+  <script src="js/state.js"></script>
+  <script src="js/engine.js"></script>
+  <script src="js/ui.js"></script>
+  <script type="module" src="js/gameBootstrap.js"></script>
+</body>
+</html>

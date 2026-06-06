@@ -1,0 +1,245 @@
+* {
+  box-sizing: border-box;
+}
+
+.site-body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  color: #e6ebe3;
+  background: #0a0e0a;
+}
+
+.site-bg {
+  position: fixed;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 80% 60% at 50% 0%, rgba(80, 140, 70, 0.18) 0%, transparent 55%),
+    radial-gradient(ellipse 50% 40% at 80% 80%, rgba(40, 80, 50, 0.12) 0%, transparent 50%),
+    linear-gradient(180deg, #0f1410 0%, #0a0e0a 100%);
+  pointer-events: none;
+}
+
+#screens {
+  position: relative;
+  z-index: 1;
+  min-height: 100vh;
+}
+
+.site-screen {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 20px 48px;
+  gap: 20px;
+}
+
+.site-screen.hidden {
+  display: none !important;
+}
+
+.site-hero {
+  text-align: center;
+  max-width: 560px;
+}
+
+.site-eyebrow {
+  margin: 0 0 8px;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  color: #6a9a62;
+}
+
+.site-title {
+  margin: 0;
+  font-size: clamp(2.75rem, 10vw, 4.5rem);
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: #b8e6b0;
+  text-shadow: 0 0 40px rgba(120, 200, 100, 0.25);
+}
+
+.site-tagline {
+  margin: 16px 0 0;
+  font-size: 1.05rem;
+  line-height: 1.6;
+  color: #8a9a85;
+}
+
+.site-features {
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 8px;
+  max-width: 420px;
+  width: 100%;
+}
+
+.site-features li {
+  background: rgba(26, 34, 24, 0.85);
+  border: 1px solid #2a3528;
+  border-radius: 10px;
+  padding: 12px 16px;
+  font-size: 0.9rem;
+  color: #b0beb0;
+}
+
+.site-features strong {
+  color: #c8e6c3;
+}
+
+.auth-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  max-width: 320px;
+}
+
+.site-btn {
+  padding: 14px 20px;
+  border-radius: 10px;
+  border: 1px solid #3a4a38;
+  background: #1a2218;
+  color: #e6ebe3;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.site-btn:hover {
+  border-color: #6a9a62;
+  background: #222e22;
+}
+
+.site-btn.primary {
+  background: linear-gradient(180deg, #3a6040 0%, #2a5030 100%);
+  border-color: #5a9a62;
+  color: #f0fff0;
+}
+
+.site-btn.primary:hover {
+  background: linear-gradient(180deg, #4a7050 0%, #3a6040 100%);
+}
+
+.site-btn.ghost {
+  background: transparent;
+  font-weight: 500;
+  font-size: 0.9rem;
+  color: #8a9a85;
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 400px;
+  background: rgba(22, 28, 22, 0.95);
+  border: 1px solid #3a5040;
+  border-radius: 16px;
+  padding: 28px 24px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
+}
+
+.auth-card h2 {
+  margin: 0 0 6px;
+  text-align: center;
+  color: #a8d5a2;
+}
+
+.auth-hint {
+  margin: 0 0 18px;
+  text-align: center;
+  font-size: 0.85rem;
+  color: #7a8a75;
+}
+
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.auth-form input {
+  padding: 12px 14px;
+  border-radius: 8px;
+  border: 1px solid #334030;
+  background: #0f1410;
+  color: #e6ebe3;
+  font-size: 0.95rem;
+}
+
+.auth-form input:focus {
+  outline: none;
+  border-color: #6a9a62;
+}
+
+.auth-form-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.auth-error {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #e88;
+}
+
+.auth-success {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #8c8;
+}
+
+.auth-error.hidden,
+.auth-success.hidden,
+.auth-status.hidden,
+.hidden {
+  display: none !important;
+}
+
+.auth-welcome {
+  margin: 0;
+  text-align: center;
+  font-size: 1.05rem;
+  color: #c8e6c3;
+}
+
+.auth-status {
+  margin: 0;
+  padding: 10px 16px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  max-width: 420px;
+  text-align: center;
+}
+
+.auth-status.cloud-off {
+  background: #2a2218;
+  border: 1px solid #5a4030;
+  color: #caa;
+}
+
+.auth-status.cloud-on {
+  background: #1a2a1a;
+  border: 1px solid #3a5a3a;
+  color: #9c9;
+}
+
+.site-footer {
+  margin-top: 24px;
+  max-width: 420px;
+  text-align: center;
+}
+
+.site-footer p {
+  margin: 0;
+  font-size: 0.78rem;
+  color: #5a6a55;
+  line-height: 1.5;
+}
