@@ -32,7 +32,7 @@
 
     <main class="tab-content">
       <section id="panel-characters" class="tab-panel" data-tab="characters">
-        <p class="panel-intro">Choose a class to begin your party.</p>
+        <p class="panel-intro">Loading…</p>
       </section>
       <section id="panel-skills" class="tab-panel hidden" data-tab="skills"></section>
       <section id="panel-resources" class="tab-panel hidden" data-tab="resources"></section>
@@ -49,10 +49,15 @@
     </div>
   </div>
 
-  <script src="js/config.js?v=5"></script>
-  <script src="js/state.js?v=5"></script>
-  <script src="js/engine.js?v=5"></script>
-  <script src="js/ui.js?v=5"></script>
-  <script type="module" src="js/gameBootstrap.js?v=5"></script>
+  <script src="js/game.js?v=6"></script>
+  <script>
+    if (!window.__worldrootBooted) {
+      var panel = document.getElementById('panel-characters');
+      if (panel) {
+        panel.innerHTML = '<p class="empty-msg" style="color:#e8a0a0">Game failed to start. Go to <a href="index.html">home page</a>, click Play offline, then try again.</p>';
+      }
+    }
+  </script>
+  <script type="module" src="js/gameBootstrap.js?v=6"></script>
 </body>
 </html>
