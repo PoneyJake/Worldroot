@@ -4,42 +4,129 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Worldroot — Idle RPG</title>
-  <link rel="stylesheet" href="css/site.css" />
+  <link rel="stylesheet" href="css/site.css?v=7" />
 </head>
 <body class="site-body">
   <div class="site-bg" aria-hidden="true"></div>
 
+  <header class="site-top-bar">
+    <a href="index.html" class="site-brand">
+      <span class="site-brand-icon">🌳</span>
+      <span class="site-brand-name">Worldroot</span>
+    </a>
+    <nav class="site-top-nav">
+      <a href="#features">Features</a>
+      <a href="#skills">Skills</a>
+    </nav>
+  </header>
+
   <div id="screens">
     <div id="screen-home" class="site-screen">
-      <header class="site-hero">
-        <p class="site-eyebrow">Browser idle RPG</p>
-        <h1 class="site-title">Worldroot</h1>
-        <p class="site-tagline">
-          Grow a party of specialists, gather resources from the deep roots of the world,
-          and unlock new heroes as your account grows.
-        </p>
-      </header>
+      <div class="site-hero-layout">
+        <section class="site-hero">
+          <p class="site-eyebrow">Browser idle RPG</p>
+          <h1 class="site-title">Grow the World Tree.<br />Command your party.</h1>
+          <p class="site-tagline">
+            Assign heroes to combat, mining, woodcutting, and fishing. Unlock upgrades
+            across the ancient World Tree and build a party of specialists that progresses
+            while you play — or while you do not.
+          </p>
 
-      <ul class="site-features">
-        <li><strong>3 classes</strong> — Warrior, Archer, Sorcerer</li>
-        <li><strong>4 skills</strong> — Combat, Mining, Woodcutting, Fishing</li>
-        <li><strong>Idle progress</strong> — assign activities, earn every second</li>
-        <li><strong>Cloud saves</strong> — log in and play anywhere</li>
-      </ul>
+          <p id="auth-status" class="auth-status hidden"></p>
 
-      <p id="auth-status" class="auth-status hidden"></p>
+          <div id="menu-logged-out" class="auth-actions">
+            <button id="btn-play-offline" type="button" class="site-btn primary large">
+              <span class="site-btn-icon">▶</span> Play offline
+            </button>
+            <div class="auth-actions-row">
+              <button id="btn-login" type="button" class="site-btn">Log In</button>
+              <button id="btn-register" type="button" class="site-btn">Create Account</button>
+            </div>
+          </div>
 
-      <div id="menu-logged-out" class="auth-actions">
-        <button id="btn-login" type="button" class="site-btn primary">Log In</button>
-        <button id="btn-register" type="button" class="site-btn">Create Account</button>
-        <button id="btn-play-offline" type="button" class="site-btn ghost">Play offline (this device only)</button>
+          <div id="menu-logged-in" class="auth-actions hidden">
+            <p class="auth-welcome">Welcome back, <span id="menu-username"></span></p>
+            <button id="btn-play" type="button" class="site-btn primary large">
+              <span class="site-btn-icon">▶</span> Play Worldroot
+            </button>
+            <button id="btn-logout" type="button" class="site-btn ghost">Log Out</button>
+          </div>
+        </section>
+
+        <aside class="site-preview" aria-label="Game preview">
+          <div class="preview-shell">
+            <div class="preview-top-bar">
+              <span>🌳 Worldroot</span>
+              <div class="preview-stats">
+                <span>⭐ Lv 24</span>
+                <span>🪙 1,240</span>
+              </div>
+            </div>
+            <div class="preview-body">
+              <div class="preview-sidebar">
+                <span class="preview-nav active">🗡 Combat</span>
+                <span class="preview-nav">⛏ Mining</span>
+                <span class="preview-nav">🪓 Woodcutting</span>
+                <span class="preview-nav">🎣 Fishing</span>
+                <span class="preview-nav muted">🌳 World Tree</span>
+              </div>
+              <div class="preview-main">
+                <div class="preview-card">
+                  <strong>🟢 Forest Slime</strong>
+                  <span>XP/hr · Kills/hr · Loot/hr</span>
+                </div>
+                <div class="preview-card">
+                  <strong>⬛ Coal Vein</strong>
+                  <span>Assign · Progress · Rates</span>
+                </div>
+                <div class="preview-card dim">
+                  <strong>🌳 Mining Efficiency</strong>
+                  <span>World Tree upgrade</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </aside>
       </div>
 
-      <div id="menu-logged-in" class="auth-actions hidden">
-        <p class="auth-welcome">Welcome, <span id="menu-username"></span></p>
-        <button id="btn-play" type="button" class="site-btn primary">Play Worldroot</button>
-        <button id="btn-logout" type="button" class="site-btn ghost">Log Out</button>
-      </div>
+      <section id="features" class="site-section">
+        <h2 class="site-section-title">Built for idle RPG fans</h2>
+        <div class="site-feature-grid">
+          <article class="site-feature-card">
+            <span class="site-feature-icon">🗡</span>
+            <h3>Combat progression</h3>
+            <p>Hunt Forest Slimes, Goblin Scouts, Dire Wolves, and bosses. Track kills, XP, and loot per hour.</p>
+          </article>
+          <article class="site-feature-card">
+            <span class="site-feature-icon">⛏</span>
+            <h3>Skill-focused layout</h3>
+            <p>Mining, woodcutting, and fishing each have dedicated vein pages with assignments and live rates.</p>
+          </article>
+          <article class="site-feature-card">
+            <span class="site-feature-icon">🌳</span>
+            <h3>World Tree upgrades</h3>
+            <p>Branch-based bonuses for combat, gathering, and utility — not tied to individual resources.</p>
+          </article>
+          <article class="site-feature-card">
+            <span class="site-feature-icon">👥</span>
+            <h3>Party management</h3>
+            <p>Three classes, three slots. Warriors, Archers, and Sorcerers each excel at a different skill.</p>
+          </article>
+        </div>
+      </section>
+
+      <section id="skills" class="site-section site-skills-strip">
+        <h2 class="site-section-title">Skills &amp; systems</h2>
+        <ul class="site-skills-list">
+          <li><span>🗡</span> Combat</li>
+          <li><span>⛏</span> Mining</li>
+          <li><span>🪓</span> Woodcutting</li>
+          <li><span>🎣</span> Fishing</li>
+          <li class="soon"><span>🔨</span> Smithing <em>Soon</em></li>
+          <li class="soon"><span>🔥</span> Smelting <em>Soon</em></li>
+          <li class="soon"><span>🧵</span> Crafting <em>Soon</em></li>
+        </ul>
+      </section>
 
       <footer class="site-footer">
         <p>Progress saves to your account when logged in, or to this browser when playing offline.</p>
@@ -82,6 +169,6 @@
     </div>
   </div>
 
-  <script type="module" src="js/site.js"></script>
+  <script type="module" src="js/site.js?v=7"></script>
 </body>
 </html>

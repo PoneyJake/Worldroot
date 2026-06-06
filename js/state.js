@@ -6,7 +6,8 @@
     return;
   }
 
-  const { SAVE_KEY, SAVE_KEY_OFFLINE, RESOURCE_IDS, CLASSES, SLOT_UNLOCK_AT } = window.WorldrootConfig;
+  const { SAVE_KEY, SAVE_KEY_OFFLINE, RESOURCE_IDS, CLASSES, SLOT_UNLOCK_AT, WORLD_TREE_BRANCHES } =
+    window.WorldrootConfig;
 
   let playMode = 'offline';
 
@@ -25,19 +26,88 @@
       resources: state.resources,
       upgrades: state.upgrades,
       pendingSlot: state.pendingSlot,
+      rateStats: state.rateStats,
     };
+  }
+
+  function emptyUpgrades() {
+    const u = {};
+    for (const branch of WORLD_TREE_BRANCHES) {
+      for (const node of branch.nodes) {
+        u[node.id] = 0;
+      }
+    }
+    return u;
+  }
+
+  const LEGACY_UPGRADES = [
+    { id: 'coal', nodes: [{ effect: 'woodcutting_yield' }, { effect: 'storage' }, { effect: 'mining_xp' }] },
+    { id: 'copper', nodes: [{ effect: 'mining_yield' }, { effect: 'storage' }, { effect: 'mining_xp' }] },
+    { id: 'iron', nodes: [{ effect: 'mining_yield' }, { effect: 'storage' }, { effect: 'mining_xp' }] },
+    { id: 'gold', nodes: [{ effect: 'mining_yield' }, { effect: 'storage' }, { effect: 'combat_gold' }] },
+    { id: 'oak', nodes: [{ effect: 'mining_yield' }, { effect: 'combat_hp' }, { effect: 'woodcutting_xp' }] },
+    { id: 'spruce', nodes: [{ effect: 'woodcutting_yield' }, { effect: 'storage' }, { effect: 'woodcutting_xp' }] },
+    { id: 'birch', nodes: [{ effect: 'woodcutting_yield' }, { effect: 'storage' }, { effect: 'woodcutting_xp' }] },
+    { id: 'jungle', nodes: [{ effect: 'woodcutting_yield' }, { effect: 'storage' }, { effect: 'fishing_xp' }] },
+    { id: 'shrimp', nodes: [{ effect: 'fishing_yield' }, { effect: 'storage' }, { effect: 'fishing_xp' }] },
+    { id: 'trout', nodes: [{ effect: 'fishing_yield' }, { effect: 'storage' }, { effect: 'fishing_xp' }] },
+    { id: 'salmon', nodes: [{ effect: 'fishing_yield' }, { effect: 'storage' }, { effect: 'fishing_xp' }] },
+    { id: 'lobster', nodes: [{ effect: 'fishing_yield' }, { effect: 'storage' }, { effect: 'combat_xp' }] },
+  ];
+
+  function migrateUpgrades(oldUpgrades) {
+    const u = emptyUpgrades();
+    if (!oldUpgrades || typeof oldUpgrades !== 'object') return u;
+
+    const effectTotals = {};
+    for (const res of LEGACY_UPGRADES) {
+      res.nodes.forEach((node, i) => {
+        const key = `${res.id}_${i}`;
+        const lv = oldUpgrades[key] || 0;
+        if (lv > 0) {
+          effectTotals[node.effect] = (effectTotals[node.effect] || 0) + lv;
+        }
+      });
+    }
+
+    if (effectTotals.combat_gold) {
+      effectTotals.gold_gain = (effectTotals.gold_gain || 0) + effectTotals.combat_gold;
+    }
+    if (effectTotals.combat_xp) {
+      effectTotals.damage = (effectTotals.damage || 0) + Math.floor(effectTotals.combat_xp / 2);
+    }
+
+    for (const branch of WORLD_TREE_BRANCHES) {
+      for (const node of branch.nodes) {
+        if (effectTotals[node.effect]) {
+          u[node.id] = Math.min(effectTotals[node.effect], 50);
+        }
+      }
+    }
+
+    for (const [key, val] of Object.entries(oldUpgrades)) {
+      if (WORLD_TREE_BRANCHES.some((b) => b.nodes.some((n) => n.id === key))) {
+        u[key] = Math.max(u[key] || 0, val);
+      }
+    }
+
+    return u;
   }
 
   function hydrateState(data) {
     const state = defaultState();
     state.gold = data.gold ?? 0;
     state.resources = { ...state.resources, ...(data.resources || {}) };
-    state.upgrades = { ...state.upgrades, ...(data.upgrades || {}) };
+    state.upgrades = migrateUpgrades(data.upgrades);
     state.pendingSlot = data.pendingSlot ?? (data.characters?.length ? null : 1);
+    if (data.rateStats) {
+      state.rateStats = { ...defaultRateStats(), ...data.rateStats };
+    }
     if (Array.isArray(data.characters)) {
       state.characters = data.characters.map((c) => ({
         classId: c.classId,
         activity: c.activity ?? null,
+        target: c.target ?? null,
         skills: {
           combat: { ...defaultSkill(), ...c.skills?.combat },
           mining: { ...defaultSkill(), ...c.skills?.mining },
@@ -73,18 +143,18 @@
     return r;
   }
 
-  function emptyUpgrades() {
-    const u = {};
-    for (const res of window.WorldrootConfig.UPGRADES) {
-      for (let i = 0; i < 3; i++) {
-        u[`${res.id}_${i}`] = 0;
-      }
-    }
-    return u;
-  }
-
   function defaultSkill() {
     return { level: 1, xp: 0 };
+  }
+
+  function defaultRateStats() {
+    return {
+      xp: {},
+      resources: {},
+      kills: {},
+      loot: {},
+      ticks: 0,
+    };
   }
 
   function createCharacter(classId) {
@@ -97,6 +167,7 @@
         fishing: defaultSkill(),
       },
       activity: null,
+      target: null,
     };
   }
 
@@ -107,6 +178,7 @@
       resources: emptyResources(),
       upgrades: emptyUpgrades(),
       pendingSlot: 1,
+      rateStats: defaultRateStats(),
     };
   }
 
@@ -149,13 +221,21 @@
   }
 
   function loadState() {
-    try {
-      const raw = localStorage.getItem(getSaveKey());
-      if (!raw) return defaultState();
-      return hydrateState(JSON.parse(raw));
-    } catch {
-      return defaultState();
+    const keys = [getSaveKey(), 'worldroot_save_v1', 'worldroot_save_offline_v1'];
+    for (const key of keys) {
+      try {
+        const raw = localStorage.getItem(key);
+        if (!raw) continue;
+        const data = JSON.parse(raw);
+        if (key !== getSaveKey()) {
+          localStorage.setItem(getSaveKey(), JSON.stringify(data));
+        }
+        return hydrateState(data);
+      } catch {
+        /* try next key */
+      }
     }
+    return defaultState();
   }
 
   function saveState(state) {
@@ -164,10 +244,11 @@
 
   function resetState() {
     localStorage.removeItem(getSaveKey());
+    localStorage.removeItem('worldroot_save_v1');
+    localStorage.removeItem('worldroot_save_offline_v1');
     return defaultState();
   }
 
-  /** If a new slot unlocked, prompt class selection. */
   function refreshPendingSlot(state) {
     if (state.pendingSlot) return;
     const account = accountTotalLevel(state);
@@ -186,10 +267,11 @@
     return true;
   }
 
-  function setActivity(state, charIndex, activityId) {
+  function setActivity(state, charIndex, activityId, targetId) {
     const char = state.characters[charIndex];
     if (!char) return;
     char.activity = activityId;
+    char.target = targetId ?? null;
     saveState(state);
   }
 
@@ -197,7 +279,35 @@
     const char = state.characters[charIndex];
     if (!char) return;
     char.activity = null;
+    char.target = null;
     saveState(state);
+  }
+
+  function recordRateEvent(state, event) {
+    const rs = state.rateStats;
+    const window = window.WorldrootConfig.RATE_WINDOW_TICKS;
+
+    if (event.xpGain && event.skill) {
+      rs.xp[event.skill] = (rs.xp[event.skill] || 0) + event.xpGain;
+    }
+    if (event.resource && event.resourceAmount) {
+      rs.resources[event.resource] = (rs.resources[event.resource] || 0) + event.resourceAmount;
+    }
+    if (event.kill && event.monster) {
+      rs.kills[event.monster] = (rs.kills[event.monster] || 0) + 1;
+    }
+    if (event.loot && event.lootAmount) {
+      rs.loot[event.loot] = (rs.loot[event.loot] || 0) + event.lootAmount;
+    }
+
+    rs.ticks += 1;
+    if (rs.ticks >= window) {
+      rs.xp = {};
+      rs.resources = {};
+      rs.kills = {};
+      rs.loot = {};
+      rs.ticks = 0;
+    }
   }
 
   window.WorldrootState = {
@@ -221,5 +331,8 @@
     setActivity,
     stopActivity,
     emptyResources,
+    emptyUpgrades,
+    recordRateEvent,
+    migrateUpgrades,
   };
 })();

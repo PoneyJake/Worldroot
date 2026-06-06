@@ -9,23 +9,32 @@
   const C = window.WorldrootConfig;
   const S = window.WorldrootState;
 
-  function upgradeKey(resourceId, nodeIndex) {
-    return `${resourceId}_${nodeIndex}`;
+  function upgradeLevel(state, nodeId) {
+    return state.upgrades[nodeId] || 0;
   }
 
-  function upgradeCost(resourceId, nodeIndex, currentLevel) {
-    const def = C.UPGRADES.find((u) => u.id === resourceId);
-    const base = def?.baseCost ?? 10;
-    return Math.floor(base * (currentLevel + 1) * (nodeIndex + 1));
+  function upgradeCosts(nodeId, currentLevel) {
+    const base = C.UPGRADE_BASE_COSTS[nodeId];
+    if (!base) return {};
+    const scale = 1 + currentLevel * 0.15;
+    const costs = {};
+    for (const [res, amt] of Object.entries(base)) {
+      costs[res] = Math.max(1, Math.floor(amt * scale));
+    }
+    return costs;
+  }
+
+  function upgradeBonusPercent(state, nodeId) {
+    return upgradeLevel(state, nodeId) * C.UPGRADE_BONUS_PER_LEVEL * 100;
   }
 
   function effectBonus(state, effectType) {
     let bonus = 0;
-    for (const res of C.UPGRADES) {
-      res.nodes.forEach((node, i) => {
-        if (node.effect !== effectType) return;
-        bonus += (state.upgrades[upgradeKey(res.id, i)] || 0) * C.UPGRADE_BONUS_PER_LEVEL;
-      });
+    for (const branch of C.WORLD_TREE_BRANCHES) {
+      for (const node of branch.nodes) {
+        if (node.effect !== effectType) continue;
+        bonus += upgradeLevel(state, node.id) * C.UPGRADE_BONUS_PER_LEVEL;
+      }
     }
     return bonus;
   }
@@ -38,12 +47,8 @@
     return effectBonus(state, `${skillId}_yield`);
   }
 
-  function nodeLevel(state, resourceId, nodeIndex) {
-    return state.upgrades[upgradeKey(resourceId, nodeIndex)] || 0;
-  }
-
-  function nodeBonusPercent(state, resourceId, nodeIndex) {
-    return nodeLevel(state, resourceId, nodeIndex) * C.UPGRADE_BONUS_PER_LEVEL * 100;
+  function skillMultiBonus(state, skillId) {
+    return effectBonus(state, `${skillId}_multi`);
   }
 
   function hasSpecialty(char, skillId) {
@@ -55,14 +60,20 @@
     return hasSpecialty(char, skillId) ? 1 + C.SPECIALTY_BONUS : 1;
   }
 
-  function rollResource(skillId, skillLevel) {
-    const skill = C.SKILLS[skillId];
-    const unlocked = skill.resources.filter((r) => skillLevel >= r.minLevel);
-    if (!unlocked.length) return skill.resources[0];
+  function findVein(skillId, targetId) {
+    const veins = C.VEINS[skillId];
+    if (!veins) return null;
+    return veins.find((v) => v.id === targetId) ?? veins[0];
+  }
 
-    const best = unlocked[unlocked.length - 1];
-    if (unlocked.length === 1 || Math.random() > 0.35) return best;
-    return unlocked[unlocked.length - 2];
+  function findMonster(targetId) {
+    return C.MONSTERS.find((m) => m.id === targetId) ?? C.MONSTERS[0];
+  }
+
+  function canAffordUpgrade(state, nodeId) {
+    const lv = upgradeLevel(state, nodeId);
+    const costs = upgradeCosts(nodeId, lv);
+    return Object.entries(costs).every(([res, amt]) => (state.resources[res] || 0) >= amt);
   }
 
   function tickCharacter(state, char) {
@@ -83,25 +94,55 @@
     const event = {
       charClass: char.classId,
       activity: char.activity,
+      target: char.target,
       xpGain,
       skill: skillId,
       resource: null,
       resourceAmount: 0,
       gold: 0,
+      kill: false,
+      monster: null,
+      loot: null,
+      lootAmount: 0,
     };
 
     if (char.activity === 'combat') {
-      const goldMult = 1 + effectBonus(state, 'combat_gold');
-      event.gold = Math.floor(C.COMBAT_GOLD_PER_TICK * goldMult);
-      state.gold += event.gold;
+      const monster = findMonster(char.target);
+      const dropMult = 1 + effectBonus(state, 'combat_drop_rate');
+      const goldMult = 1 + effectBonus(state, 'gold_gain');
+
+      event.kill = true;
+      event.monster = monster.id;
+
+      if (monster.drop) {
+        const dropAmt = Math.max(1, Math.floor(monster.drop.amount * dropMult));
+        state.resources[monster.drop.id] = (state.resources[monster.drop.id] || 0) + dropAmt;
+        event.loot = monster.drop.id;
+        event.lootAmount = dropAmt;
+      }
+
+      const goldGain = Math.floor(monster.level * 0.5 * goldMult);
+      if (goldGain > 0) {
+        state.gold += goldGain;
+        event.gold = goldGain;
+      }
+
       return event;
     }
 
+    const vein = findVein(skillId, char.target);
+    if (!vein || skill.level < vein.minLevel) return event;
+
     const yieldMult = 1 + skillYieldBonus(state, skillId);
-    const res = rollResource(skillId, skill.level);
-    const amount = Math.max(1, Math.floor(C.BASE_RESOURCE_PER_TICK * yieldMult * spec));
-    state.resources[res.id] = (state.resources[res.id] || 0) + amount;
-    event.resource = res.id;
+    const multiMult = 1 + skillMultiBonus(state, skillId);
+    let amount = Math.max(1, Math.floor(C.BASE_RESOURCE_PER_TICK * yieldMult * spec));
+
+    if (Math.random() < multiMult * 0.1) {
+      amount += Math.max(1, Math.floor(C.BASE_RESOURCE_PER_TICK * spec));
+    }
+
+    state.resources[vein.resource] = (state.resources[vein.resource] || 0) + amount;
+    event.resource = vein.resource;
     event.resourceAmount = amount;
     return event;
   }
@@ -111,35 +152,61 @@
     const events = [];
     for (const char of state.characters) {
       const ev = tickCharacter(state, char);
-      if (ev) events.push(ev);
+      if (ev) {
+        S.recordRateEvent(state, ev);
+        events.push(ev);
+      }
     }
     S.saveState(state);
     return events;
   }
 
-  function buyUpgrade(state, resourceId, nodeIndex) {
-    const key = upgradeKey(resourceId, nodeIndex);
-    const current = state.upgrades[key] || 0;
-    const cost = upgradeCost(resourceId, nodeIndex, current);
-    const owned = state.resources[resourceId] || 0;
-    if (owned < cost) return false;
+  function buyUpgrade(state, nodeId) {
+    const current = upgradeLevel(state, nodeId);
+    const costs = upgradeCosts(nodeId, current);
+    if (!Object.keys(costs).length) return false;
 
-    state.resources[resourceId] -= cost;
-    state.upgrades[key] = current + 1;
+    for (const [res, amt] of Object.entries(costs)) {
+      if ((state.resources[res] || 0) < amt) return false;
+    }
+
+    for (const [res, amt] of Object.entries(costs)) {
+      state.resources[res] -= amt;
+    }
+    state.upgrades[nodeId] = current + 1;
     S.saveState(state);
     return true;
   }
 
+  function getRatePerHour(state, bucket, key) {
+    const rs = state.rateStats;
+    const ticks = Math.max(rs.ticks, 1);
+    const perTick = (rs[bucket]?.[key] || 0) / ticks;
+    return Math.floor(perTick * (3600000 / C.TICK_MS));
+  }
+
+  function findUpgradeNode(nodeId) {
+    for (const branch of C.WORLD_TREE_BRANCHES) {
+      const node = branch.nodes.find((n) => n.id === nodeId);
+      if (node) return { branch, node };
+    }
+    return null;
+  }
+
   window.WorldrootEngine = {
-    upgradeKey,
-    upgradeCost,
+    upgradeLevel,
+    upgradeCosts,
+    upgradeBonusPercent,
     effectBonus,
     skillXpBonus,
     skillYieldBonus,
-    nodeLevel,
-    nodeBonusPercent,
+    skillMultiBonus,
     tick,
     buyUpgrade,
-    rollResource,
+    canAffordUpgrade,
+    findVein,
+    findMonster,
+    getRatePerHour,
+    findUpgradeNode,
   };
 })();

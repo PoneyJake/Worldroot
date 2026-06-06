@@ -1,24 +1,30 @@
 /** Worldroot — constants, classes, resources, upgrades. */
 
 window.WorldrootConfig = {
-  SAVE_KEY: 'worldroot_save_v1',
-  SAVE_KEY_OFFLINE: 'worldroot_save_offline_v1',
+  SAVE_KEY: 'worldroot_save_v2',
+  SAVE_KEY_OFFLINE: 'worldroot_save_offline_v2',
   TICK_MS: 1000,
   SPECIALTY_BONUS: 0.25,
   BASE_XP_PER_TICK: 10,
   BASE_RESOURCE_PER_TICK: 1,
-  COMBAT_GOLD_PER_TICK: 1,
   UPGRADE_BONUS_PER_LEVEL: 0.01,
+  RATE_WINDOW_TICKS: 30,
 
   SLOT_UNLOCK_AT: [0, 10, 25],
   MAX_SLOTS: 3,
 
-  TABS: [
-    { id: 'characters', label: 'Characters' },
-    { id: 'skills', label: 'Skills' },
-    { id: 'resources', label: 'Resources' },
-    { id: 'worldroot', label: 'Worldroot' },
-    { id: 'settings', label: 'Settings' },
+  SIDEBAR_NAV: [
+    { type: 'skill', id: 'combat', label: 'Combat', icon: '🗡' },
+    { type: 'skill', id: 'mining', label: 'Mining', icon: '⛏' },
+    { type: 'skill', id: 'woodcutting', label: 'Woodcutting', icon: '🪓' },
+    { type: 'skill', id: 'fishing', label: 'Fishing', icon: '🎣' },
+    { type: 'skill', id: 'smithing', label: 'Smithing', icon: '🔨', comingSoon: true },
+    { type: 'skill', id: 'smelting', label: 'Smelting', icon: '🔥', comingSoon: true },
+    { type: 'skill', id: 'crafting', label: 'Crafting', icon: '🧵', comingSoon: true },
+    { type: 'divider' },
+    { type: 'page', id: 'characters', label: 'Characters', icon: '👥' },
+    { type: 'page', id: 'worldtree', label: 'World Tree', icon: '🌳' },
+    { type: 'page', id: 'settings', label: 'Settings', icon: '⚙' },
   ],
 
   CLASSES: {
@@ -51,7 +57,7 @@ window.WorldrootConfig = {
       name: 'Combat',
       activity: 'combat',
       icon: '🗡',
-      desc: 'Fight for gold and drops',
+      desc: 'Hunt monsters across the forest for XP and loot',
       resources: [],
     },
     mining: {
@@ -93,9 +99,97 @@ window.WorldrootConfig = {
         { id: 'lobster', name: 'Lobster', minLevel: 50 },
       ],
     },
+    smithing: {
+      id: 'smithing',
+      name: 'Smithing',
+      icon: '🔨',
+      desc: 'Forge weapons and armor',
+      comingSoon: true,
+      resources: [],
+    },
+    smelting: {
+      id: 'smelting',
+      name: 'Smelting',
+      icon: '🔥',
+      desc: 'Refine ore into bars',
+      comingSoon: true,
+      resources: [],
+    },
+    crafting: {
+      id: 'crafting',
+      name: 'Crafting',
+      icon: '🧵',
+      desc: 'Craft tools and supplies',
+      comingSoon: true,
+      resources: [],
+    },
   },
 
   SKILL_ORDER: ['combat', 'mining', 'woodcutting', 'fishing'],
+
+  VEINS: {
+    mining: [
+      { id: 'coal_vein', name: 'Coal Vein', resource: 'coal', minLevel: 1, icon: '⬛' },
+      { id: 'copper_vein', name: 'Copper Vein', resource: 'copper', minLevel: 10, icon: '🟤' },
+      { id: 'iron_vein', name: 'Iron Vein', resource: 'iron', minLevel: 25, icon: '⬜' },
+      { id: 'gold_vein', name: 'Gold Vein', resource: 'gold', minLevel: 50, icon: '🟡' },
+    ],
+    woodcutting: [
+      { id: 'oak_grove', name: 'Oak Grove', resource: 'oak', minLevel: 1, icon: '🌳' },
+      { id: 'spruce_grove', name: 'Spruce Grove', resource: 'spruce', minLevel: 10, icon: '🌲' },
+      { id: 'birch_grove', name: 'Birch Grove', resource: 'birch', minLevel: 25, icon: '🌿' },
+      { id: 'jungle_grove', name: 'Jungle Grove', resource: 'jungle', minLevel: 50, icon: '🌴' },
+    ],
+    fishing: [
+      { id: 'shrimp_spot', name: 'Shrimp Spot', resource: 'shrimp', minLevel: 1, icon: '🦐' },
+      { id: 'trout_spot', name: 'Trout Spot', resource: 'trout', minLevel: 10, icon: '🐟' },
+      { id: 'salmon_spot', name: 'Salmon Spot', resource: 'salmon', minLevel: 25, icon: '🐠' },
+      { id: 'lobster_spot', name: 'Lobster Spot', resource: 'lobster', minLevel: 50, icon: '🦞' },
+    ],
+  },
+
+  MONSTERS: [
+    {
+      id: 'forest_slime',
+      name: 'Forest Slime',
+      level: 1,
+      icon: '🟢',
+      boss: false,
+      drop: { id: 'slime_gel', name: 'Slime Gel', amount: 1 },
+    },
+    {
+      id: 'goblin_scout',
+      name: 'Goblin Scout',
+      level: 5,
+      icon: '👺',
+      boss: false,
+      drop: { id: 'goblin_ear', name: 'Goblin Ear', amount: 1 },
+    },
+    {
+      id: 'dire_wolf',
+      name: 'Dire Wolf',
+      level: 10,
+      icon: '🐺',
+      boss: false,
+      drop: { id: 'wolf_fur', name: 'Wolf Fur', amount: 1 },
+    },
+    {
+      id: 'forest_bandit',
+      name: 'Forest Bandit',
+      level: 15,
+      icon: '🥷',
+      boss: false,
+      drop: { id: 'bandit_emblem', name: 'Bandit Emblem', amount: 1 },
+    },
+    {
+      id: 'bandit_leader',
+      name: 'Bandit Leader',
+      level: 25,
+      icon: '👑',
+      boss: true,
+      drop: { id: 'bandit_emblem', name: 'Bandit Emblem', amount: 3 },
+    },
+  ],
 
   ACTIVITIES: [
     { id: 'mining', label: 'Mining', skill: 'mining' },
@@ -108,107 +202,90 @@ window.WorldrootConfig = {
     'coal', 'copper', 'iron', 'gold',
     'oak', 'spruce', 'birch', 'jungle',
     'shrimp', 'trout', 'salmon', 'lobster',
+    'slime_gel', 'goblin_ear', 'wolf_fur', 'bandit_emblem',
   ],
 
-  /** 3 meaningful upgrade nodes per resource. effect drives bonus in engine.js */
-  UPGRADES: [
+  LOOT_NAMES: {
+    slime_gel: 'Slime Gel',
+    goblin_ear: 'Goblin Ear',
+    wolf_fur: 'Wolf Fur',
+    bandit_emblem: 'Bandit Emblem',
+  },
+
+  /** World Tree branches — upgrades organized by category, not resource */
+  WORLD_TREE_BRANCHES: [
     {
-      id: 'coal', name: 'Coal', baseCost: 10,
+      id: 'combat',
+      name: 'Combat Branch',
+      icon: '⚔',
       nodes: [
-        { name: 'Chopping Efficiency', effect: 'woodcutting_yield', desc: '+1% woodcutting yield per level' },
-        { name: 'Storage Capacity', effect: 'storage', desc: '+1% storage bonus per level' },
-        { name: 'Mining EXP', effect: 'mining_xp', desc: '+1% mining XP per level' },
+        { id: 'damage', name: 'Damage', effect: 'combat_damage', desc: 'Increases combat damage' },
+        { id: 'crit_chance', name: 'Crit Chance', effect: 'combat_crit_chance', desc: 'Increases critical hit chance' },
+        { id: 'crit_damage', name: 'Crit Damage', effect: 'combat_crit_damage', desc: 'Increases critical hit damage' },
+        { id: 'drop_rate', name: 'Drop Rate', effect: 'combat_drop_rate', desc: 'Increases loot drop rate' },
       ],
     },
     {
-      id: 'copper', name: 'Copper', baseCost: 25,
+      id: 'mining',
+      name: 'Mining Branch',
+      icon: '⛏',
       nodes: [
-        { name: 'Forge Heat', effect: 'mining_yield', desc: '+1% mining yield per level' },
-        { name: 'Smelter Storage', effect: 'storage', desc: '+1% storage bonus per level' },
-        { name: 'Copper Mastery', effect: 'mining_xp', desc: '+1% mining XP per level' },
+        { id: 'mining_efficiency', name: 'Mining Efficiency', effect: 'mining_yield', desc: 'Increases ore gathered per tick' },
+        { id: 'mining_xp', name: 'Mining XP', effect: 'mining_xp', desc: 'Increases mining experience gained' },
+        { id: 'multi_ore', name: 'Multi Ore Chance', effect: 'mining_multi', desc: 'Chance to gather extra ore' },
       ],
     },
     {
-      id: 'iron', name: 'Iron', baseCost: 50,
+      id: 'woodcutting',
+      name: 'Woodcutting Branch',
+      icon: '🪓',
       nodes: [
-        { name: 'Deep Shaft', effect: 'mining_yield', desc: '+1% mining yield per level' },
-        { name: 'Iron Hauling', effect: 'storage', desc: '+1% storage bonus per level' },
-        { name: 'Iron EXP', effect: 'mining_xp', desc: '+1% mining XP per level' },
+        { id: 'chopping_efficiency', name: 'Chopping Efficiency', effect: 'woodcutting_yield', desc: 'Increases logs gathered per tick' },
+        { id: 'chopping_xp', name: 'Chopping XP', effect: 'woodcutting_xp', desc: 'Increases woodcutting experience gained' },
+        { id: 'multi_log', name: 'Multi Log Chance', effect: 'woodcutting_multi', desc: 'Chance to gather extra logs' },
       ],
     },
     {
-      id: 'gold', name: 'Gold', baseCost: 100,
+      id: 'fishing',
+      name: 'Fishing Branch',
+      icon: '🎣',
       nodes: [
-        { name: 'Midas Touch', effect: 'mining_yield', desc: '+1% mining yield per level' },
-        { name: 'Vault Expansion', effect: 'storage', desc: '+1% storage bonus per level' },
-        { name: 'Golden Insight', effect: 'combat_gold', desc: '+1% combat gold per level' },
+        { id: 'fishing_efficiency', name: 'Fishing Efficiency', effect: 'fishing_yield', desc: 'Increases fish caught per tick' },
+        { id: 'fishing_xp', name: 'Fishing XP', effect: 'fishing_xp', desc: 'Increases fishing experience gained' },
+        { id: 'double_catch', name: 'Double Catch Chance', effect: 'fishing_multi', desc: 'Chance to catch extra fish' },
       ],
     },
     {
-      id: 'oak', name: 'Oak Log', baseCost: 10,
+      id: 'utility',
+      name: 'Utility Branch',
+      icon: '✦',
       nodes: [
-        { name: 'Mining Efficiency', effect: 'mining_yield', desc: '+1% mining yield per level' },
-        { name: 'Combat HP', effect: 'combat_hp', desc: '+1% combat HP per level' },
-        { name: 'Woodcutting EXP', effect: 'woodcutting_xp', desc: '+1% woodcutting XP per level' },
-      ],
-    },
-    {
-      id: 'spruce', name: 'Spruce Log', baseCost: 25,
-      nodes: [
-        { name: 'Timber Pace', effect: 'woodcutting_yield', desc: '+1% woodcutting yield per level' },
-        { name: 'Lumber Storage', effect: 'storage', desc: '+1% storage bonus per level' },
-        { name: 'Spruce Mastery', effect: 'woodcutting_xp', desc: '+1% woodcutting XP per level' },
-      ],
-    },
-    {
-      id: 'birch', name: 'Birch Log', baseCost: 50,
-      nodes: [
-        { name: 'Sharp Axes', effect: 'woodcutting_yield', desc: '+1% woodcutting yield per level' },
-        { name: 'Wood Piles', effect: 'storage', desc: '+1% storage bonus per level' },
-        { name: 'Birch EXP', effect: 'woodcutting_xp', desc: '+1% woodcutting XP per level' },
-      ],
-    },
-    {
-      id: 'jungle', name: 'Jungle Log', baseCost: 100,
-      nodes: [
-        { name: 'Canopy Harvest', effect: 'woodcutting_yield', desc: '+1% woodcutting yield per level' },
-        { name: 'Jungle Cache', effect: 'storage', desc: '+1% storage bonus per level' },
-        { name: 'Wild Growth', effect: 'fishing_xp', desc: '+1% fishing XP per level' },
-      ],
-    },
-    {
-      id: 'shrimp', name: 'Shrimp', baseCost: 10,
-      nodes: [
-        { name: 'Net Repair', effect: 'fishing_yield', desc: '+1% fishing yield per level' },
-        { name: 'Tackle Box', effect: 'storage', desc: '+1% storage bonus per level' },
-        { name: 'Fishing EXP', effect: 'fishing_xp', desc: '+1% fishing XP per level' },
-      ],
-    },
-    {
-      id: 'trout', name: 'Trout', baseCost: 25,
-      nodes: [
-        { name: 'River Run', effect: 'fishing_yield', desc: '+1% fishing yield per level' },
-        { name: 'Fish Barrel', effect: 'storage', desc: '+1% storage bonus per level' },
-        { name: 'Trout Mastery', effect: 'fishing_xp', desc: '+1% fishing XP per level' },
-      ],
-    },
-    {
-      id: 'salmon', name: 'Salmon', baseCost: 50,
-      nodes: [
-        { name: 'Upstream Lure', effect: 'fishing_yield', desc: '+1% fishing yield per level' },
-        { name: 'Cold Storage', effect: 'storage', desc: '+1% storage bonus per level' },
-        { name: 'Salmon EXP', effect: 'fishing_xp', desc: '+1% fishing XP per level' },
-      ],
-    },
-    {
-      id: 'lobster', name: 'Lobster', baseCost: 100,
-      nodes: [
-        { name: 'Deep Water Traps', effect: 'fishing_yield', desc: '+1% fishing yield per level' },
-        { name: 'Coastal Vault', effect: 'storage', desc: '+1% storage bonus per level' },
-        { name: 'Combat EXP', effect: 'combat_xp', desc: '+1% combat XP per level' },
+        { id: 'storage_capacity', name: 'Storage Capacity', effect: 'storage', desc: 'Increases resource storage bonus' },
+        { id: 'inventory_capacity', name: 'Inventory Capacity', effect: 'inventory', desc: 'Increases inventory capacity bonus' },
+        { id: 'gold_gain', name: 'Gold Gain', effect: 'gold_gain', desc: 'Increases gold from all sources' },
       ],
     },
   ],
+
+  /** Base multi-resource costs per upgrade node (scaled by level in engine) */
+  UPGRADE_BASE_COSTS: {
+    damage: { coal: 20, copper: 10 },
+    crit_chance: { coal: 15, iron: 5 },
+    crit_damage: { copper: 20, iron: 10 },
+    drop_rate: { iron: 15, gold: 5 },
+    mining_efficiency: { coal: 50, copper: 25, iron: 10 },
+    mining_xp: { coal: 30, copper: 15 },
+    multi_ore: { copper: 40, iron: 20 },
+    chopping_efficiency: { oak: 50, spruce: 25, birch: 10 },
+    chopping_xp: { oak: 30, spruce: 15 },
+    multi_log: { spruce: 40, birch: 20 },
+    fishing_efficiency: { shrimp: 50, trout: 25, salmon: 10 },
+    fishing_xp: { shrimp: 30, trout: 15 },
+    double_catch: { trout: 40, salmon: 20 },
+    storage_capacity: { coal: 25, oak: 25, shrimp: 25 },
+    inventory_capacity: { copper: 25, spruce: 25, trout: 25 },
+    gold_gain: { gold: 30, lobster: 20, bandit_emblem: 5 },
+  },
 };
 /** Worldroot — save/load and state helpers. */
 
@@ -218,7 +295,8 @@ window.WorldrootConfig = {
     return;
   }
 
-  const { SAVE_KEY, SAVE_KEY_OFFLINE, RESOURCE_IDS, CLASSES, SLOT_UNLOCK_AT } = window.WorldrootConfig;
+  const { SAVE_KEY, SAVE_KEY_OFFLINE, RESOURCE_IDS, CLASSES, SLOT_UNLOCK_AT, WORLD_TREE_BRANCHES } =
+    window.WorldrootConfig;
 
   let playMode = 'offline';
 
@@ -237,19 +315,88 @@ window.WorldrootConfig = {
       resources: state.resources,
       upgrades: state.upgrades,
       pendingSlot: state.pendingSlot,
+      rateStats: state.rateStats,
     };
+  }
+
+  function emptyUpgrades() {
+    const u = {};
+    for (const branch of WORLD_TREE_BRANCHES) {
+      for (const node of branch.nodes) {
+        u[node.id] = 0;
+      }
+    }
+    return u;
+  }
+
+  const LEGACY_UPGRADES = [
+    { id: 'coal', nodes: [{ effect: 'woodcutting_yield' }, { effect: 'storage' }, { effect: 'mining_xp' }] },
+    { id: 'copper', nodes: [{ effect: 'mining_yield' }, { effect: 'storage' }, { effect: 'mining_xp' }] },
+    { id: 'iron', nodes: [{ effect: 'mining_yield' }, { effect: 'storage' }, { effect: 'mining_xp' }] },
+    { id: 'gold', nodes: [{ effect: 'mining_yield' }, { effect: 'storage' }, { effect: 'combat_gold' }] },
+    { id: 'oak', nodes: [{ effect: 'mining_yield' }, { effect: 'combat_hp' }, { effect: 'woodcutting_xp' }] },
+    { id: 'spruce', nodes: [{ effect: 'woodcutting_yield' }, { effect: 'storage' }, { effect: 'woodcutting_xp' }] },
+    { id: 'birch', nodes: [{ effect: 'woodcutting_yield' }, { effect: 'storage' }, { effect: 'woodcutting_xp' }] },
+    { id: 'jungle', nodes: [{ effect: 'woodcutting_yield' }, { effect: 'storage' }, { effect: 'fishing_xp' }] },
+    { id: 'shrimp', nodes: [{ effect: 'fishing_yield' }, { effect: 'storage' }, { effect: 'fishing_xp' }] },
+    { id: 'trout', nodes: [{ effect: 'fishing_yield' }, { effect: 'storage' }, { effect: 'fishing_xp' }] },
+    { id: 'salmon', nodes: [{ effect: 'fishing_yield' }, { effect: 'storage' }, { effect: 'fishing_xp' }] },
+    { id: 'lobster', nodes: [{ effect: 'fishing_yield' }, { effect: 'storage' }, { effect: 'combat_xp' }] },
+  ];
+
+  function migrateUpgrades(oldUpgrades) {
+    const u = emptyUpgrades();
+    if (!oldUpgrades || typeof oldUpgrades !== 'object') return u;
+
+    const effectTotals = {};
+    for (const res of LEGACY_UPGRADES) {
+      res.nodes.forEach((node, i) => {
+        const key = `${res.id}_${i}`;
+        const lv = oldUpgrades[key] || 0;
+        if (lv > 0) {
+          effectTotals[node.effect] = (effectTotals[node.effect] || 0) + lv;
+        }
+      });
+    }
+
+    if (effectTotals.combat_gold) {
+      effectTotals.gold_gain = (effectTotals.gold_gain || 0) + effectTotals.combat_gold;
+    }
+    if (effectTotals.combat_xp) {
+      effectTotals.damage = (effectTotals.damage || 0) + Math.floor(effectTotals.combat_xp / 2);
+    }
+
+    for (const branch of WORLD_TREE_BRANCHES) {
+      for (const node of branch.nodes) {
+        if (effectTotals[node.effect]) {
+          u[node.id] = Math.min(effectTotals[node.effect], 50);
+        }
+      }
+    }
+
+    for (const [key, val] of Object.entries(oldUpgrades)) {
+      if (WORLD_TREE_BRANCHES.some((b) => b.nodes.some((n) => n.id === key))) {
+        u[key] = Math.max(u[key] || 0, val);
+      }
+    }
+
+    return u;
   }
 
   function hydrateState(data) {
     const state = defaultState();
     state.gold = data.gold ?? 0;
     state.resources = { ...state.resources, ...(data.resources || {}) };
-    state.upgrades = { ...state.upgrades, ...(data.upgrades || {}) };
+    state.upgrades = migrateUpgrades(data.upgrades);
     state.pendingSlot = data.pendingSlot ?? (data.characters?.length ? null : 1);
+    if (data.rateStats) {
+      state.rateStats = { ...defaultRateStats(), ...data.rateStats };
+    }
     if (Array.isArray(data.characters)) {
       state.characters = data.characters.map((c) => ({
         classId: c.classId,
         activity: c.activity ?? null,
+        target: c.target ?? null,
         skills: {
           combat: { ...defaultSkill(), ...c.skills?.combat },
           mining: { ...defaultSkill(), ...c.skills?.mining },
@@ -285,18 +432,18 @@ window.WorldrootConfig = {
     return r;
   }
 
-  function emptyUpgrades() {
-    const u = {};
-    for (const res of window.WorldrootConfig.UPGRADES) {
-      for (let i = 0; i < 3; i++) {
-        u[`${res.id}_${i}`] = 0;
-      }
-    }
-    return u;
-  }
-
   function defaultSkill() {
     return { level: 1, xp: 0 };
+  }
+
+  function defaultRateStats() {
+    return {
+      xp: {},
+      resources: {},
+      kills: {},
+      loot: {},
+      ticks: 0,
+    };
   }
 
   function createCharacter(classId) {
@@ -309,6 +456,7 @@ window.WorldrootConfig = {
         fishing: defaultSkill(),
       },
       activity: null,
+      target: null,
     };
   }
 
@@ -319,6 +467,7 @@ window.WorldrootConfig = {
       resources: emptyResources(),
       upgrades: emptyUpgrades(),
       pendingSlot: 1,
+      rateStats: defaultRateStats(),
     };
   }
 
@@ -361,13 +510,21 @@ window.WorldrootConfig = {
   }
 
   function loadState() {
-    try {
-      const raw = localStorage.getItem(getSaveKey());
-      if (!raw) return defaultState();
-      return hydrateState(JSON.parse(raw));
-    } catch {
-      return defaultState();
+    const keys = [getSaveKey(), 'worldroot_save_v1', 'worldroot_save_offline_v1'];
+    for (const key of keys) {
+      try {
+        const raw = localStorage.getItem(key);
+        if (!raw) continue;
+        const data = JSON.parse(raw);
+        if (key !== getSaveKey()) {
+          localStorage.setItem(getSaveKey(), JSON.stringify(data));
+        }
+        return hydrateState(data);
+      } catch {
+        /* try next key */
+      }
     }
+    return defaultState();
   }
 
   function saveState(state) {
@@ -376,10 +533,11 @@ window.WorldrootConfig = {
 
   function resetState() {
     localStorage.removeItem(getSaveKey());
+    localStorage.removeItem('worldroot_save_v1');
+    localStorage.removeItem('worldroot_save_offline_v1');
     return defaultState();
   }
 
-  /** If a new slot unlocked, prompt class selection. */
   function refreshPendingSlot(state) {
     if (state.pendingSlot) return;
     const account = accountTotalLevel(state);
@@ -398,10 +556,11 @@ window.WorldrootConfig = {
     return true;
   }
 
-  function setActivity(state, charIndex, activityId) {
+  function setActivity(state, charIndex, activityId, targetId) {
     const char = state.characters[charIndex];
     if (!char) return;
     char.activity = activityId;
+    char.target = targetId ?? null;
     saveState(state);
   }
 
@@ -409,7 +568,35 @@ window.WorldrootConfig = {
     const char = state.characters[charIndex];
     if (!char) return;
     char.activity = null;
+    char.target = null;
     saveState(state);
+  }
+
+  function recordRateEvent(state, event) {
+    const rs = state.rateStats;
+    const window = window.WorldrootConfig.RATE_WINDOW_TICKS;
+
+    if (event.xpGain && event.skill) {
+      rs.xp[event.skill] = (rs.xp[event.skill] || 0) + event.xpGain;
+    }
+    if (event.resource && event.resourceAmount) {
+      rs.resources[event.resource] = (rs.resources[event.resource] || 0) + event.resourceAmount;
+    }
+    if (event.kill && event.monster) {
+      rs.kills[event.monster] = (rs.kills[event.monster] || 0) + 1;
+    }
+    if (event.loot && event.lootAmount) {
+      rs.loot[event.loot] = (rs.loot[event.loot] || 0) + event.lootAmount;
+    }
+
+    rs.ticks += 1;
+    if (rs.ticks >= window) {
+      rs.xp = {};
+      rs.resources = {};
+      rs.kills = {};
+      rs.loot = {};
+      rs.ticks = 0;
+    }
   }
 
   window.WorldrootState = {
@@ -433,6 +620,9 @@ window.WorldrootConfig = {
     setActivity,
     stopActivity,
     emptyResources,
+    emptyUpgrades,
+    recordRateEvent,
+    migrateUpgrades,
   };
 })();
 /** Worldroot — tick logic, resources, upgrades. */
@@ -446,23 +636,32 @@ window.WorldrootConfig = {
   const C = window.WorldrootConfig;
   const S = window.WorldrootState;
 
-  function upgradeKey(resourceId, nodeIndex) {
-    return `${resourceId}_${nodeIndex}`;
+  function upgradeLevel(state, nodeId) {
+    return state.upgrades[nodeId] || 0;
   }
 
-  function upgradeCost(resourceId, nodeIndex, currentLevel) {
-    const def = C.UPGRADES.find((u) => u.id === resourceId);
-    const base = def?.baseCost ?? 10;
-    return Math.floor(base * (currentLevel + 1) * (nodeIndex + 1));
+  function upgradeCosts(nodeId, currentLevel) {
+    const base = C.UPGRADE_BASE_COSTS[nodeId];
+    if (!base) return {};
+    const scale = 1 + currentLevel * 0.15;
+    const costs = {};
+    for (const [res, amt] of Object.entries(base)) {
+      costs[res] = Math.max(1, Math.floor(amt * scale));
+    }
+    return costs;
+  }
+
+  function upgradeBonusPercent(state, nodeId) {
+    return upgradeLevel(state, nodeId) * C.UPGRADE_BONUS_PER_LEVEL * 100;
   }
 
   function effectBonus(state, effectType) {
     let bonus = 0;
-    for (const res of C.UPGRADES) {
-      res.nodes.forEach((node, i) => {
-        if (node.effect !== effectType) return;
-        bonus += (state.upgrades[upgradeKey(res.id, i)] || 0) * C.UPGRADE_BONUS_PER_LEVEL;
-      });
+    for (const branch of C.WORLD_TREE_BRANCHES) {
+      for (const node of branch.nodes) {
+        if (node.effect !== effectType) continue;
+        bonus += upgradeLevel(state, node.id) * C.UPGRADE_BONUS_PER_LEVEL;
+      }
     }
     return bonus;
   }
@@ -475,12 +674,8 @@ window.WorldrootConfig = {
     return effectBonus(state, `${skillId}_yield`);
   }
 
-  function nodeLevel(state, resourceId, nodeIndex) {
-    return state.upgrades[upgradeKey(resourceId, nodeIndex)] || 0;
-  }
-
-  function nodeBonusPercent(state, resourceId, nodeIndex) {
-    return nodeLevel(state, resourceId, nodeIndex) * C.UPGRADE_BONUS_PER_LEVEL * 100;
+  function skillMultiBonus(state, skillId) {
+    return effectBonus(state, `${skillId}_multi`);
   }
 
   function hasSpecialty(char, skillId) {
@@ -492,14 +687,20 @@ window.WorldrootConfig = {
     return hasSpecialty(char, skillId) ? 1 + C.SPECIALTY_BONUS : 1;
   }
 
-  function rollResource(skillId, skillLevel) {
-    const skill = C.SKILLS[skillId];
-    const unlocked = skill.resources.filter((r) => skillLevel >= r.minLevel);
-    if (!unlocked.length) return skill.resources[0];
+  function findVein(skillId, targetId) {
+    const veins = C.VEINS[skillId];
+    if (!veins) return null;
+    return veins.find((v) => v.id === targetId) ?? veins[0];
+  }
 
-    const best = unlocked[unlocked.length - 1];
-    if (unlocked.length === 1 || Math.random() > 0.35) return best;
-    return unlocked[unlocked.length - 2];
+  function findMonster(targetId) {
+    return C.MONSTERS.find((m) => m.id === targetId) ?? C.MONSTERS[0];
+  }
+
+  function canAffordUpgrade(state, nodeId) {
+    const lv = upgradeLevel(state, nodeId);
+    const costs = upgradeCosts(nodeId, lv);
+    return Object.entries(costs).every(([res, amt]) => (state.resources[res] || 0) >= amt);
   }
 
   function tickCharacter(state, char) {
@@ -520,25 +721,55 @@ window.WorldrootConfig = {
     const event = {
       charClass: char.classId,
       activity: char.activity,
+      target: char.target,
       xpGain,
       skill: skillId,
       resource: null,
       resourceAmount: 0,
       gold: 0,
+      kill: false,
+      monster: null,
+      loot: null,
+      lootAmount: 0,
     };
 
     if (char.activity === 'combat') {
-      const goldMult = 1 + effectBonus(state, 'combat_gold');
-      event.gold = Math.floor(C.COMBAT_GOLD_PER_TICK * goldMult);
-      state.gold += event.gold;
+      const monster = findMonster(char.target);
+      const dropMult = 1 + effectBonus(state, 'combat_drop_rate');
+      const goldMult = 1 + effectBonus(state, 'gold_gain');
+
+      event.kill = true;
+      event.monster = monster.id;
+
+      if (monster.drop) {
+        const dropAmt = Math.max(1, Math.floor(monster.drop.amount * dropMult));
+        state.resources[monster.drop.id] = (state.resources[monster.drop.id] || 0) + dropAmt;
+        event.loot = monster.drop.id;
+        event.lootAmount = dropAmt;
+      }
+
+      const goldGain = Math.floor(monster.level * 0.5 * goldMult);
+      if (goldGain > 0) {
+        state.gold += goldGain;
+        event.gold = goldGain;
+      }
+
       return event;
     }
 
+    const vein = findVein(skillId, char.target);
+    if (!vein || skill.level < vein.minLevel) return event;
+
     const yieldMult = 1 + skillYieldBonus(state, skillId);
-    const res = rollResource(skillId, skill.level);
-    const amount = Math.max(1, Math.floor(C.BASE_RESOURCE_PER_TICK * yieldMult * spec));
-    state.resources[res.id] = (state.resources[res.id] || 0) + amount;
-    event.resource = res.id;
+    const multiMult = 1 + skillMultiBonus(state, skillId);
+    let amount = Math.max(1, Math.floor(C.BASE_RESOURCE_PER_TICK * yieldMult * spec));
+
+    if (Math.random() < multiMult * 0.1) {
+      amount += Math.max(1, Math.floor(C.BASE_RESOURCE_PER_TICK * spec));
+    }
+
+    state.resources[vein.resource] = (state.resources[vein.resource] || 0) + amount;
+    event.resource = vein.resource;
     event.resourceAmount = amount;
     return event;
   }
@@ -548,61 +779,79 @@ window.WorldrootConfig = {
     const events = [];
     for (const char of state.characters) {
       const ev = tickCharacter(state, char);
-      if (ev) events.push(ev);
+      if (ev) {
+        S.recordRateEvent(state, ev);
+        events.push(ev);
+      }
     }
     S.saveState(state);
     return events;
   }
 
-  function buyUpgrade(state, resourceId, nodeIndex) {
-    const key = upgradeKey(resourceId, nodeIndex);
-    const current = state.upgrades[key] || 0;
-    const cost = upgradeCost(resourceId, nodeIndex, current);
-    const owned = state.resources[resourceId] || 0;
-    if (owned < cost) return false;
+  function buyUpgrade(state, nodeId) {
+    const current = upgradeLevel(state, nodeId);
+    const costs = upgradeCosts(nodeId, current);
+    if (!Object.keys(costs).length) return false;
 
-    state.resources[resourceId] -= cost;
-    state.upgrades[key] = current + 1;
+    for (const [res, amt] of Object.entries(costs)) {
+      if ((state.resources[res] || 0) < amt) return false;
+    }
+
+    for (const [res, amt] of Object.entries(costs)) {
+      state.resources[res] -= amt;
+    }
+    state.upgrades[nodeId] = current + 1;
     S.saveState(state);
     return true;
   }
 
+  function getRatePerHour(state, bucket, key) {
+    const rs = state.rateStats;
+    const ticks = Math.max(rs.ticks, 1);
+    const perTick = (rs[bucket]?.[key] || 0) / ticks;
+    return Math.floor(perTick * (3600000 / C.TICK_MS));
+  }
+
+  function findUpgradeNode(nodeId) {
+    for (const branch of C.WORLD_TREE_BRANCHES) {
+      const node = branch.nodes.find((n) => n.id === nodeId);
+      if (node) return { branch, node };
+    }
+    return null;
+  }
+
   window.WorldrootEngine = {
-    upgradeKey,
-    upgradeCost,
+    upgradeLevel,
+    upgradeCosts,
+    upgradeBonusPercent,
     effectBonus,
     skillXpBonus,
     skillYieldBonus,
-    nodeLevel,
-    nodeBonusPercent,
+    skillMultiBonus,
     tick,
     buyUpgrade,
-    rollResource,
+    canAffordUpgrade,
+    findVein,
+    findMonster,
+    getRatePerHour,
+    findUpgradeNode,
   };
 })();
-/** Worldroot — tabbed Melvor-style UI. */
+/** Worldroot — sidebar Melvor-style UI. */
 
 (function () {
   const C = window.WorldrootConfig;
   const S = window.WorldrootState;
   const E = window.WorldrootEngine;
 
-  const TABS = C?.TABS ?? [
-    { id: 'characters', label: 'Characters' },
-    { id: 'skills', label: 'Skills' },
-    { id: 'resources', label: 'Resources' },
-    { id: 'worldroot', label: 'Worldroot' },
-    { id: 'settings', label: 'Settings' },
-  ];
+  const SIDEBAR_NAV = C?.SIDEBAR_NAV ?? [];
   const SKILL_ORDER = C?.SKILL_ORDER ?? ['combat', 'mining', 'woodcutting', 'fishing'];
   const MAX_SLOTS = C?.MAX_SLOTS ?? 3;
 
   let state = null;
-  let activeTab = 'characters';
-  let selectedSkillId = null;
+  let activePage = 'combat';
+  let selectedUpgradeId = null;
   let logBuffer = [];
-
-  const panels = {};
 
   function $(id) {
     return document.getElementById(id);
@@ -617,6 +866,7 @@ window.WorldrootConfig = {
   }
 
   function resName(id) {
+    if (C.LOOT_NAMES?.[id]) return C.LOOT_NAMES[id];
     for (const sk of Object.values(C.SKILLS)) {
       const r = sk.resources?.find((x) => x.id === id);
       if (r) return r.name;
@@ -624,9 +874,20 @@ window.WorldrootConfig = {
     return id;
   }
 
-  function activityLabel(id) {
-    if (!id) return 'Idle';
-    return C.ACTIVITIES.find((a) => a.id === id)?.label ?? id;
+  function activityLabel(char) {
+    if (!char.activity) return 'Idle';
+    const act = C.ACTIVITIES.find((a) => a.id === char.activity);
+    if (!act) return 'Idle';
+    if (char.activity === 'combat' && char.target) {
+      const mob = C.MONSTERS.find((m) => m.id === char.target);
+      return mob ? `Fighting ${mob.name}` : act.label;
+    }
+    if (char.target) {
+      const veins = C.VEINS[char.activity];
+      const vein = veins?.find((v) => v.id === char.target);
+      if (vein) return vein.name;
+    }
+    return act.label;
   }
 
   function charLabel(char) {
@@ -639,67 +900,248 @@ window.WorldrootConfig = {
     return Math.max(...state.characters.map((c) => c.skills[skillId]?.level ?? 1));
   }
 
-  function charsOnSkill(skillId) {
-    const skill = C.SKILLS[skillId];
-    const act = skill?.activity;
+  function charsOnTarget(activity, targetId) {
     return state.characters
       .map((c, i) => ({ c, i }))
-      .filter(({ c }) => c.activity === act);
+      .filter(({ c }) => c.activity === activity && c.target === targetId);
+  }
+
+  function xpProgress(skill) {
+    const needed = S.xpForLevel(skill.level);
+    return Math.min(100, (skill.xp / needed) * 100);
   }
 
   function addLog(text) {
     logBuffer.unshift(text);
-    if (logBuffer.length > 15) logBuffer.length = 15;
+    if (logBuffer.length > 20) logBuffer.length = 20;
     const log = $('activity-log');
-    if (!log) return;
-    log.innerHTML = logBuffer.map((t) => `<li>${t}</li>`).join('');
+    if (log) log.innerHTML = logBuffer.map((t) => `<li>${t}</li>`).join('');
   }
 
   function renderLogEl() {
     const log = $('activity-log');
-    if (!log) return;
-    log.innerHTML = logBuffer.map((t) => `<li>${t}</li>`).join('');
+    if (log) log.innerHTML = logBuffer.map((t) => `<li>${t}</li>`).join('');
   }
 
-  /* ── Tab navigation ── */
+  /* ── Navigation ── */
 
-  function switchTab(tabId) {
-    activeTab = tabId;
-    if (tabId !== 'skills') selectedSkillId = null;
-
-    document.querySelectorAll('.tab-btn').forEach((btn) => {
-      btn.classList.toggle('active', btn.dataset.tab === tabId);
-    });
-    Object.entries(panels).forEach(([id, el]) => {
-      el.classList.toggle('hidden', id !== tabId);
-    });
-    renderActivePanel();
+  function switchPage(pageId) {
+    const item = SIDEBAR_NAV.find((n) => n.id === pageId);
+    if (item?.comingSoon) return;
+    activePage = pageId;
+    renderSidebar();
+    renderMainPanel();
   }
 
-  function renderTabBar() {
-    const bar = $('tab-bar');
-    if (!bar) return;
-    bar.innerHTML = TABS.map(
-      (t) =>
-        `<button type="button" class="tab-btn ${t.id === activeTab ? 'active' : ''}" data-action="switch-tab" data-tab="${t.id}">${t.label}</button>`
-    ).join('');
+  function renderSidebar() {
+    const el = $('sidebar');
+    if (!el) return;
+
+    let html = '<div class="sidebar-section-label">Skills</div>';
+    for (const item of SIDEBAR_NAV) {
+      if (item.type === 'divider') {
+        html += '<div class="sidebar-divider"></div><div class="sidebar-section-label">Menu</div>';
+        continue;
+      }
+      const isActive = item.id === activePage;
+      const soon = item.comingSoon ? ' coming-soon' : '';
+      const badge = item.comingSoon ? '<span class="sidebar-btn-badge">Soon</span>' : '';
+      html += `
+        <button type="button" class="sidebar-btn${isActive ? ' active' : ''}${soon}"
+          data-action="switch-page" data-page="${item.id}" ${item.comingSoon ? 'disabled' : ''}>
+          <span class="sidebar-btn-icon">${item.icon}</span>
+          <span class="sidebar-btn-label">${item.label}</span>
+          ${badge}
+        </button>`;
+    }
+    el.innerHTML = html;
   }
 
-  /* ── HUD ── */
+  /* ── Top Bar ── */
 
   function renderHud() {
     const acct = $('account-level');
     const gold = $('gold-total');
+    const notif = $('notification-count');
     if (acct) acct.textContent = fmt(S.accountTotalLevel(state));
     if (gold) gold.textContent = fmt(state.gold);
+    if (notif) notif.textContent = state.pendingSlot ? '1' : '0';
   }
 
-  /* ── Characters tab ── */
+  /* ── Skill Pages ── */
+
+  function renderSkillPage(skillId) {
+    const sk = C.SKILLS[skillId];
+    if (!sk) return '<p class="empty-msg">Unknown skill.</p>';
+    if (sk.comingSoon) return renderComingSoon(sk);
+
+    if (skillId === 'combat') return renderCombatPage(sk);
+    return renderGatheringPage(sk);
+  }
+
+  function renderComingSoon(sk) {
+    return `
+      <div class="coming-soon-panel">
+        <span class="coming-soon-icon">${sk.icon}</span>
+        <h2>${sk.name}</h2>
+        <p>${sk.desc}</p>
+        <p style="margin-top:12px;font-size:0.85rem">Coming in a future update.</p>
+      </div>`;
+  }
+
+  function renderCombatPage(sk) {
+    const best = bestSkillLevel('combat');
+    const cards = C.MONSTERS.map((mob) => {
+      const assigned = charsOnTarget('combat', mob.id);
+      const xpHr = E.getRatePerHour(state, 'xp', 'combat');
+      const killsHr = E.getRatePerHour(state, 'kills', mob.id);
+      const lootHr = mob.drop ? E.getRatePerHour(state, 'loot', mob.drop.id) : 0;
+      const locked = best < mob.level;
+
+      const assignBtns = state.characters.length
+        ? state.characters
+            .map((char, i) => {
+              const on = char.activity === 'combat' && char.target === mob.id;
+              return `<button type="button" class="btn-xs ${on ? 'active' : ''}"
+                data-action="assign" data-char="${i}" data-activity="combat" data-target="${mob.id}">
+                ${charLabel(char)}${on ? ' ✓' : ''}
+              </button>`;
+            })
+            .join('')
+        : '';
+
+      const assignedNames = assigned.length
+        ? assigned.map(({ c }) => charLabel(c)).join(', ')
+        : 'None';
+
+      return `
+        <article class="activity-card ${mob.boss ? 'boss' : ''} ${locked ? 'locked' : ''}">
+          <div class="activity-card-head">
+            <span class="activity-card-icon">${mob.icon}</span>
+            <div class="activity-card-title">
+              <strong>${mob.name}</strong>
+              <span>Level ${mob.level}${mob.drop ? ` · Drops ${mob.drop.name}` : ''}</span>
+            </div>
+            ${mob.boss ? '<span class="activity-card-badge">BOSS</span>' : ''}
+          </div>
+          <div class="activity-stats">
+            <div class="activity-stat">
+              <span class="activity-stat-label">XP/hr</span>
+              <span class="activity-stat-value">${fmt(xpHr)}</span>
+            </div>
+            <div class="activity-stat">
+              <span class="activity-stat-label">Kills/hr</span>
+              <span class="activity-stat-value">${fmt(killsHr)}</span>
+            </div>
+            <div class="activity-stat">
+              <span class="activity-stat-label">Loot/hr</span>
+              <span class="activity-stat-value">${fmt(lootHr)}</span>
+            </div>
+          </div>
+          <p class="activity-assigned">Assigned: <strong>${assignedNames}</strong></p>
+          ${locked
+            ? `<p class="empty-msg">Requires Combat Level ${mob.level}</p>`
+            : `<div class="activity-actions">${assignBtns}</div>`}
+        </article>`;
+    }).join('');
+
+    return `
+      <header class="page-header">
+        <span class="page-header-icon">${sk.icon}</span>
+        <div class="page-header-text">
+          <h1>${sk.name}</h1>
+          <p>${sk.desc}</p>
+        </div>
+        <div class="page-header-stat">
+          <span class="page-header-stat-label">Combat Level</span>
+          <span class="page-header-stat-value">${best}</span>
+        </div>
+      </header>
+      <div class="activity-grid">${cards}</div>`;
+  }
+
+  function renderGatheringPage(sk) {
+    const veins = C.VEINS[sk.id] ?? [];
+    const best = bestSkillLevel(sk.id);
+
+    const cards = veins.map((vein) => {
+      const assigned = charsOnTarget(sk.activity, vein.id);
+      const xpHr = E.getRatePerHour(state, 'xp', sk.id);
+      const resHr = E.getRatePerHour(state, 'resources', vein.resource);
+      const locked = best < vein.minLevel;
+      const owned = state.resources[vein.resource] || 0;
+
+      const assignBtns = state.characters.length
+        ? state.characters
+            .map((char, i) => {
+              const on = char.activity === sk.activity && char.target === vein.id;
+              return `<button type="button" class="btn-xs ${on ? 'active' : ''}"
+                data-action="assign" data-char="${i}" data-activity="${sk.activity}" data-target="${vein.id}">
+                ${charLabel(char)}${on ? ' ✓' : ''}
+              </button>`;
+            })
+            .join('')
+        : '';
+
+      const assignedNames = assigned.length
+        ? assigned.map(({ c }) => charLabel(c)).join(', ')
+        : 'None';
+
+      const progressPct = assigned.length
+        ? xpProgress(assigned[0].c.skills[sk.id])
+        : 0;
+
+      return `
+        <article class="activity-card ${locked ? 'locked' : ''}">
+          <div class="activity-card-head">
+            <span class="activity-card-icon">${vein.icon}</span>
+            <div class="activity-card-title">
+              <strong>${vein.name}</strong>
+              <span>${resName(vein.resource)} · Lv ${vein.minLevel} required</span>
+            </div>
+          </div>
+          <div class="activity-stats">
+            <div class="activity-stat">
+              <span class="activity-stat-label">XP/hr</span>
+              <span class="activity-stat-value">${fmt(xpHr)}</span>
+            </div>
+            <div class="activity-stat">
+              <span class="activity-stat-label">${resName(vein.resource)}/hr</span>
+              <span class="activity-stat-value">${fmt(resHr)}</span>
+            </div>
+            <div class="activity-stat">
+              <span class="activity-stat-label">Owned</span>
+              <span class="activity-stat-value">${fmt(owned)}</span>
+            </div>
+          </div>
+          <div class="progress-bar" title="XP progress">
+            <div class="progress-bar-fill" style="width:${progressPct}%"></div>
+          </div>
+          <p class="activity-assigned">Assigned: <strong>${assignedNames}</strong></p>
+          ${locked
+            ? `<p class="empty-msg">Requires ${sk.name} Level ${vein.minLevel}</p>`
+            : `<div class="activity-actions">${assignBtns}</div>`}
+        </article>`;
+    }).join('');
+
+    return `
+      <header class="page-header">
+        <span class="page-header-icon">${sk.icon}</span>
+        <div class="page-header-text">
+          <h1>${sk.name}</h1>
+          <p>${sk.desc}</p>
+        </div>
+        <div class="page-header-stat">
+          <span class="page-header-stat-label">${sk.name} Level</span>
+          <span class="page-header-stat-value">${best}</span>
+        </div>
+      </header>
+      <div class="activity-grid">${cards}</div>`;
+  }
+
+  /* ── Characters Page ── */
 
   function renderCharactersPanel() {
-    const el = panels.characters;
-    if (!el) return;
-
     const account = S.accountTotalLevel(state);
     const next = S.nextSlotUnlock(account);
     let unlockHint = '';
@@ -710,25 +1152,44 @@ window.WorldrootConfig = {
     const cards = state.characters.map((char, i) => {
       const cls = C.CLASSES[char.classId];
       const total = S.characterTotalLevel(char);
-      const skills = SKILL_ORDER.map((sid) => {
-        const lv = char.skills[sid]?.level ?? 1;
-        return `<span class="char-stat"><em>${skillName(sid).slice(0, 3)}</em> ${lv}</span>`;
-      }).join('');
+      const combatLv = char.skills.combat?.level ?? 1;
+
+      const skillItems = [
+        { id: 'combat', icon: '🗡' },
+        { id: 'mining', icon: '⛏' },
+        { id: 'woodcutting', icon: '🪓' },
+        { id: 'fishing', icon: '🎣' },
+      ]
+        .map(
+          (s) => `
+          <div class="char-skill-item">
+            <span class="char-skill-icon">${s.icon}</span>
+            <span class="char-skill-name">${skillName(s.id)}</span>
+            <span class="char-skill-lv">${char.skills[s.id]?.level ?? 1}</span>
+          </div>`
+        )
+        .join('');
 
       return `
         <article class="char-card" data-class="${char.classId}">
           <div class="char-card-top">
-            <span class="char-icon">${cls.icon}</span>
+            <div class="char-portrait">${cls.icon}</div>
             <div class="char-card-title">
               <strong>${cls.name}</strong>
               <span class="char-meta">${cls.desc}</span>
             </div>
-            <span class="char-total">Lv ${total}</span>
+            <div class="char-total-badge">
+              <span>Total</span>
+              <strong>${total}</strong>
+            </div>
           </div>
           <div class="char-activity-pill ${char.activity ? 'active' : ''}">
-            ${activityLabel(char.activity)}
+            ${char.activity ? '▶' : '○'} ${activityLabel(char)}
           </div>
-          <div class="char-stats-row">${skills}</div>
+          <div class="char-skills-grid">${skillItems}</div>
+          <div style="font-size:0.78rem;color:#6a7a66;margin-bottom:10px">
+            Combat Level: <strong style="color:#a8d5a2">${combatLv}</strong>
+          </div>
           <button type="button" class="btn-xs ghost" data-action="stop" data-char="${i}">Stop activity</button>
         </article>`;
     });
@@ -754,213 +1215,189 @@ window.WorldrootConfig = {
       }
     }
 
-    el.innerHTML = `
+    return `
+      <header class="page-header">
+        <span class="page-header-icon">👥</span>
+        <div class="page-header-text">
+          <h1>Characters</h1>
+          <p>Manage your party and view skill levels</p>
+        </div>
+        <div class="page-header-stat">
+          <span class="page-header-stat-label">Party</span>
+          <span class="page-header-stat-value">${state.characters.length}/${MAX_SLOTS}</span>
+        </div>
+      </header>
       ${unlockHint}
       <div class="char-grid">${cards.join('') || '<p class="empty-msg">Choose a class to begin your party.</p>'}</div>
       ${slots.length ? `<div class="slot-row">${slots.join('')}</div>` : ''}`;
   }
 
-  /* ── Skills tab ── */
+  /* ── World Tree ── */
 
-  function renderSkillsPanel() {
-    const el = panels.skills;
-    if (!el) return;
+  function renderWorldTreePanel() {
+    const branches = C.WORLD_TREE_BRANCHES.map((branch) => {
+      const cards = branch.nodes
+        .map((node) => {
+          const lv = E.upgradeLevel(state, node.id);
+          const bonus = E.upgradeBonusPercent(state, node.id).toFixed(0);
+          return `
+            <button type="button" class="upgrade-card" data-action="open-upgrade" data-upgrade="${node.id}">
+              <span class="upgrade-card-name">${node.name}</span>
+              <span class="upgrade-card-level">Level ${lv}</span>
+              <span class="upgrade-card-bonus">+${bonus}%</span>
+            </button>`;
+        })
+        .join('');
 
-    if (selectedSkillId) {
-      renderSkillDetail(el, selectedSkillId);
+      return `
+        <section class="branch-section">
+          <div class="branch-header">
+            <span class="branch-icon">${branch.icon}</span>
+            <h2>${branch.name}</h2>
+          </div>
+          <div class="upgrade-grid">${cards}</div>
+        </section>`;
+    }).join('');
+
+    return `
+      <header class="page-header">
+        <span class="page-header-icon">🌳</span>
+        <div class="page-header-text">
+          <h1>World Tree</h1>
+          <p>Grow the ancient tree to unlock powerful bonuses across all skills</p>
+        </div>
+      </header>
+      <div class="branch-grid">${branches}</div>`;
+  }
+
+  function renderUpgradeModal() {
+    const modal = $('upgrade-modal');
+    const content = $('upgrade-modal-content');
+    if (!modal || !content) return;
+
+    if (!selectedUpgradeId) {
+      modal.hidden = true;
       return;
     }
 
-    el.innerHTML = `
-      <p class="panel-intro">Select a skill to view resources and assign characters.</p>
-      <div class="skill-grid">
-        ${SKILL_ORDER.map((sid) => {
-          const sk = C.SKILLS[sid];
-          const best = bestSkillLevel(sid);
-          const assigned = charsOnSkill(sid);
-          return `
-            <button type="button" class="skill-card" data-action="open-skill" data-skill="${sid}">
-              <span class="skill-card-icon">${sk.icon}</span>
-              <span class="skill-card-name">${sk.name}</span>
-              <span class="skill-card-lv">Best Lv ${best}</span>
-              <span class="skill-card-sub">${assigned.length} active</span>
-            </button>`;
-        }).join('')}
-      </div>`;
-  }
+    const found = E.findUpgradeNode(selectedUpgradeId);
+    if (!found) {
+      modal.hidden = true;
+      return;
+    }
 
-  function renderSkillDetail(el, skillId) {
-    const sk = C.SKILLS[skillId];
-    const best = bestSkillLevel(skillId);
-    const assigned = charsOnSkill(skillId);
+    const { branch, node } = found;
+    const lv = E.upgradeLevel(state, node.id);
+    const currentBonus = E.upgradeBonusPercent(state, node.id).toFixed(0);
+    const nextBonus = ((lv + 1) * C.UPGRADE_BONUS_PER_LEVEL * 100).toFixed(0);
+    const costs = E.upgradeCosts(node.id, lv);
+    const canBuy = E.canAffordUpgrade(state, node.id);
 
-    const tiers = sk.resources.length
-      ? sk.resources
-          .map((r) => {
-            const ok = best >= r.minLevel;
-            return `<li class="${ok ? 'unlocked' : 'locked'}">
-              <span>${r.name}</span>
-              <span>Lv ${r.minLevel}${ok ? '' : ' required'}</span>
-            </li>`;
-          })
-          .join('')
-      : `<li class="unlocked"><span>Gold</span><span>Always</span></li>
-         <li class="locked"><span>Mob drops</span><span>Coming soon</span></li>`;
-
-    const assignBtns = state.characters.length
-      ? state.characters
-          .map((char, i) => {
-            const on = char.activity === sk.activity;
-            return `
-              <button type="button" class="btn-sm ${on ? 'active' : ''}"
-                data-action="set-activity" data-char="${i}" data-activity="${sk.activity}">
-                ${charLabel(char)}${on ? ' ✓' : ''}
-              </button>`;
-          })
-          .join('')
-      : '<p class="empty-msg">Unlock a character first.</p>';
-
-    const assignedList = assigned.length
-      ? assigned.map(({ c }) => charLabel(c)).join(', ')
-      : 'None';
-
-    el.innerHTML = `
-      <button type="button" class="back-btn" data-action="close-skill">← Skills</button>
-      <header class="skill-detail-head">
-        <span class="skill-detail-icon">${sk.icon}</span>
-        <div>
-          <h2>${sk.name}</h2>
-          <p>${sk.desc}</p>
-        </div>
-        <span class="skill-detail-lv">Best Lv ${best}</span>
-      </header>
-
-      <div class="detail-grid">
-        <section class="detail-box">
-          <h3>Resources</h3>
-          <ul class="tier-list">${tiers}</ul>
-        </section>
-        <section class="detail-box">
-          <h3>Assigned</h3>
-          <p class="assigned-text">${assignedList}</p>
-        </section>
-      </div>
-
-      <section class="detail-box">
-        <h3>Assign characters</h3>
-        <div class="btn-row">${assignBtns}</div>
-      </section>`;
-  }
-
-  /* ── Resources tab ── */
-
-  function renderResourcesPanel() {
-    const el = panels.resources;
-    if (!el) return;
-
-    const groups = [
-      { title: 'Mining', icon: '⛏', ids: ['coal', 'copper', 'iron', 'gold'] },
-      { title: 'Woodcutting', icon: '🪓', ids: ['oak', 'spruce', 'birch', 'jungle'] },
-      { title: 'Fishing', icon: '🎣', ids: ['shrimp', 'trout', 'salmon', 'lobster'] },
-      {
-        title: 'Combat',
-        icon: '🗡',
-        custom: `
-          <div class="res-item"><span>Gold</span><strong>${fmt(state.gold)}</strong></div>
-          <div class="res-item res-placeholder"><span>Mob drops</span><strong>—</strong></div>`,
-      },
-    ];
-
-    el.innerHTML = groups
-      .map((g) => {
-        const items = g.custom
-          ? g.custom
-          : g.ids
-              .map(
-                (id) =>
-                  `<div class="res-item"><span>${resName(id)}</span><strong>${fmt(state.resources[id] || 0)}</strong></div>`
-              )
-              .join('');
-        return `
-          <section class="res-section">
-            <h3>${g.icon} ${g.title}</h3>
-            <div class="res-grid">${items}</div>
-          </section>`;
+    const reqList = Object.entries(costs)
+      .map(([res, amt]) => {
+        const owned = state.resources[res] || 0;
+        const met = owned >= amt;
+        return `<li class="${met ? 'met' : 'unmet'}">
+          <span>${resName(res)}</span>
+          <span>${fmt(owned)} / ${fmt(amt)}</span>
+        </li>`;
       })
       .join('');
+
+    content.innerHTML = `
+      <div class="upgrade-modal-head">
+        <h2>${node.name}</h2>
+        <p>${branch.name} · ${node.desc}</p>
+      </div>
+      <div class="upgrade-detail-row">
+        <span class="upgrade-detail-label">Current Level</span>
+        <span class="upgrade-detail-value">${lv}</span>
+      </div>
+      <div class="upgrade-detail-row">
+        <span class="upgrade-detail-label">Current Bonus</span>
+        <span class="upgrade-detail-value bonus">+${currentBonus}%</span>
+      </div>
+      <div class="upgrade-detail-row">
+        <span class="upgrade-detail-label">Next Level Bonus</span>
+        <span class="upgrade-detail-value bonus">+${nextBonus}%</span>
+      </div>
+      <div class="upgrade-requirements">
+        <h3>Requirements</h3>
+        <ul class="req-list">${reqList || '<li>No cost defined</li>'}</ul>
+      </div>
+      <div class="upgrade-modal-actions">
+        <button type="button" class="btn-sm primary ${canBuy ? '' : 'disabled'}"
+          data-action="buy-upgrade" data-upgrade="${node.id}" ${canBuy ? '' : 'disabled'}>
+          Upgrade
+        </button>
+        <button type="button" class="btn-sm ghost" data-action="close-upgrade-modal">Close</button>
+      </div>`;
+
+    modal.hidden = false;
   }
 
-  /* ── Worldroot tab ── */
-
-  function renderWorldrootPanel() {
-    const el = panels.worldroot;
-    if (!el) return;
-
-    el.innerHTML = `
-      <p class="panel-intro">Spend resources to grow the Worldroot. Each node levels infinitely.</p>
-      ${C.UPGRADES.map((res) => {
-        const nodes = res.nodes
-          .map((node, i) => {
-            const lv = E.nodeLevel(state, res.id, i);
-            const pct = E.nodeBonusPercent(state, res.id, i).toFixed(0);
-            const cost = E.upgradeCost(res.id, i, lv);
-            const owned = state.resources[res.id] || 0;
-            const can = owned >= cost;
-            return `
-              <div class="upgrade-row">
-                <div class="upgrade-info">
-                  <strong>${node.name}</strong>
-                  <span>Lv ${lv} · +${pct}% · ${node.desc.split(' per')[0]}</span>
-                </div>
-                <button type="button" class="btn-sm ${can ? '' : 'disabled'}"
-                  data-action="buy-upgrade" data-resource="${res.id}" data-node="${i}"
-                  ${can ? '' : 'disabled'}>
-                  ${fmt(cost)} ${res.name}
-                </button>
-              </div>`;
-          })
-          .join('');
-        return `
-          <section class="upgrade-section">
-            <h3>${res.name}</h3>
-            ${nodes}
-          </section>`;
-      }).join('')}`;
-  }
-
-  /* ── Settings tab ── */
+  /* ── Settings ── */
 
   function renderSettingsPanel() {
-    const el = panels.settings;
-    if (!el) return;
-
     const session = window.WorldrootSession;
     const sessionText = session?.isCloud
       ? `Cloud save · ${session.displayName}`
       : 'Offline · this device only';
 
-    el.innerHTML = `
-      <section class="detail-box">
-        <h3>Save</h3>
-        <p class="settings-line">${sessionText}</p>
-        <div class="btn-row">
-          <button type="button" class="btn-sm ghost" data-action="go-menu">Main menu</button>
-          <button type="button" class="btn-sm danger" data-action="reset-save">Reset save</button>
+    return `
+      <header class="page-header">
+        <span class="page-header-icon">⚙</span>
+        <div class="page-header-text">
+          <h1>Settings</h1>
+          <p>Save data and account options</p>
         </div>
-      </section>
-      <section class="detail-box">
-        <h3>Account</h3>
-        <p class="settings-line">Account Level: <strong>${fmt(S.accountTotalLevel(state))}</strong></p>
-        <p class="settings-line">Characters: <strong>${state.characters.length} / ${MAX_SLOTS}</strong></p>
-      </section>
-      <section class="detail-box">
-        <h3>Activity log</h3>
-        <ul id="activity-log" class="log"></ul>
-      </section>`;
-    renderLogEl();
+      </header>
+      <div class="settings-grid">
+        <section class="detail-box">
+          <h3>Save</h3>
+          <p class="settings-line">${sessionText}</p>
+          <div class="btn-row">
+            <button type="button" class="btn-sm ghost" data-action="go-menu">Main menu</button>
+            <button type="button" class="btn-sm danger" data-action="reset-save">Reset save</button>
+          </div>
+        </section>
+        <section class="detail-box">
+          <h3>Account</h3>
+          <p class="settings-line">Account Level: <strong>${fmt(S.accountTotalLevel(state))}</strong></p>
+          <p class="settings-line">Characters: <strong>${state.characters.length} / ${MAX_SLOTS}</strong></p>
+          <p class="settings-line">Gold: <strong>${fmt(state.gold)}</strong></p>
+        </section>
+        <section class="detail-box">
+          <h3>Activity log</h3>
+          <ul id="activity-log" class="log"></ul>
+        </section>
+      </div>`;
   }
 
-  /* ── Class modal ── */
+  /* ── Main Panel ── */
+
+  function renderMainPanel() {
+    const el = $('panel-main');
+    if (!el) return;
+
+    const skill = C.SKILLS[activePage];
+    if (skill && !skill.comingSoon) {
+      el.innerHTML = renderSkillPage(activePage);
+    } else if (activePage === 'characters') {
+      el.innerHTML = renderCharactersPanel();
+    } else if (activePage === 'worldtree') {
+      el.innerHTML = renderWorldTreePanel();
+    } else if (activePage === 'settings') {
+      el.innerHTML = renderSettingsPanel();
+      renderLogEl();
+    } else if (skill?.comingSoon) {
+      el.innerHTML = renderComingSoon(skill);
+    } else {
+      el.innerHTML = '<p class="empty-msg">Select a page from the sidebar.</p>';
+    }
+  }
+
+  /* ── Class Modal ── */
 
   function renderClassModal() {
     const modal = $('class-modal');
@@ -982,35 +1419,12 @@ window.WorldrootConfig = {
       .join('');
   }
 
-  /* ── Render orchestration ── */
-
-  function renderActivePanel() {
-    switch (activeTab) {
-      case 'characters':
-        renderCharactersPanel();
-        break;
-      case 'skills':
-        renderSkillsPanel();
-        break;
-      case 'resources':
-        renderResourcesPanel();
-        break;
-      case 'worldroot':
-        renderWorldrootPanel();
-        break;
-      case 'settings':
-        renderSettingsPanel();
-        break;
-      default:
-        break;
-    }
-  }
-
   function render() {
     renderHud();
-    renderTabBar();
-    renderActivePanel();
+    renderSidebar();
+    renderMainPanel();
     renderClassModal();
+    renderUpgradeModal();
   }
 
   /* ── Events ── */
@@ -1020,26 +1434,14 @@ window.WorldrootConfig = {
     if (!btn) return;
     const action = btn.dataset.action;
 
-    if (action === 'switch-tab') {
-      switchTab(btn.dataset.tab);
-      return;
-    }
-
-    if (action === 'open-skill') {
-      selectedSkillId = btn.dataset.skill;
-      renderSkillsPanel();
-      return;
-    }
-
-    if (action === 'close-skill') {
-      selectedSkillId = null;
-      renderSkillsPanel();
+    if (action === 'switch-page') {
+      switchPage(btn.dataset.page);
       return;
     }
 
     if (action === 'pick-class') {
       S.addCharacter(state, btn.dataset.class);
-      addLog(`${C.CLASSES[btn.dataset.class].name} joined.`);
+      addLog(`${C.CLASSES[btn.dataset.class].name} joined the party.`);
       render();
       return;
     }
@@ -1050,10 +1452,10 @@ window.WorldrootConfig = {
       return;
     }
 
-    if (action === 'set-activity') {
+    if (action === 'assign') {
       const idx = Number(btn.dataset.char);
-      S.setActivity(state, idx, btn.dataset.activity);
-      addLog(`${charLabel(state.characters[idx])} → ${activityLabel(btn.dataset.activity)}`);
+      S.setActivity(state, idx, btn.dataset.activity, btn.dataset.target);
+      addLog(`${charLabel(state.characters[idx])} → ${activityLabel(state.characters[idx])}`);
       render();
       return;
     }
@@ -1066,12 +1468,23 @@ window.WorldrootConfig = {
       return;
     }
 
+    if (action === 'open-upgrade') {
+      selectedUpgradeId = btn.dataset.upgrade;
+      renderUpgradeModal();
+      return;
+    }
+
+    if (action === 'close-upgrade-modal') {
+      selectedUpgradeId = null;
+      renderUpgradeModal();
+      return;
+    }
+
     if (action === 'buy-upgrade') {
-      const resId = btn.dataset.resource;
-      const node = Number(btn.dataset.node);
-      const def = C.UPGRADES.find((u) => u.id === resId);
-      if (E.buyUpgrade(state, resId, node)) {
-        addLog(`Upgraded ${def.nodes[node].name}.`);
+      const nodeId = btn.dataset.upgrade;
+      const found = E.findUpgradeNode(nodeId);
+      if (found && E.buyUpgrade(state, nodeId)) {
+        addLog(`Upgraded ${found.node.name} to level ${E.upgradeLevel(state, nodeId)}.`);
         render();
       }
       return;
@@ -1080,7 +1493,7 @@ window.WorldrootConfig = {
     if (action === 'reset-save') {
       if (confirm('Reset all progress? This cannot be undone.')) {
         state = S.resetState();
-        selectedSkillId = null;
+        selectedUpgradeId = null;
         if (window.WorldrootSession?.isCloud && window.WorldrootCloud?.flush) {
           window.WorldrootCloud.flush();
         }
@@ -1095,19 +1508,15 @@ window.WorldrootConfig = {
     }
   }
 
-  function setSessionBadge(session) {
-    /* session info lives in Settings tab now */
-    if (session && activeTab === 'settings') renderSettingsPanel();
+  function setSessionBadge() {
+    if (activePage === 'settings') renderMainPanel();
   }
 
   function init(initialState) {
     state = initialState;
-    TABS.forEach((t) => {
-      panels[t.id] = $(`panel-${t.id}`);
-    });
     document.body.addEventListener('click', handleClick);
-    renderTabBar();
-    switchTab('characters');
+    renderSidebar();
+    switchPage('combat');
 
     if (!state.characters.length) {
       renderClassModal();
@@ -1127,27 +1536,23 @@ window.WorldrootConfig = {
   };
 
   function showBootError(msg) {
-    const panel = document.getElementById('panel-characters');
+    const panel = document.getElementById('panel-main');
     if (panel) {
-      panel.classList.remove('hidden');
       panel.innerHTML = `<p class="empty-msg" style="color:#e8a0a0">${msg}</p>`;
     }
-    const bar = document.getElementById('tab-bar');
-    if (bar) bar.innerHTML = '<button type="button" class="tab-btn active" disabled>Error</button>';
   }
 
-  /** Boot game immediately — do not wait for auth module. */
   function autoBoot() {
     try {
-      const S = window.WorldrootState;
-      const E = window.WorldrootEngine;
-      if (!S || !E) {
+      const St = window.WorldrootState;
+      const En = window.WorldrootEngine;
+      if (!St || !En) {
         showBootError('Game failed to load. Hard refresh (Ctrl+Shift+R) or try Play offline from the home page.');
         return;
       }
 
       const mode = sessionStorage.getItem('worldroot_play_mode');
-      S.setPlayMode(mode === 'cloud' ? 'cloud' : 'offline');
+      St.setPlayMode(mode === 'cloud' ? 'cloud' : 'offline');
 
       window.WorldrootSession = window.WorldrootSession || {
         isCloud: mode === 'cloud',
@@ -1158,7 +1563,7 @@ window.WorldrootConfig = {
       if (window.__worldrootBooted) return;
       window.__worldrootBooted = true;
 
-      const gameState = S.loadState();
+      const gameState = St.loadState();
       init(gameState);
 
       if (!gameState.characters.length) {
@@ -1168,19 +1573,27 @@ window.WorldrootConfig = {
       }
 
       setInterval(() => {
-        E.tick(getState());
-        S.refreshPendingSlot(getState());
+        En.tick(getState());
+        St.refreshPendingSlot(getState());
         refresh();
       }, C?.TICK_MS ?? 1000);
 
       window.addEventListener('beforeunload', () => {
-        S.saveState(getState());
+        St.saveState(getState());
         if (window.WorldrootCloud?.flush) window.WorldrootCloud.flush();
       });
     } catch (err) {
       console.error('[Worldroot] boot failed:', err);
       showBootError(`Game error: ${err.message}. Try Reset save in Settings or clear browser data for this site.`);
     }
+  }
+
+  function getState() {
+    return window.WorldrootUI.getState();
+  }
+
+  function refresh() {
+    window.WorldrootUI.refresh();
   }
 
   if (document.readyState === 'loading') {

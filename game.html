@@ -4,41 +4,43 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Worldroot</title>
-  <link rel="stylesheet" href="css/style.css" />
+  <link rel="stylesheet" href="css/style.css?v=7" />
 </head>
 <body>
-  <div class="game-shell">
-    <header class="hud">
-      <a href="index.html" class="hud-brand">Worldroot</a>
-      <div class="hud-stats">
-        <span class="hud-stat" title="Account Total Level">
-          <span class="hud-stat-label">Acct</span>
+  <div class="app-shell">
+    <header class="top-bar">
+      <a href="index.html" class="top-bar-brand">
+        <span class="brand-icon">🌳</span>
+        <span class="brand-name">Worldroot</span>
+      </a>
+      <div class="top-bar-stats">
+        <div class="stat-chip" title="Account Total Level">
+          <span class="stat-chip-icon">⭐</span>
+          <span class="stat-chip-label">Level</span>
           <strong id="account-level">0</strong>
-        </span>
-        <span class="hud-stat" title="Gold">
-          <span class="hud-stat-label">Gold</span>
+        </div>
+        <div class="stat-chip" title="Gold">
+          <span class="stat-chip-icon">🪙</span>
+          <span class="stat-chip-label">Gold</span>
           <strong id="gold-total">0</strong>
-        </span>
+        </div>
+        <div class="stat-chip stat-chip-muted" title="Notifications">
+          <span class="stat-chip-icon">🔔</span>
+          <span class="stat-chip-label">Alerts</span>
+          <strong id="notification-count">0</strong>
+        </div>
       </div>
     </header>
 
-    <nav class="tab-bar" id="tab-bar">
-      <button type="button" class="tab-btn active" data-action="switch-tab" data-tab="characters">Characters</button>
-      <button type="button" class="tab-btn" data-action="switch-tab" data-tab="skills">Skills</button>
-      <button type="button" class="tab-btn" data-action="switch-tab" data-tab="resources">Resources</button>
-      <button type="button" class="tab-btn" data-action="switch-tab" data-tab="worldroot">Worldroot</button>
-      <button type="button" class="tab-btn" data-action="switch-tab" data-tab="settings">Settings</button>
-    </nav>
+    <div class="app-body">
+      <aside class="sidebar" id="sidebar"></aside>
 
-    <main class="tab-content">
-      <section id="panel-characters" class="tab-panel" data-tab="characters">
-        <p class="panel-intro">Loading…</p>
-      </section>
-      <section id="panel-skills" class="tab-panel hidden" data-tab="skills"></section>
-      <section id="panel-resources" class="tab-panel hidden" data-tab="resources"></section>
-      <section id="panel-worldroot" class="tab-panel hidden" data-tab="worldroot"></section>
-      <section id="panel-settings" class="tab-panel hidden" data-tab="settings"></section>
-    </main>
+      <main class="main-content" id="main-content">
+        <section id="panel-main" class="content-panel">
+          <p class="panel-intro">Loading…</p>
+        </section>
+      </main>
+    </div>
   </div>
 
   <div id="class-modal" class="modal" hidden>
@@ -49,15 +51,25 @@
     </div>
   </div>
 
-  <script src="js/game.js?v=6"></script>
+  <div id="upgrade-modal" class="modal" hidden>
+    <div class="modal-backdrop" data-action="close-upgrade-modal"></div>
+    <div class="modal-card upgrade-modal-card">
+      <div id="upgrade-modal-content"></div>
+    </div>
+  </div>
+
+  <script src="js/config.js?v=7"></script>
+  <script src="js/state.js?v=7"></script>
+  <script src="js/engine.js?v=7"></script>
+  <script src="js/ui.js?v=7"></script>
   <script>
     if (!window.__worldrootBooted) {
-      var panel = document.getElementById('panel-characters');
+      var panel = document.getElementById('panel-main');
       if (panel) {
         panel.innerHTML = '<p class="empty-msg" style="color:#e8a0a0">Game failed to start. Go to <a href="index.html">home page</a>, click Play offline, then try again.</p>';
       }
     }
   </script>
-  <script type="module" src="js/gameBootstrap.js?v=6"></script>
+  <script type="module" src="js/gameBootstrap.js?v=7"></script>
 </body>
 </html>
