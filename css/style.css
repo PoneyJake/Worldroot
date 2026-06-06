@@ -837,6 +837,17 @@ body {
   color: #6a7a66;
 }
 
+.upgrade-card-action {
+  font-size: 0.78rem;
+  color: #8ab886;
+  font-weight: 600;
+}
+
+.upgrade-card.maxed {
+  opacity: 0.55;
+  cursor: default;
+}
+
 .upgrade-card-bonus {
   font-size: 0.82rem;
   color: #5a9a52;

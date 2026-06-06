@@ -13,12 +13,54 @@
     return state.upgrades[nodeId] || 0;
   }
 
-  function upgradeCosts(nodeId, currentLevel) {
+  function upgradeTierCount(state, nodeId) {
+    return state.upgradeTiers?.[nodeId] || 0;
+  }
+
+  function upgradeMaxLevel(state, nodeId) {
+    const tiers = upgradeTierCount(state, nodeId);
+    return Math.min(C.UPGRADE_MAX_LEVEL, tiers * C.UPGRADE_TIER_SIZE);
+  }
+
+  function upgradeNeedsUnlock(state, nodeId) {
+    const lv = upgradeLevel(state, nodeId);
+    if (lv >= C.UPGRADE_MAX_LEVEL) return false;
+    const tiers = upgradeTierCount(state, nodeId);
+    if (tiers === 0) return true;
+    return lv >= tiers * C.UPGRADE_TIER_SIZE;
+  }
+
+  function upgradeUnlockIndex(state, nodeId) {
+    return upgradeTierCount(state, nodeId);
+  }
+
+  function upgradeUnlockCosts(nodeId, tierIndex) {
     const found = findUpgradeNode(nodeId);
-    if (!found) return {};
-    const { node } = found;
-    const scale = 1 + currentLevel * 0.15;
-    return { [node.costRes]: Math.max(1, Math.floor(node.baseCost * scale)) };
+    if (!found) return null;
+    const resAmt = C.UPGRADE_UNLOCK_RESOURCES[tierIndex];
+    const goldAmt = C.UPGRADE_UNLOCK_GOLD[tierIndex];
+    if (resAmt == null || goldAmt == null) return null;
+    return { resource: found.node.costRes, resourceAmt: resAmt, gold: goldAmt };
+  }
+
+  function upgradeUnlockTargetMax(tierIndex) {
+    return Math.min(C.UPGRADE_MAX_LEVEL, (tierIndex + 1) * C.UPGRADE_TIER_SIZE);
+  }
+
+  function canUnlockUpgrade(state, nodeId) {
+    if (!upgradeNeedsUnlock(state, nodeId)) return false;
+    const costs = upgradeUnlockCosts(nodeId, upgradeUnlockIndex(state, nodeId));
+    if (!costs) return false;
+    return S.storageHas(state, costs.resource, costs.resourceAmt) && state.gold >= costs.gold;
+  }
+
+  function canLevelUpgrade(state, nodeId) {
+    const lv = upgradeLevel(state, nodeId);
+    return lv < upgradeMaxLevel(state, nodeId) && lv < C.UPGRADE_MAX_LEVEL && !upgradeNeedsUnlock(state, nodeId);
+  }
+
+  function upgradeCosts(nodeId, currentLevel) {
+    return {};
   }
 
   function upgradeBonusDisplay(state, node) {
@@ -99,13 +141,45 @@
   }
 
   function canAffordUpgrade(state, nodeId) {
-    const costs = upgradeCosts(nodeId, upgradeLevel(state, nodeId));
-    return Object.entries(costs).every(([res, amt]) => S.storageHas(state, res, amt));
+    return canUnlockUpgrade(state, nodeId) || canLevelUpgrade(state, nodeId);
+  }
+
+  function veinTier(vein) {
+    return Math.floor((vein?.minLevel ?? 0) / 5);
+  }
+
+  function veinEffBreakpoints(vein) {
+    const mult = Math.pow(5, veinTier(vein));
+    return C.VEIN_EFF_CURVE.map(([eff, pct]) => ({ eff: eff * mult, pct }));
   }
 
   function veinEffThreshold(vein) {
-    const tier = Math.floor((vein?.minLevel ?? 0) / 5);
-    return C.VEIN_EFF_BASE + tier * C.VEIN_EFF_STEP;
+    const bps = veinEffBreakpoints(vein);
+    return bps[1]?.eff ?? bps[0].eff;
+  }
+
+  function gatherSuccessPercent(eff, vein) {
+    const bps = veinEffBreakpoints(vein);
+    if (eff <= 0) return 0;
+    if (eff <= bps[0].eff) {
+      return (eff / bps[0].eff) * bps[0].pct;
+    }
+    for (let i = 0; i < bps.length - 1; i++) {
+      const a = bps[i];
+      const b = bps[i + 1];
+      if (eff <= b.eff) {
+        const t = (eff - a.eff) / (b.eff - a.eff);
+        return a.pct + t * (b.pct - a.pct);
+      }
+    }
+    return bps[bps.length - 1].pct;
+  }
+
+  function rollAmountFromSuccessPct(successPct) {
+    if (successPct <= 0) return 0;
+    const full = Math.floor(successPct / 100);
+    const rem = (successPct % 100) / 100;
+    return full + (Math.random() < rem ? 1 : 0);
   }
 
   function gatherEfficiency(state, char, skillId) {
@@ -122,22 +196,12 @@
 
   function gatherSuccessChance(state, char, skillId, vein) {
     const eff = gatherEfficiency(state, char, skillId);
-    const threshold = veinEffThreshold(vein);
-    if (eff >= threshold) return 100;
-    if (eff <= 0) return 0;
-    return Math.min(100, (eff / threshold) * 100);
+    return gatherSuccessPercent(eff, vein);
   }
 
   function rollGatherAmount(state, char, skillId, vein) {
     const eff = gatherEfficiency(state, char, skillId);
-    const threshold = veinEffThreshold(vein);
-    let amount = 0;
-
-    if (eff >= threshold) {
-      amount = 1;
-    } else if (eff > 0 && Math.random() < eff / threshold) {
-      amount = 1;
-    }
+    let amount = rollAmountFromSuccessPct(gatherSuccessPercent(eff, vein));
 
     if (amount > 0 && Math.random() < gatherMultiChance(state, char, skillId)) {
       amount += 1;
@@ -408,14 +472,27 @@
     return events;
   }
 
+  function unlockUpgradeTier(state, nodeId) {
+    if (!upgradeNeedsUnlock(state, nodeId)) return false;
+    const tierIdx = upgradeUnlockIndex(state, nodeId);
+    const costs = upgradeUnlockCosts(nodeId, tierIdx);
+    if (!costs) return false;
+    if (!S.storageHas(state, costs.resource, costs.resourceAmt)) return false;
+    if (state.gold < costs.gold) return false;
+    S.removeFromStorage(state, costs.resource, costs.resourceAmt);
+    state.gold -= costs.gold;
+    if (!state.upgradeTiers) state.upgradeTiers = {};
+    state.upgradeTiers[nodeId] = tierIdx + 1;
+    S.saveState(state);
+    return true;
+  }
+
   function buyUpgrade(state, nodeId) {
-    const current = upgradeLevel(state, nodeId);
-    const costs = upgradeCosts(nodeId, current);
-    if (!Object.keys(costs).length) return false;
-    for (const [res, amt] of Object.entries(costs)) {
-      if (!S.storageHas(state, res, amt)) return false;
+    if (upgradeNeedsUnlock(state, nodeId)) {
+      return unlockUpgradeTier(state, nodeId);
     }
-    for (const [res, amt] of Object.entries(costs)) S.removeFromStorage(state, res, amt);
+    if (!canLevelUpgrade(state, nodeId)) return false;
+    const current = upgradeLevel(state, nodeId);
     state.upgrades[nodeId] = current + 1;
     S.saveState(state);
     return true;
@@ -506,9 +583,12 @@
   }
 
   window.WorldrootEngine = {
-    upgradeLevel, upgradeCosts, upgradeBonusDisplay, upgradeBonusPercent, effectBonus,
+    upgradeLevel, upgradeTierCount, upgradeMaxLevel, upgradeNeedsUnlock, upgradeUnlockCosts,
+    upgradeUnlockTargetMax, canUnlockUpgrade, canLevelUpgrade, unlockUpgradeTier,
+    upgradeCosts, upgradeBonusDisplay, upgradeBonusPercent, effectBonus,
     skillXpBonus, skillYieldBonus, skillMultiBonus,
-    gatherEfficiency, gatherStatBonus, gatherSuccessChance, gatherMultiChance, veinEffThreshold,
+    gatherEfficiency, gatherStatBonus, gatherSuccessChance, gatherSuccessPercent, gatherMultiChance,
+    veinEffThreshold, veinEffBreakpoints,
     gatherRatePerMin, gatherIntervalTicks, charMaxHp, charMaxMp, charDamage, mobMaxHp, dropChance, dropBonus,
     getTheoreticalCombatRates, smeltBatchCapacity,
     charStat, gatherStatMult, combatDamageMult,

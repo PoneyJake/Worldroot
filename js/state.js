@@ -31,6 +31,14 @@
     return u;
   }
 
+  function emptyUpgradeTiers() {
+    const t = {};
+    for (const branch of WORLD_TREE_BRANCHES) {
+      for (const node of branch.nodes) t[node.id] = 0;
+    }
+    return t;
+  }
+
   function defaultSkill() {
     return { level: 0, xp: 0 };
   }
@@ -82,6 +90,7 @@
       gold: 0,
       storageSlots: emptySlotArray(C.BASE_STORAGE_SLOTS),
       upgrades: emptyUpgrades(),
+      upgradeTiers: emptyUpgradeTiers(),
       pendingSlot: 1,
       selectedCharIndex: 0,
       rateStats: defaultRateStats(),
@@ -96,6 +105,7 @@
       gold: state.gold,
       storageSlots: state.storageSlots,
       upgrades: state.upgrades,
+      upgradeTiers: state.upgradeTiers,
       pendingSlot: state.pendingSlot,
       selectedCharIndex: state.selectedCharIndex,
       rateStats: state.rateStats,
@@ -166,6 +176,26 @@
     return u;
   }
 
+  function migrateUpgradeTiers(oldTiers, upgrades) {
+    const t = emptyUpgradeTiers();
+    if (oldTiers && typeof oldTiers === 'object') {
+      for (const branch of WORLD_TREE_BRANCHES) {
+        for (const node of branch.nodes) {
+          if (oldTiers[node.id]) t[node.id] = oldTiers[node.id];
+        }
+      }
+      return t;
+    }
+    const tierSize = C.UPGRADE_TIER_SIZE || 5;
+    for (const branch of WORLD_TREE_BRANCHES) {
+      for (const node of branch.nodes) {
+        const lv = upgrades?.[node.id] || 0;
+        t[node.id] = lv > 0 ? Math.ceil(lv / tierSize) : 0;
+      }
+    }
+    return t;
+  }
+
   function hydrateCharacter(c) {
     let inventorySlots = c.inventorySlots;
     if (!Array.isArray(inventorySlots)) {
@@ -229,6 +259,7 @@
     }
 
     state.upgrades = migrateUpgrades(data.upgrades);
+    state.upgradeTiers = migrateUpgradeTiers(data.upgradeTiers, state.upgrades);
     state.pendingSlot = data.pendingSlot ?? (data.characters?.length ? null : 1);
     state.selectedCharIndex = data.selectedCharIndex ?? 0;
     if (data.producing) {

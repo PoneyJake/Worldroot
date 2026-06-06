@@ -553,7 +553,8 @@
       const on = char?.activity === sk.activity && char?.target === vein.id;
       const pct = char ? xpProgress(char.skills[sk.id]) : 0;
       const threshold = E.veinEffThreshold(vein);
-      const success = char ? E.gatherSuccessChance(state, char, sk.id, vein).toFixed(0) : 0;
+      const successRaw = char ? E.gatherSuccessChance(state, char, sk.id, vein) : 0;
+      const success = successRaw >= 100 ? successRaw.toFixed(0) : successRaw.toFixed(1);
       const xpHr = char && on ? Math.floor(C.GATHER_RATE_PER_MIN * 60 * C.BASE_XP_PER_TICK * (1 + E.skillXpBonus(state, sk.id))) : 0;
 
       return `
@@ -751,21 +752,41 @@
     const branches = C.WORLD_TREE_BRANCHES.map((branch) => {
       const cards = branch.nodes.map((node) => {
         const lv = E.upgradeLevel(state, node.id);
+        const maxLv = E.upgradeMaxLevel(state, node.id);
         const bonus = E.upgradeBonusDisplay(state, node);
         const bonusClass = bonus.isPercent ? 'upgrade-card-bonus' : 'upgrade-card-bonus flat';
-        const costs = E.upgradeCosts(node.id, lv);
+        const needsUnlock = E.upgradeNeedsUnlock(state, node.id);
         const canBuy = E.canAffordUpgrade(state, node.id);
-        const costLine = Object.entries(costs).map(([res, amt]) => {
-          const owned = S.countInSlots(state.storageSlots, res);
-          const met = owned >= amt ? 'met' : 'unmet';
-          return `<span class="upgrade-card-cost ${met}">${resIcon(res, 'game-icon lg')} ${fmt(owned)}/${fmt(amt)}</span>`;
-        }).join('');
+        const atMax = lv >= C.UPGRADE_MAX_LEVEL;
+
+        let costLine = '';
+        let actionLabel = '';
+        if (atMax) {
+          actionLabel = 'Max level';
+        } else if (needsUnlock) {
+          const tierIdx = E.upgradeUnlockIndex(state, node.id);
+          const unlock = E.upgradeUnlockCosts(node.id, tierIdx);
+          const targetMax = E.upgradeUnlockTargetMax(tierIdx);
+          if (unlock) {
+            const owned = S.countInSlots(state.storageSlots, unlock.resource);
+            const resMet = owned >= unlock.resourceAmt ? 'met' : 'unmet';
+            const goldMet = state.gold >= unlock.gold ? 'met' : 'unmet';
+            costLine = `
+              <span class="upgrade-card-cost ${resMet}">${resIcon(unlock.resource, 'game-icon lg')} ${fmt(owned)}/${fmt(unlock.resourceAmt)}</span>
+              <span class="upgrade-card-cost ${goldMet}"><span class="mob-drop-gold">🪙</span> ${fmt(state.gold)}/${fmt(unlock.gold)}</span>`;
+            actionLabel = `Unlock → Lv ${targetMax}`;
+          }
+        } else {
+          actionLabel = `Upgrade → Lv ${lv + 1}`;
+        }
+
         return `
-          <button type="button" class="upgrade-card${canBuy ? ' can-buy' : ''}" data-action="buy-upgrade" data-upgrade="${node.id}" title="${node.desc}">
+          <button type="button" class="upgrade-card${canBuy ? ' can-buy' : ''}${atMax ? ' maxed' : ''}" data-action="buy-upgrade" data-upgrade="${node.id}" title="${node.desc}"${atMax ? ' disabled' : ''}>
             <span class="upgrade-card-name">${node.name}</span>
-            <span class="upgrade-card-level">Lv ${lv}</span>
+            <span class="upgrade-card-level">Lv ${lv}${atMax ? '' : ` / ${maxLv || '—'}`}</span>
             <span class="${bonusClass}">${bonus.text}</span>
-            <span class="upgrade-card-costs">${costLine}</span>
+            <span class="upgrade-card-action">${actionLabel}</span>
+            ${costLine ? `<span class="upgrade-card-costs">${costLine}</span>` : ''}
           </button>`;
       }).join('');
       return `<section class="branch-section"><div class="branch-header"><span class="branch-icon">${branch.icon}</span><h2>${branch.name}</h2></div><div class="upgrade-grid">${cards}</div></section>`;
@@ -774,7 +795,7 @@
     return `
       <header class="page-header">
         <span class="page-header-icon">🌳</span>
-        <div class="page-header-text"><h1>World Tree</h1><p>Click an upgrade when you have enough resources in storage</p></div>
+        <div class="page-header-text"><h1>World Tree</h1><p>Pay resources + gold to unlock tiers (5 levels each), then click to level up</p></div>
       </header>
       <div class="branch-grid">${branches}</div>`;
   }
@@ -872,12 +893,22 @@
       render(); return;
     }
     if (action === 'buy-upgrade') {
-      const found = E.findUpgradeNode(btn.dataset.upgrade);
-      if (found && E.buyUpgrade(state, btn.dataset.upgrade)) {
-        addLog(`Upgraded ${found.node.name} to Lv ${E.upgradeLevel(state, btn.dataset.upgrade)}.`);
+      const nodeId = btn.dataset.upgrade;
+      const found = E.findUpgradeNode(nodeId);
+      if (!found) return;
+      const wasUnlock = E.upgradeNeedsUnlock(state, nodeId);
+      if (E.buyUpgrade(state, nodeId)) {
+        const newLv = E.upgradeLevel(state, nodeId);
+        if (wasUnlock) {
+          addLog(`Unlocked ${found.node.name} — can now reach Lv ${E.upgradeMaxLevel(state, nodeId)}.`);
+        } else {
+          addLog(`Upgraded ${found.node.name} to Lv ${newLv}.`);
+        }
         render();
-      } else if (found) {
-        addLog(`Not enough resources for ${found.node.name}.`);
+      } else if (wasUnlock) {
+        addLog(`Not enough resources or gold to unlock ${found.node.name}.`);
+      } else {
+        addLog(`${found.node.name} is at its current tier cap — unlock the next tier first.`);
       }
       return;
     }
