@@ -22,10 +22,14 @@
       </div>
     </header>
 
-    <nav class="tab-bar" id="tab-bar"></nav>
+    <nav class="tab-bar" id="tab-bar">
+      <button type="button" class="tab-btn active" disabled>Loading…</button>
+    </nav>
 
     <main class="tab-content">
-      <section id="panel-characters" class="tab-panel" data-tab="characters"></section>
+      <section id="panel-characters" class="tab-panel" data-tab="characters">
+        <p class="panel-intro">Loading game…</p>
+      </section>
       <section id="panel-skills" class="tab-panel hidden" data-tab="skills"></section>
       <section id="panel-resources" class="tab-panel hidden" data-tab="resources"></section>
       <section id="panel-worldroot" class="tab-panel hidden" data-tab="worldroot"></section>
@@ -41,10 +45,10 @@
     </div>
   </div>
 
-  <script src="js/config.js"></script>
-  <script src="js/state.js"></script>
-  <script src="js/engine.js"></script>
-  <script src="js/ui.js"></script>
-  <script type="module" src="js/gameBootstrap.js"></script>
+  <script src="js/config.js?v=3"></script>
+  <script src="js/state.js?v=3"></script>
+  <script src="js/engine.js?v=3"></script>
+  <script src="js/ui.js?v=3"></script>
+  <script type="module" src="js/gameBootstrap.js?v=3"></script>
 </body>
 </html>

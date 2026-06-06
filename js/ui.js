@@ -533,4 +533,49 @@
     },
     setSessionBadge,
   };
+
+  /** Boot game immediately — do not wait for auth module. */
+  function autoBoot() {
+    const S = window.WorldrootState;
+    const E = window.WorldrootEngine;
+    if (!C?.TABS || !S || !E) return;
+
+    const mode = sessionStorage.getItem('worldroot_play_mode');
+    S.setPlayMode(mode === 'cloud' ? 'cloud' : 'offline');
+
+    window.WorldrootSession = window.WorldrootSession || {
+      isCloud: mode === 'cloud',
+      isOffline: mode !== 'cloud',
+      displayName: 'Offline',
+    };
+
+    if (window.__worldrootBooted) return;
+    window.__worldrootBooted = true;
+
+    const gameState = S.loadState();
+    init(gameState);
+
+    if (!gameState.characters.length) {
+      addLog('Welcome to Worldroot. Choose your first class.');
+    } else {
+      addLog('Welcome back to Worldroot.');
+    }
+
+    setInterval(() => {
+      E.tick(getState());
+      S.refreshPendingSlot(getState());
+      refresh();
+    }, C.TICK_MS);
+
+    window.addEventListener('beforeunload', () => {
+      S.saveState(getState());
+      if (window.WorldrootCloud?.flush) window.WorldrootCloud.flush();
+    });
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', autoBoot);
+  } else {
+    autoBoot();
+  }
 })();
