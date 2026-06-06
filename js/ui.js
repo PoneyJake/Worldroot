@@ -16,7 +16,30 @@
   function $(id) { return document.getElementById(id); }
   function fmt(n) { return Math.floor(n).toLocaleString(); }
   function resName(id) { return C.RESOURCE_NAMES?.[id] ?? id; }
+  function resIcon(id) { return C.RESOURCE_ICONS?.[id] ?? '📦'; }
   function skillName(id) { return C.SKILLS[id]?.name ?? id; }
+
+  function renderSlotGrid(slots, maxSlots, isInventory) {
+    let html = '';
+    for (let i = 0; i < maxSlots; i++) {
+      const slot = slots[i];
+      if (!slot) {
+        html += `<div class="item-slot empty"><span class="item-slot-empty">+</span></div>`;
+      } else {
+        const maxStack = isInventory
+          ? S.stackCapacityForResource(state, slot.resourceId)
+          : C.BASE_STACK_SIZE;
+        html += `
+          <div class="item-slot filled" title="${resName(slot.resourceId)}">
+            <span class="item-slot-qty">${fmt(slot.amount)}</span>
+            <span class="item-slot-icon">${resIcon(slot.resourceId)}</span>
+            <span class="item-slot-name">${resName(slot.resourceId)}</span>
+            <span class="item-slot-max">/${maxStack}</span>
+          </div>`;
+      }
+    }
+    return `<div class="item-slot-grid">${html}</div>`;
+  }
 
   function selectedIndex() {
     return state?.selectedCharIndex ?? 0;
@@ -171,6 +194,10 @@
           </div>`;
       }).join('');
 
+      const str = E.charStat(state, char, 'strength').toFixed(1);
+      const agi = E.charStat(state, char, 'agility').toFixed(1);
+      const mag = E.charStat(state, char, 'magic').toFixed(1);
+
       detail = `
         <div class="char-detail-head">
           <div class="char-portrait lg">${cls.icon}</div>
@@ -181,8 +208,13 @@
           </div>
           <div class="char-total-badge"><span>Total</span><strong>${S.characterTotalLevel(char)}</strong></div>
         </div>
+        <div class="char-stats-row" style="margin-bottom:12px">
+          <span class="char-stat"><em>STR</em> ${str}</span>
+          <span class="char-stat"><em>AGI</em> ${agi}</span>
+          <span class="char-stat"><em>MAG</em> ${mag}</span>
+        </div>
         <div class="char-skills-grid">${skills}</div>
-        <p class="hint-bar">Select this hero, then open a skill page to assign them to an activity.</p>
+        <p class="hint-bar">Select this hero, then open a skill page to assign them. Full inventory = lost loot.</p>
         <button type="button" class="btn-xs ghost" data-action="stop-selected">Stop activity</button>`;
     }
 
@@ -215,38 +247,31 @@
   function renderInventoryPanel() {
     const char = selectedChar();
     if (!char) return '<p class="empty-msg">Select a character from the Characters page.</p>';
-    const cap = S.inventoryCapacity(state);
-    const used = S.inventoryUsed(char);
-    const items = Object.entries(char.inventory)
-      .filter(([, n]) => n > 0)
-      .map(([id, n]) => `<div class="res-item"><span>${resName(id)}</span><strong>${fmt(n)}</strong></div>`)
-      .join('') || '<p class="empty-msg">Inventory is empty.</p>';
-
+    const slotCount = S.inventorySlotCount(char);
+    const filled = char.inventorySlots.filter(Boolean).length;
     return `
       <header class="page-header">
         <span class="page-header-icon">🎒</span>
         <div class="page-header-text">
           <h1>${charLabel(char)}'s Inventory</h1>
-          <p>${used} / ${cap} items carried · overflow goes to Storage</p>
+          <p>${filled} / ${slotCount} slots · overflow is lost</p>
         </div>
       </header>
-      <div class="res-grid">${items}</div>`;
+      ${renderSlotGrid(char.inventorySlots, slotCount, true)}`;
   }
 
   function renderStoragePanel() {
-    const groups = C.STORAGE_GROUPS.map((g) => {
-      const items = g.ids.map((id) =>
-        `<div class="res-item"><span>${resName(id)}</span><strong>${fmt(state.storage[id] || 0)}</strong></div>`
-      ).join('');
-      return `<section class="res-section"><h3>${g.title}</h3><div class="res-grid">${items}</div></section>`;
-    }).join('');
+    const filled = state.storageSlots.filter(Boolean).length;
 
     return `
       <header class="page-header">
         <span class="page-header-icon">📦</span>
-        <div class="page-header-text"><h1>Storage</h1><p>Shared resources for all characters</p></div>
+        <div class="page-header-text">
+          <h1>Storage</h1>
+          <p>${filled} / ${state.storageSlots.length} slots · shared by all characters</p>
+        </div>
       </header>
-      ${groups}`;
+      ${renderSlotGrid(state.storageSlots, state.storageSlots.length, false)}`;
   }
 
   /* ── Combat ── */
@@ -347,6 +372,11 @@
         `<option value="${r.ore}" ${slot.ore === r.ore ? 'selected' : ''}>${r.name}</option>`
       ).join('');
 
+      const readyBtn = slot.ready > 0
+        ? `<button type="button" class="btn-sm primary" data-action="collect-smelt" data-slot="${i}">
+            Collect ${fmt(slot.ready)} ${resName(slot.readyBar)} → Storage
+          </button>` : '';
+
       return `
         <article class="activity-card">
           <strong>Smelter Slot ${i + 1}</strong>
@@ -354,8 +384,9 @@
             <option value="">— Select ore —</option>${oreOpts}
           </select>
           ${slot.ore ? `<div class="progress-bar"><div class="progress-bar-fill" style="width:${pct}%"></div></div>
-            <p class="empty-msg">Smelting ${recipe?.name ?? slot.ore}…</p>
-            <button type="button" class="btn-xs ghost" data-action="clear-smelt" data-slot="${i}">Clear</button>` : ''}
+            <p class="empty-msg">Smelting ${recipe?.name ?? slot.ore}… (uses Storage ore)</p>` : ''}
+          ${readyBtn}
+          ${slot.ore ? `<button type="button" class="btn-xs ghost" data-action="clear-smelt" data-slot="${i}">Clear</button>` : ''}
         </article>`;
     }).join('');
 
@@ -383,6 +414,11 @@
         return `<option value="${p.id}" ${slot.item === p.id ? 'selected' : ''} ${ok ? '' : 'disabled'}>${p.name} (Lv ${p.minLevel})</option>`;
       }).join('');
 
+      const readyBtn = slot.ready > 0
+        ? `<button type="button" class="btn-sm primary" data-action="collect-produce" data-slot="${i}">
+            Collect ${fmt(slot.ready)} ${def?.name ?? slot.item} → Inventory
+          </button>` : '';
+
       return `
         <article class="activity-card">
           <strong>Producer Slot ${i + 1}</strong>
@@ -390,23 +426,19 @@
             <option value="">— Select product —</option>${itemOpts}
           </select>
           ${slot.item ? `<div class="progress-bar"><div class="progress-bar-fill" style="width:${pct}%"></div></div>
-            <p class="empty-msg">Producing ${def?.name ?? slot.item}…</p>
-            <button type="button" class="btn-xs ghost" data-action="clear-produce" data-slot="${i}">Clear</button>` : ''}
+            <p class="empty-msg">Producing ${def?.name ?? slot.item}…${slot.ready ? ` · ${slot.ready} ready` : ''}</p>` : ''}
+          ${readyBtn}
+          ${slot.item ? `<button type="button" class="btn-xs ghost" data-action="clear-produce" data-slot="${i}">Clear</button>` : ''}
         </article>`;
     }).join('');
-
-    const products = C.PRODUCE_ITEMS.map((p) =>
-      `<div class="res-item"><span>${p.icon} ${p.name}</span><strong>${fmt(state.storage[p.id] || 0)}</strong></div>`
-    ).join('');
 
     return `
       <header class="page-header">
         <span class="page-header-icon">${sk.icon}</span>
-        <div class="page-header-text"><h1>${sk.name}</h1><p>Passive production — heroes can work other skills simultaneously</p></div>
+        <div class="page-header-text"><h1>${sk.name}</h1><p>Passive production — collect items into your selected hero's inventory</p></div>
         <div class="page-header-stat"><span class="page-header-stat-label">Producing Lv</span><span class="page-header-stat-value">${lv}</span></div>
       </header>
-      <div class="activity-grid">${slotCards}</div>
-      <section class="detail-box" style="margin-top:16px"><h3>Stored Products</h3><div class="res-grid">${products}</div></section>`;
+      <div class="activity-grid">${slotCards}</div>`;
   }
 
   function renderComingSoon(sk) {
@@ -429,12 +461,13 @@
     const branches = C.WORLD_TREE_BRANCHES.map((branch) => {
       const cards = branch.nodes.map((node) => {
         const lv = E.upgradeLevel(state, node.id);
-        const bonus = E.upgradeBonusPercent(state, node.id).toFixed(0);
+        const bonus = E.upgradeBonusDisplay(state, node);
+        const bonusClass = bonus.isPercent ? 'upgrade-card-bonus' : 'upgrade-card-bonus flat';
         return `
           <button type="button" class="upgrade-card" data-action="open-upgrade" data-upgrade="${node.id}">
             <span class="upgrade-card-name">${node.name}</span>
             <span class="upgrade-card-level">Lv ${lv}</span>
-            <span class="upgrade-card-bonus">+${bonus}%</span>
+            <span class="${bonusClass}">${bonus.text}</span>
           </button>`;
       }).join('');
       return `<section class="branch-section"><div class="branch-header"><span class="branch-icon">${branch.icon}</span><h2>${branch.name}</h2></div><div class="upgrade-grid">${cards}</div></section>`;
@@ -459,19 +492,21 @@
     const lv = E.upgradeLevel(state, node.id);
     const costs = E.upgradeCosts(node.id, lv);
     const canBuy = E.canAffordUpgrade(state, node.id);
-    const currentBonus = E.upgradeBonusPercent(state, node.id).toFixed(0);
-    const nextBonus = ((lv + 1) * C.UPGRADE_BONUS_PER_LEVEL * 100).toFixed(0);
+    const currentBonus = E.upgradeBonusDisplay(state, node);
+    const nextBonusText = node.bonusType === 'flat'
+      ? `+${(lv + 1) * C.UPGRADE_FLAT_PER_LEVEL}`
+      : `+${((lv + 1) * C.UPGRADE_BONUS_PER_LEVEL * 100).toFixed(0)}%`;
 
     const reqList = Object.entries(costs).map(([res, amt]) => {
-      const owned = state.storage[res] || 0;
-      return `<li class="${owned >= amt ? 'met' : 'unmet'}"><span>${resName(res)}</span><span>${fmt(owned)} / ${fmt(amt)}</span></li>`;
+      const owned = S.countInSlots(state.storageSlots, res);
+      return `<li class="${owned >= amt ? 'met' : 'unmet'}"><span>${resIcon(res)} ${resName(res)}</span><span>${fmt(owned)} / ${fmt(amt)}</span></li>`;
     }).join('');
 
     content.innerHTML = `
       <div class="upgrade-modal-head"><h2>${node.name}</h2><p>${branch.name} · ${node.desc}</p></div>
       <div class="upgrade-detail-row"><span class="upgrade-detail-label">Current Level</span><span class="upgrade-detail-value">${lv}</span></div>
-      <div class="upgrade-detail-row"><span class="upgrade-detail-label">Current Bonus</span><span class="upgrade-detail-value bonus">+${currentBonus}%</span></div>
-      <div class="upgrade-detail-row"><span class="upgrade-detail-label">Next Level Bonus</span><span class="upgrade-detail-value bonus">+${nextBonus}%</span></div>
+      <div class="upgrade-detail-row"><span class="upgrade-detail-label">Current Bonus</span><span class="upgrade-detail-value bonus">${currentBonus.text}</span></div>
+      <div class="upgrade-detail-row"><span class="upgrade-detail-label">Next Level Bonus</span><span class="upgrade-detail-value bonus">${nextBonusText}</span></div>
       <div class="upgrade-requirements"><h3>Requirement</h3><ul class="req-list">${reqList}</ul></div>
       <div class="upgrade-modal-actions">
         <button type="button" class="btn-sm primary ${canBuy ? '' : 'disabled'}" data-action="buy-upgrade" data-upgrade="${node.id}" ${canBuy ? '' : 'disabled'}>Upgrade</button>
@@ -571,6 +606,23 @@
         addLog(`Upgraded ${found.node.name} to Lv ${E.upgradeLevel(state, btn.dataset.upgrade)}.`);
         render();
       }
+      return;
+    }
+
+    if (action === 'collect-produce') {
+      const result = E.collectProduce(state, Number(btn.dataset.slot), selectedIndex());
+      if (result.collected > 0) {
+        addLog(`Collected ${result.collected} items into inventory.`);
+        if (result.lost > 0) addLog(`${result.lost} items lost — inventory full.`);
+      }
+      render();
+      return;
+    }
+
+    if (action === 'collect-smelt') {
+      const n = E.collectSmelt(state, Number(btn.dataset.slot));
+      if (n > 0) addLog(`Collected ${n} bars into storage.`);
+      render();
       return;
     }
     if (action === 'reset-save') {

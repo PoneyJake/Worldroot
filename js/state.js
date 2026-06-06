@@ -7,7 +7,7 @@
   }
 
   const C = window.WorldrootConfig;
-  const { SAVE_KEY, SAVE_KEY_OFFLINE, RESOURCE_IDS, CLASSES, SLOT_UNLOCK_AT, WORLD_TREE_BRANCHES } = C;
+  const { SAVE_KEY, SAVE_KEY_OFFLINE, CLASSES, SLOT_UNLOCK_AT, WORLD_TREE_BRANCHES } = C;
 
   let playMode = 'offline';
 
@@ -19,16 +19,8 @@
     playMode = mode === 'cloud' ? 'cloud' : 'offline';
   }
 
-  function emptyInventory() {
-    const inv = {};
-    for (const id of RESOURCE_IDS) inv[id] = 0;
-    return inv;
-  }
-
-  function emptyStorage() {
-    const s = {};
-    for (const id of RESOURCE_IDS) s[id] = 0;
-    return s;
+  function emptySlotArray(count) {
+    return Array.from({ length: count }, () => null);
   }
 
   function emptyUpgrades() {
@@ -44,11 +36,21 @@
   }
 
   function defaultSmeltSlots() {
-    return [{ ore: null, progress: 0 }, { ore: null, progress: 0 }, { ore: null, progress: 0 }, { ore: null, progress: 0 }];
+    return [
+      { ore: null, progress: 0, ready: 0, readyBar: null },
+      { ore: null, progress: 0, ready: 0, readyBar: null },
+      { ore: null, progress: 0, ready: 0, readyBar: null },
+      { ore: null, progress: 0, ready: 0, readyBar: null },
+    ];
   }
 
   function defaultProduceSlots() {
-    return [{ item: null, progress: 0 }, { item: null, progress: 0 }, { item: null, progress: 0 }, { item: null, progress: 0 }];
+    return [
+      { item: null, progress: 0, ready: 0 },
+      { item: null, progress: 0, ready: 0 },
+      { item: null, progress: 0, ready: 0 },
+      { item: null, progress: 0, ready: 0 },
+    ];
   }
 
   function defaultRateStats() {
@@ -66,7 +68,8 @@
       },
       activity: null,
       target: null,
-      inventory: emptyInventory(),
+      inventorySlots: emptySlotArray(C.BASE_INVENTORY_SLOTS),
+      extraBagSlots: 0,
     };
   }
 
@@ -74,7 +77,7 @@
     return {
       characters: [],
       gold: 0,
-      storage: emptyStorage(),
+      storageSlots: emptySlotArray(C.BASE_STORAGE_SLOTS),
       upgrades: emptyUpgrades(),
       pendingSlot: 1,
       selectedCharIndex: 0,
@@ -88,8 +91,7 @@
     return {
       characters: state.characters,
       gold: state.gold,
-      storage: state.storage,
-      resources: state.storage,
+      storageSlots: state.storageSlots,
       upgrades: state.upgrades,
       pendingSlot: state.pendingSlot,
       selectedCharIndex: state.selectedCharIndex,
@@ -97,6 +99,29 @@
       producing: state.producing,
       smelting: state.smelting,
     };
+  }
+
+  function migrateDictToSlots(dict, slotCount) {
+    const slots = emptySlotArray(slotCount);
+    if (!dict || typeof dict !== 'object') return slots;
+    for (const [resourceId, amount] of Object.entries(dict)) {
+      if (!amount || amount <= 0) continue;
+      let left = amount;
+      const max = C.BASE_STACK_SIZE;
+      for (let i = 0; i < slots.length && left > 0; i++) {
+        if (!slots[i]) {
+          const put = Math.min(left, max);
+          slots[i] = { resourceId, amount: put };
+          left -= put;
+        } else if (slots[i].resourceId === resourceId && slots[i].amount < max) {
+          const space = max - slots[i].amount;
+          const put = Math.min(left, space);
+          slots[i].amount += put;
+          left -= put;
+        }
+      }
+    }
+    return slots;
   }
 
   function migrateUpgrades(oldUpgrades) {
@@ -111,43 +136,64 @@
   }
 
   function hydrateCharacter(c) {
+    let inventorySlots = c.inventorySlots;
+    if (!Array.isArray(inventorySlots)) {
+      inventorySlots = migrateDictToSlots(c.inventory, C.BASE_INVENTORY_SLOTS);
+    }
+    while (inventorySlots.length < C.BASE_INVENTORY_SLOTS) inventorySlots.push(null);
+
     const skills = {
       combat: { ...defaultSkill(), ...c.skills?.combat },
       mining: { ...defaultSkill(), ...c.skills?.mining },
       woodcutting: { ...defaultSkill(), ...c.skills?.woodcutting },
       fishing: { ...defaultSkill(), ...c.skills?.fishing },
     };
-    for (const sk of Object.values(skills)) {
-      if (sk.level === 1 && sk.xp === 0 && !c._migratedV3) sk.level = 0;
-    }
+
     return {
       classId: c.classId,
       activity: c.activity ?? null,
       target: c.target ?? null,
       skills,
-      inventory: { ...emptyInventory(), ...(c.inventory || {}) },
+      inventorySlots,
+      extraBagSlots: c.extraBagSlots ?? 0,
     };
   }
 
   function hydrateState(data) {
     const state = defaultState();
     state.gold = data.gold ?? 0;
-    const stored = data.storage || data.resources || {};
-    state.storage = { ...emptyStorage(), ...stored };
+
+    if (Array.isArray(data.storageSlots)) {
+      state.storageSlots = data.storageSlots;
+    } else {
+      state.storageSlots = migrateDictToSlots(data.storage || data.resources, C.BASE_STORAGE_SLOTS);
+    }
+    while (state.storageSlots.length < C.BASE_STORAGE_SLOTS) state.storageSlots.push(null);
+
     state.upgrades = migrateUpgrades(data.upgrades);
     state.pendingSlot = data.pendingSlot ?? (data.characters?.length ? null : 1);
     state.selectedCharIndex = data.selectedCharIndex ?? 0;
     if (data.rateStats) state.rateStats = { ...defaultRateStats(), ...data.rateStats };
+
     if (data.producing) {
       state.producing = {
         skill: { ...defaultSkill(), ...data.producing.skill },
-        slots: (data.producing.slots || defaultProduceSlots()).map((s) => ({ item: s.item ?? null, progress: s.progress ?? 0 })),
+        slots: (data.producing.slots || defaultProduceSlots()).map((s) => ({
+          item: s.item ?? null,
+          progress: s.progress ?? 0,
+          ready: s.ready ?? 0,
+        })),
       };
     }
     if (data.smelting) {
       state.smelting = {
         skill: { ...defaultSkill(), ...data.smelting.skill },
-        slots: (data.smelting.slots || defaultSmeltSlots()).map((s) => ({ ore: s.ore ?? null, progress: s.progress ?? 0 })),
+        slots: (data.smelting.slots || defaultSmeltSlots()).map((s) => ({
+          ore: s.ore ?? null,
+          progress: s.progress ?? 0,
+          ready: s.ready ?? 0,
+          readyBar: s.readyBar ?? null,
+        })),
       };
     }
     if (Array.isArray(data.characters)) {
@@ -209,34 +255,106 @@
     return null;
   }
 
-  function inventoryUsed(char) {
-    return Object.values(char.inventory || {}).reduce((s, n) => s + (n || 0), 0);
+  function carryEffectForSkill(skillId) {
+    return C.CARRY_EFFECT_BY_SKILL[skillId] || 'carry_capacity';
   }
 
-  function inventoryCapacity(state) {
-    const base = C.BASE_INVENTORY_SLOTS;
-    const bonus = Math.floor((window.WorldrootEngine?.effectBonus(state, 'carry_capacity') || 0) * 50);
-    return base + bonus;
+  const RESOURCE_SKILL_MAP = {
+    copper: 'mining', iron: 'mining', gold: 'mining', platinum: 'mining',
+    copper_bar: 'mining', iron_bar: 'mining', gold_bar: 'mining', platinum_bar: 'mining',
+    oak: 'woodcutting', spruce: 'woodcutting', birch: 'woodcutting', jungle: 'woodcutting',
+    shrimp: 'fishing', trout: 'fishing', salmon: 'fishing', lobster: 'fishing',
+    slime_gel: 'combat', goblin_ear: 'combat', wolf_fur: 'combat', bandit_emblem: 'combat',
+    twine: 'producing', wooden_pegs: 'producing', iron_nails: 'producing', resin: 'producing',
+  };
+
+  function stackCapacity(state, skillId) {
+    const effect = carryEffectForSkill(skillId);
+    const bonus = window.WorldrootEngine?.effectBonus(state, effect) || 0;
+    return Math.floor(C.BASE_STACK_SIZE * (1 + bonus));
   }
 
-  function addToCharacter(char, state, resourceId, amount) {
+  function stackCapacityForResource(state, resourceId) {
+    const skillId = RESOURCE_SKILL_MAP[resourceId] || 'combat';
+    return stackCapacity(state, skillId);
+  }
+
+  function inventorySlotCount(char) {
+    return C.BASE_INVENTORY_SLOTS + (char.extraBagSlots || 0);
+  }
+
+  function countInSlots(slots, resourceId) {
+    return slots.reduce((sum, s) => (s?.resourceId === resourceId ? sum + s.amount : sum), 0);
+  }
+
+  function countEmptySlots(slots) {
+    return slots.filter((s) => !s).length;
+  }
+
+  function addToSlots(slots, resourceId, amount, maxStack, maxSlots) {
     let left = amount;
-    const cap = inventoryCapacity(state);
-    const used = inventoryUsed(char);
-    const space = Math.max(0, cap - used);
-    const toInv = Math.min(left, space);
-    if (toInv > 0) {
-      char.inventory[resourceId] = (char.inventory[resourceId] || 0) + toInv;
-      left -= toInv;
+    let added = 0;
+
+    for (let i = 0; i < maxSlots && left > 0; i++) {
+      const slot = slots[i];
+      if (!slot) continue;
+      if (slot.resourceId !== resourceId || slot.amount >= maxStack) continue;
+      const space = maxStack - slot.amount;
+      const put = Math.min(left, space);
+      slot.amount += put;
+      left -= put;
+      added += put;
     }
-    if (left > 0) {
-      state.storage[resourceId] = (state.storage[resourceId] || 0) + left;
+
+    for (let i = 0; i < maxSlots && left > 0; i++) {
+      if (slots[i]) continue;
+      const put = Math.min(left, maxStack);
+      slots[i] = { resourceId, amount: put };
+      left -= put;
+      added += put;
+    }
+
+    return { added, lost: left };
+  }
+
+  function removeFromSlots(slots, resourceId, amount) {
+    let left = amount;
+    for (let i = slots.length - 1; i >= 0 && left > 0; i--) {
+      const slot = slots[i];
+      if (!slot || slot.resourceId !== resourceId) continue;
+      const take = Math.min(left, slot.amount);
+      slot.amount -= take;
+      left -= take;
+      if (slot.amount <= 0) slots[i] = null;
     }
     return amount - left;
   }
 
+  function addToInventory(char, state, resourceId, amount, skillId) {
+    const maxStack = stackCapacity(state, skillId || RESOURCE_SKILL_MAP[resourceId] || 'combat');
+    const slots = char.inventorySlots;
+    const maxSlots = inventorySlotCount(char);
+    return addToSlots(slots, resourceId, amount, maxStack, maxSlots);
+  }
+
+  function addToStorage(state, resourceId, amount) {
+    const maxStack = C.BASE_STACK_SIZE;
+    return addToSlots(state.storageSlots, resourceId, amount, maxStack, state.storageSlots.length);
+  }
+
+  function storageHas(state, resourceId, amount) {
+    return countInSlots(state.storageSlots, resourceId) >= amount;
+  }
+
+  function removeFromStorage(state, resourceId, amount) {
+    return removeFromSlots(state.storageSlots, resourceId, amount);
+  }
+
   function loadState() {
-    const keys = [getSaveKey(), 'worldroot_save_v2', 'worldroot_save_offline_v2', 'worldroot_save_v1', 'worldroot_save_offline_v1'];
+    const keys = [
+      getSaveKey(), 'worldroot_save_v3', 'worldroot_save_offline_v3',
+      'worldroot_save_v2', 'worldroot_save_offline_v2',
+    ];
     for (const key of keys) {
       try {
         const raw = localStorage.getItem(key);
@@ -254,7 +372,7 @@
   }
 
   function resetState() {
-    for (const k of [getSaveKey(), 'worldroot_save_v2', 'worldroot_save_offline_v2', 'worldroot_save_v1', 'worldroot_save_offline_v1']) {
+    for (const k of [getSaveKey(), 'worldroot_save_v3', 'worldroot_save_offline_v3', 'worldroot_save_v2', 'worldroot_save_offline_v2']) {
       localStorage.removeItem(k);
     }
     return defaultState();
@@ -325,8 +443,10 @@
     setPlayMode, getSaveKey, createCharacter, xpForLevel, grantXp,
     characterTotalLevel, accountTotalLevel, maxUnlockedSlots, nextSlotUnlock,
     refreshPendingSlot, addCharacter, selectCharacter, getSelectedCharacter,
-    setActivity, stopActivity, emptyStorage, emptyUpgrades, recordRateEvent,
-    migrateUpgrades, inventoryUsed, inventoryCapacity, addToCharacter,
-    defaultSmeltSlots, defaultProduceSlots,
+    setActivity, stopActivity, emptyUpgrades, recordRateEvent, migrateUpgrades,
+    defaultSmeltSlots, defaultProduceSlots, emptySlotArray,
+    stackCapacity, inventorySlotCount, countInSlots, countEmptySlots,
+    addToInventory, addToStorage, removeFromStorage, storageHas,
+    addToSlots, removeFromSlots, carryEffectForSkill, stackCapacityForResource,
   };
 })();

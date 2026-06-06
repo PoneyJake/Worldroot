@@ -1,17 +1,19 @@
 /** Worldroot — constants, classes, resources, upgrades. */
 
 window.WorldrootConfig = {
-  SAVE_KEY: 'worldroot_save_v3',
-  SAVE_KEY_OFFLINE: 'worldroot_save_offline_v3',
+  SAVE_KEY: 'worldroot_save_v4',
+  SAVE_KEY_OFFLINE: 'worldroot_save_offline_v4',
   TICK_MS: 1000,
-  SPECIALTY_BONUS: 0.25,
   BASE_XP_PER_TICK: 10,
   BASE_RESOURCE_PER_TICK: 1,
   UPGRADE_BONUS_PER_LEVEL: 0.01,
+  UPGRADE_FLAT_PER_LEVEL: 1,
   RATE_WINDOW_TICKS: 30,
   BASE_INVENTORY_SLOTS: 20,
+  BASE_STORAGE_SLOTS: 24,
+  BASE_STACK_SIZE: 50,
   SMELT_TICKS_PER_ORE: 8,
-  PRODUCE_TICKS_BASE: 10,
+  STAT_SCALE: 0.03,
 
   SLOT_UNLOCK_AT: [0, 10, 25],
   MAX_SLOTS: 3,
@@ -39,22 +41,35 @@ window.WorldrootConfig = {
   ],
 
   CLASSES: {
-    warrior: { id: 'warrior', name: 'Warrior', specialty: 'mining', icon: '⚔', desc: '+25% Mining' },
-    archer: { id: 'archer', name: 'Archer', specialty: 'woodcutting', icon: '🏹', desc: '+25% Woodcutting' },
-    sorcerer: { id: 'sorcerer', name: 'Sorcerer', specialty: 'fishing', icon: '✦', desc: '+25% Fishing' },
+    warrior: {
+      id: 'warrior', name: 'Warrior', icon: '⚔',
+      desc: 'Strength scales mining & combat damage',
+      combatStat: 'strength', gatherStat: 'strength',
+      baseStats: { strength: 5, agility: 2, magic: 2 },
+    },
+    archer: {
+      id: 'archer', name: 'Archer', icon: '🏹',
+      desc: 'Agility scales woodcutting & combat damage',
+      combatStat: 'agility', gatherStat: 'agility',
+      baseStats: { strength: 2, agility: 5, magic: 2 },
+    },
+    sorcerer: {
+      id: 'sorcerer', name: 'Sorcerer', icon: '✦',
+      desc: 'Magic scales fishing & combat damage',
+      combatStat: 'magic', gatherStat: 'magic',
+      baseStats: { strength: 2, agility: 2, magic: 5 },
+    },
   },
 
   SKILLS: {
     combat: { id: 'combat', name: 'Combat', activity: 'combat', icon: '🗡', desc: 'Hunt monsters for XP and loot' },
-    mining: { id: 'mining', name: 'Mining', activity: 'mining', icon: '⛏', desc: 'Mine ore from the deep roots' },
-    woodcutting: { id: 'woodcutting', name: 'Woodcutting', activity: 'woodcutting', icon: '🪓', desc: 'Chop timber from wild groves' },
-    fishing: { id: 'fishing', name: 'Fishing', activity: 'fishing', icon: '🎣', desc: 'Catch fish from forest streams' },
-    producing: { id: 'producing', name: 'Producing', icon: '🏭', desc: 'Passively craft supplies over time' },
+    mining: { id: 'mining', name: 'Mining', activity: 'mining', icon: '⛏', desc: 'Mine ore from the deep roots', gatherStat: 'strength' },
+    woodcutting: { id: 'woodcutting', name: 'Woodcutting', activity: 'woodcutting', icon: '🪓', desc: 'Chop timber from wild groves', gatherStat: 'agility' },
+    fishing: { id: 'fishing', name: 'Fishing', activity: 'fishing', icon: '🎣', desc: 'Catch fish from forest streams', gatherStat: 'magic' },
+    producing: { id: 'producing', name: 'Producing', icon: '🏭', desc: 'Passively craft supplies — collect into inventory' },
     smelting: { id: 'smelting', name: 'Smelting', icon: '🔥', desc: 'Smelt ore into bars' },
     crafting: { id: 'crafting', name: 'Crafting', icon: '🧵', desc: 'Craft gear and tools', comingSoon: true },
   },
-
-  SKILL_ORDER: ['combat', 'mining', 'woodcutting', 'fishing', 'producing', 'smelting'],
 
   VEINS: {
     mining: [
@@ -123,71 +138,80 @@ window.WorldrootConfig = {
     twine: 'Twine', wooden_pegs: 'Wooden Pegs', iron_nails: 'Iron Nails', resin: 'Resin',
   },
 
-  STORAGE_GROUPS: [
-    { title: 'Ores', ids: ['copper', 'iron', 'gold', 'platinum'] },
-    { title: 'Bars', ids: ['copper_bar', 'iron_bar', 'gold_bar', 'platinum_bar'] },
-    { title: 'Logs', ids: ['oak', 'spruce', 'birch', 'jungle'] },
-    { title: 'Fish', ids: ['shrimp', 'trout', 'salmon', 'lobster'] },
-    { title: 'Combat Loot', ids: ['slime_gel', 'goblin_ear', 'wolf_fur', 'bandit_emblem'] },
-    { title: 'Produced', ids: ['twine', 'wooden_pegs', 'iron_nails', 'resin'] },
-  ],
+  RESOURCE_ICONS: {
+    copper: '🟤', iron: '⬜', gold: '🟡', platinum: '💎',
+    copper_bar: '🟫', iron_bar: '▫️', gold_bar: '🟨', platinum_bar: '⬜',
+    oak: '🌳', spruce: '🌲', birch: '🌿', jungle: '🌴',
+    shrimp: '🦐', trout: '🐟', salmon: '🐠', lobster: '🦞',
+    slime_gel: '🟢', goblin_ear: '👺', wolf_fur: '🐺', bandit_emblem: '🥷',
+    twine: '🧶', wooden_pegs: '📌', iron_nails: '🔩', resin: '🍯',
+  },
+
+  CARRY_EFFECT_BY_SKILL: {
+    mining: 'mining_carry',
+    woodcutting: 'woodcutting_carry',
+    fishing: 'fishing_carry',
+    combat: 'carry_capacity',
+  },
 
   WORLD_TREE_BRANCHES: [
     {
       id: 'combat', name: 'Combat Branch', icon: '⚔',
       nodes: [
-        { id: 'base_hp', name: '+ Base HP', effect: 'base_hp', desc: 'Increases base hit points', costRes: 'slime_gel', baseCost: 15 },
-        { id: 'base_mp', name: '+ Base MP', effect: 'base_mp', desc: 'Increases base mana', costRes: 'trout', baseCost: 15 },
-        { id: 'base_damage', name: '+ Base Damage', effect: 'base_damage', desc: 'Increases base damage', costRes: 'goblin_ear', baseCost: 20 },
-        { id: 'base_accuracy', name: '+ Base Accuracy', effect: 'base_accuracy', desc: 'Increases hit accuracy', costRes: 'copper', baseCost: 25 },
-        { id: 'base_defence', name: '+ Base Defence', effect: 'base_defence', desc: 'Increases base defence', costRes: 'wolf_fur', baseCost: 20 },
-        { id: 'crit_damage', name: '+% Crit Damage', effect: 'crit_damage', desc: 'Increases critical damage', costRes: 'iron', baseCost: 30 },
-        { id: 'crit_chance', name: '+% Crit Chance', effect: 'crit_chance', desc: 'Increases critical chance', costRes: 'gold', baseCost: 30 },
-        { id: 'strength', name: '+ Strength', effect: 'strength', desc: 'Increases strength', costRes: 'platinum', baseCost: 35 },
-        { id: 'agility', name: '+ Agility', effect: 'agility', desc: 'Increases agility', costRes: 'oak', baseCost: 25 },
-        { id: 'magic', name: '+ Magic', effect: 'magic', desc: 'Increases magic', costRes: 'salmon', baseCost: 25 },
-        { id: 'carry_capacity', name: '+% Carrying Capacity', effect: 'carry_capacity', desc: 'Carry more resources', costRes: 'spruce', baseCost: 30 },
-        { id: 'gold_gain', name: '+% Gold Gain', effect: 'gold_gain', desc: 'Earn more gold', costRes: 'bandit_emblem', baseCost: 20 },
+        { id: 'base_hp', name: '+ Base HP', effect: 'base_hp', bonusType: 'flat', desc: 'Increases base hit points', costRes: 'slime_gel', baseCost: 15 },
+        { id: 'base_mp', name: '+ Base MP', effect: 'base_mp', bonusType: 'flat', desc: 'Increases base mana', costRes: 'trout', baseCost: 15 },
+        { id: 'base_damage', name: '+ Base Damage', effect: 'base_damage', bonusType: 'flat', desc: 'Increases base damage', costRes: 'goblin_ear', baseCost: 20 },
+        { id: 'pct_damage', name: '+% Damage', effect: 'pct_damage', bonusType: 'percent', desc: 'Increases damage dealt', costRes: 'iron', baseCost: 30 },
+        { id: 'base_accuracy', name: '+ Base Accuracy', effect: 'base_accuracy', bonusType: 'flat', desc: 'Increases hit accuracy', costRes: 'copper', baseCost: 25 },
+        { id: 'base_defence', name: '+ Base Defence', effect: 'base_defence', bonusType: 'flat', desc: 'Increases base defence', costRes: 'wolf_fur', baseCost: 20 },
+        { id: 'crit_damage', name: '+% Crit Damage', effect: 'crit_damage', bonusType: 'percent', desc: 'Increases critical damage', costRes: 'gold', baseCost: 30 },
+        { id: 'crit_chance', name: '+% Crit Chance', effect: 'crit_chance', bonusType: 'percent', desc: 'Increases critical chance', costRes: 'platinum', baseCost: 30 },
+        { id: 'drop_rate', name: '+% Drop Rate', effect: 'drop_rate', bonusType: 'percent', desc: 'Increases loot drop rate', costRes: 'bandit_emblem', baseCost: 25 },
+        { id: 'strength', name: '+ Strength', effect: 'strength', bonusType: 'flat', desc: 'Increases strength', costRes: 'oak', baseCost: 25 },
+        { id: 'agility', name: '+ Agility', effect: 'agility', bonusType: 'flat', desc: 'Increases agility', costRes: 'spruce', baseCost: 25 },
+        { id: 'magic', name: '+ Magic', effect: 'magic', bonusType: 'flat', desc: 'Increases magic', costRes: 'salmon', baseCost: 25 },
+        { id: 'carry_capacity', name: '+% Carrying Capacity', effect: 'carry_capacity', bonusType: 'percent', desc: 'More items per inventory slot', costRes: 'birch', baseCost: 30 },
+        { id: 'gold_gain', name: '+% Gold Gain', effect: 'gold_gain', bonusType: 'percent', desc: 'Earn more gold', costRes: 'lobster', baseCost: 20 },
       ],
     },
     {
       id: 'mining', name: 'Mining Branch', icon: '⛏',
       nodes: [
-        { id: 'base_mining_eff', name: '+ Base Mining Efficiency', effect: 'mining_yield', desc: 'Mine more ore per tick', costRes: 'copper', baseCost: 30 },
-        { id: 'mining_carry', name: '+% Carrying Capacity (Mining)', effect: 'mining_carry', desc: 'Carry more mining items', costRes: 'iron', baseCost: 25 },
-        { id: 'multi_ore', name: '+% Multi-Ore Chance', effect: 'mining_multi', desc: 'Chance for extra ore', costRes: 'gold', baseCost: 35 },
-        { id: 'mining_xp', name: '+% Mining Exp Gain', effect: 'mining_xp', desc: 'More mining XP', costRes: 'platinum', baseCost: 30 },
+        { id: 'base_mining_eff', name: '+ Base Mining Efficiency', effect: 'mining_yield', bonusType: 'flat', desc: 'Mine more ore per tick', costRes: 'copper', baseCost: 30 },
+        { id: 'mining_carry', name: '+% Carrying Capacity', effect: 'mining_carry', bonusType: 'percent', desc: 'More ore per inventory slot', costRes: 'iron', baseCost: 25 },
+        { id: 'multi_ore', name: '+% Multi-Ore Chance', effect: 'mining_multi', bonusType: 'percent', desc: 'Chance for extra ore', costRes: 'gold', baseCost: 35 },
+        { id: 'mining_xp', name: '+% Mining Exp Gain', effect: 'mining_xp', bonusType: 'percent', desc: 'More mining XP', costRes: 'platinum', baseCost: 30 },
       ],
     },
     {
       id: 'woodcutting', name: 'Woodcutting Branch', icon: '🪓',
       nodes: [
-        { id: 'base_wc_eff', name: '+ Base Woodcutting Efficiency', effect: 'woodcutting_yield', desc: 'Chop more logs per tick', costRes: 'oak', baseCost: 30 },
-        { id: 'wc_carry', name: '+% Carrying Capacity (Wood)', effect: 'woodcutting_carry', desc: 'Carry more logs', costRes: 'spruce', baseCost: 25 },
-        { id: 'multi_log', name: '+% Multi-Log Chance', effect: 'woodcutting_multi', desc: 'Chance for extra logs', costRes: 'birch', baseCost: 35 },
-        { id: 'wc_xp', name: '+% Woodcutting Exp Gain', effect: 'woodcutting_xp', desc: 'More woodcutting XP', costRes: 'jungle', baseCost: 30 },
+        { id: 'base_wc_eff', name: '+ Base Woodcutting Efficiency', effect: 'woodcutting_yield', bonusType: 'flat', desc: 'Chop more logs per tick', costRes: 'oak', baseCost: 30 },
+        { id: 'wc_carry', name: '+% Carrying Capacity', effect: 'woodcutting_carry', bonusType: 'percent', desc: 'More logs per inventory slot', costRes: 'spruce', baseCost: 25 },
+        { id: 'multi_log', name: '+% Multi-Log Chance', effect: 'woodcutting_multi', bonusType: 'percent', desc: 'Chance for extra logs', costRes: 'birch', baseCost: 35 },
+        { id: 'wc_xp', name: '+% Woodcutting Exp Gain', effect: 'woodcutting_xp', bonusType: 'percent', desc: 'More woodcutting XP', costRes: 'jungle', baseCost: 30 },
       ],
     },
     {
       id: 'fishing', name: 'Fishing Branch', icon: '🎣',
       nodes: [
-        { id: 'base_fish_eff', name: '+ Base Fishing Efficiency', effect: 'fishing_yield', desc: 'Catch more fish per tick', costRes: 'shrimp', baseCost: 30 },
-        { id: 'fish_carry', name: '+% Carrying Capacity (Fish)', effect: 'fishing_carry', desc: 'Carry more fish', costRes: 'trout', baseCost: 25 },
-        { id: 'multi_fish', name: '+% Multi-Catch Chance', effect: 'fishing_multi', desc: 'Chance for extra fish', costRes: 'salmon', baseCost: 35 },
-        { id: 'fish_xp', name: '+% Fishing Exp Gain', effect: 'fishing_xp', desc: 'More fishing XP', costRes: 'lobster', baseCost: 30 },
+        { id: 'base_fish_eff', name: '+ Base Fishing Efficiency', effect: 'fishing_yield', bonusType: 'flat', desc: 'Catch more fish per tick', costRes: 'shrimp', baseCost: 30 },
+        { id: 'fish_carry', name: '+% Carrying Capacity', effect: 'fishing_carry', bonusType: 'percent', desc: 'More fish per inventory slot', costRes: 'trout', baseCost: 25 },
+        { id: 'multi_fish', name: '+% Multi-Catch Chance', effect: 'fishing_multi', bonusType: 'percent', desc: 'Chance for extra fish', costRes: 'salmon', baseCost: 35 },
+        { id: 'fish_xp', name: '+% Fishing Exp Gain', effect: 'fishing_xp', bonusType: 'percent', desc: 'More fishing XP', costRes: 'lobster', baseCost: 30 },
       ],
     },
     {
       id: 'utility', name: 'Utility Branch', icon: '✦',
       nodes: [
-        { id: 'smelt_speed', name: '+% Smelting Speed', effect: 'smelt_speed', desc: 'Smelt ore faster', costRes: 'iron_nails', baseCost: 25 },
-        { id: 'produce_speed', name: '+% Producing Speed', effect: 'produce_speed', desc: 'Produce items faster', costRes: 'twine', baseCost: 25 },
-        { id: 'smelt_xp', name: '+% Smelting Exp', effect: 'smelt_xp', desc: 'More smelting XP', costRes: 'copper_bar', baseCost: 30 },
-        { id: 'produce_xp', name: '+% Producing Exp', effect: 'produce_xp', desc: 'More producing XP', costRes: 'wooden_pegs', baseCost: 30 },
-        { id: 'multi_smelt', name: '+% Multi Smelting', effect: 'smelt_multi', desc: 'Chance for extra bars', costRes: 'iron_bar', baseCost: 35 },
-        { id: 'multi_produce', name: '+% Multi Producing', effect: 'produce_multi', desc: 'Chance for extra products', costRes: 'resin', baseCost: 35 },
-        { id: 'smelt_capacity', name: '+% Smelting Capacity', effect: 'smelt_capacity', desc: 'Extra smelting throughput', costRes: 'gold_bar', baseCost: 30 },
-        { id: 'produce_capacity', name: '+% Producing Capacity', effect: 'produce_capacity', desc: 'Extra producing throughput', costRes: 'platinum_bar', baseCost: 30 },
+        { id: 'smelt_speed', name: '+% Smelting Speed', effect: 'smelt_speed', bonusType: 'percent', desc: 'Smelt ore faster', costRes: 'iron_nails', baseCost: 25 },
+        { id: 'produce_speed', name: '+% Producing Speed', effect: 'produce_speed', bonusType: 'percent', desc: 'Produce items faster', costRes: 'twine', baseCost: 25 },
+        { id: 'smelt_xp', name: '+% Smelting Exp', effect: 'smelt_xp', bonusType: 'percent', desc: 'More smelting XP', costRes: 'copper_bar', baseCost: 30 },
+        { id: 'produce_xp', name: '+% Producing Exp', effect: 'produce_xp', bonusType: 'percent', desc: 'More producing XP', costRes: 'wooden_pegs', baseCost: 30 },
+        { id: 'multi_smelt', name: '+% Multi Smelting', effect: 'smelt_multi', bonusType: 'percent', desc: 'Chance for extra bars', costRes: 'iron_bar', baseCost: 35 },
+        { id: 'multi_produce', name: '+% Multi Producing', effect: 'produce_multi', bonusType: 'percent', desc: 'Chance for extra products', costRes: 'resin', baseCost: 35 },
+        { id: 'smelt_capacity', name: '+% Smelting Capacity', effect: 'smelt_capacity', bonusType: 'percent', desc: 'Extra smelting throughput', costRes: 'gold_bar', baseCost: 30 },
+        { id: 'produce_capacity', name: '+% Producing Capacity', effect: 'produce_capacity', bonusType: 'percent', desc: 'Extra producing throughput', costRes: 'platinum_bar', baseCost: 30 },
       ],
     },
   ],
@@ -201,7 +225,7 @@ window.WorldrootConfig = {
   }
 
   const C = window.WorldrootConfig;
-  const { SAVE_KEY, SAVE_KEY_OFFLINE, RESOURCE_IDS, CLASSES, SLOT_UNLOCK_AT, WORLD_TREE_BRANCHES } = C;
+  const { SAVE_KEY, SAVE_KEY_OFFLINE, CLASSES, SLOT_UNLOCK_AT, WORLD_TREE_BRANCHES } = C;
 
   let playMode = 'offline';
 
@@ -213,16 +237,8 @@ window.WorldrootConfig = {
     playMode = mode === 'cloud' ? 'cloud' : 'offline';
   }
 
-  function emptyInventory() {
-    const inv = {};
-    for (const id of RESOURCE_IDS) inv[id] = 0;
-    return inv;
-  }
-
-  function emptyStorage() {
-    const s = {};
-    for (const id of RESOURCE_IDS) s[id] = 0;
-    return s;
+  function emptySlotArray(count) {
+    return Array.from({ length: count }, () => null);
   }
 
   function emptyUpgrades() {
@@ -238,11 +254,21 @@ window.WorldrootConfig = {
   }
 
   function defaultSmeltSlots() {
-    return [{ ore: null, progress: 0 }, { ore: null, progress: 0 }, { ore: null, progress: 0 }, { ore: null, progress: 0 }];
+    return [
+      { ore: null, progress: 0, ready: 0, readyBar: null },
+      { ore: null, progress: 0, ready: 0, readyBar: null },
+      { ore: null, progress: 0, ready: 0, readyBar: null },
+      { ore: null, progress: 0, ready: 0, readyBar: null },
+    ];
   }
 
   function defaultProduceSlots() {
-    return [{ item: null, progress: 0 }, { item: null, progress: 0 }, { item: null, progress: 0 }, { item: null, progress: 0 }];
+    return [
+      { item: null, progress: 0, ready: 0 },
+      { item: null, progress: 0, ready: 0 },
+      { item: null, progress: 0, ready: 0 },
+      { item: null, progress: 0, ready: 0 },
+    ];
   }
 
   function defaultRateStats() {
@@ -260,7 +286,8 @@ window.WorldrootConfig = {
       },
       activity: null,
       target: null,
-      inventory: emptyInventory(),
+      inventorySlots: emptySlotArray(C.BASE_INVENTORY_SLOTS),
+      extraBagSlots: 0,
     };
   }
 
@@ -268,7 +295,7 @@ window.WorldrootConfig = {
     return {
       characters: [],
       gold: 0,
-      storage: emptyStorage(),
+      storageSlots: emptySlotArray(C.BASE_STORAGE_SLOTS),
       upgrades: emptyUpgrades(),
       pendingSlot: 1,
       selectedCharIndex: 0,
@@ -282,8 +309,7 @@ window.WorldrootConfig = {
     return {
       characters: state.characters,
       gold: state.gold,
-      storage: state.storage,
-      resources: state.storage,
+      storageSlots: state.storageSlots,
       upgrades: state.upgrades,
       pendingSlot: state.pendingSlot,
       selectedCharIndex: state.selectedCharIndex,
@@ -291,6 +317,29 @@ window.WorldrootConfig = {
       producing: state.producing,
       smelting: state.smelting,
     };
+  }
+
+  function migrateDictToSlots(dict, slotCount) {
+    const slots = emptySlotArray(slotCount);
+    if (!dict || typeof dict !== 'object') return slots;
+    for (const [resourceId, amount] of Object.entries(dict)) {
+      if (!amount || amount <= 0) continue;
+      let left = amount;
+      const max = C.BASE_STACK_SIZE;
+      for (let i = 0; i < slots.length && left > 0; i++) {
+        if (!slots[i]) {
+          const put = Math.min(left, max);
+          slots[i] = { resourceId, amount: put };
+          left -= put;
+        } else if (slots[i].resourceId === resourceId && slots[i].amount < max) {
+          const space = max - slots[i].amount;
+          const put = Math.min(left, space);
+          slots[i].amount += put;
+          left -= put;
+        }
+      }
+    }
+    return slots;
   }
 
   function migrateUpgrades(oldUpgrades) {
@@ -305,43 +354,64 @@ window.WorldrootConfig = {
   }
 
   function hydrateCharacter(c) {
+    let inventorySlots = c.inventorySlots;
+    if (!Array.isArray(inventorySlots)) {
+      inventorySlots = migrateDictToSlots(c.inventory, C.BASE_INVENTORY_SLOTS);
+    }
+    while (inventorySlots.length < C.BASE_INVENTORY_SLOTS) inventorySlots.push(null);
+
     const skills = {
       combat: { ...defaultSkill(), ...c.skills?.combat },
       mining: { ...defaultSkill(), ...c.skills?.mining },
       woodcutting: { ...defaultSkill(), ...c.skills?.woodcutting },
       fishing: { ...defaultSkill(), ...c.skills?.fishing },
     };
-    for (const sk of Object.values(skills)) {
-      if (sk.level === 1 && sk.xp === 0 && !c._migratedV3) sk.level = 0;
-    }
+
     return {
       classId: c.classId,
       activity: c.activity ?? null,
       target: c.target ?? null,
       skills,
-      inventory: { ...emptyInventory(), ...(c.inventory || {}) },
+      inventorySlots,
+      extraBagSlots: c.extraBagSlots ?? 0,
     };
   }
 
   function hydrateState(data) {
     const state = defaultState();
     state.gold = data.gold ?? 0;
-    const stored = data.storage || data.resources || {};
-    state.storage = { ...emptyStorage(), ...stored };
+
+    if (Array.isArray(data.storageSlots)) {
+      state.storageSlots = data.storageSlots;
+    } else {
+      state.storageSlots = migrateDictToSlots(data.storage || data.resources, C.BASE_STORAGE_SLOTS);
+    }
+    while (state.storageSlots.length < C.BASE_STORAGE_SLOTS) state.storageSlots.push(null);
+
     state.upgrades = migrateUpgrades(data.upgrades);
     state.pendingSlot = data.pendingSlot ?? (data.characters?.length ? null : 1);
     state.selectedCharIndex = data.selectedCharIndex ?? 0;
     if (data.rateStats) state.rateStats = { ...defaultRateStats(), ...data.rateStats };
+
     if (data.producing) {
       state.producing = {
         skill: { ...defaultSkill(), ...data.producing.skill },
-        slots: (data.producing.slots || defaultProduceSlots()).map((s) => ({ item: s.item ?? null, progress: s.progress ?? 0 })),
+        slots: (data.producing.slots || defaultProduceSlots()).map((s) => ({
+          item: s.item ?? null,
+          progress: s.progress ?? 0,
+          ready: s.ready ?? 0,
+        })),
       };
     }
     if (data.smelting) {
       state.smelting = {
         skill: { ...defaultSkill(), ...data.smelting.skill },
-        slots: (data.smelting.slots || defaultSmeltSlots()).map((s) => ({ ore: s.ore ?? null, progress: s.progress ?? 0 })),
+        slots: (data.smelting.slots || defaultSmeltSlots()).map((s) => ({
+          ore: s.ore ?? null,
+          progress: s.progress ?? 0,
+          ready: s.ready ?? 0,
+          readyBar: s.readyBar ?? null,
+        })),
       };
     }
     if (Array.isArray(data.characters)) {
@@ -403,34 +473,106 @@ window.WorldrootConfig = {
     return null;
   }
 
-  function inventoryUsed(char) {
-    return Object.values(char.inventory || {}).reduce((s, n) => s + (n || 0), 0);
+  function carryEffectForSkill(skillId) {
+    return C.CARRY_EFFECT_BY_SKILL[skillId] || 'carry_capacity';
   }
 
-  function inventoryCapacity(state) {
-    const base = C.BASE_INVENTORY_SLOTS;
-    const bonus = Math.floor((window.WorldrootEngine?.effectBonus(state, 'carry_capacity') || 0) * 50);
-    return base + bonus;
+  const RESOURCE_SKILL_MAP = {
+    copper: 'mining', iron: 'mining', gold: 'mining', platinum: 'mining',
+    copper_bar: 'mining', iron_bar: 'mining', gold_bar: 'mining', platinum_bar: 'mining',
+    oak: 'woodcutting', spruce: 'woodcutting', birch: 'woodcutting', jungle: 'woodcutting',
+    shrimp: 'fishing', trout: 'fishing', salmon: 'fishing', lobster: 'fishing',
+    slime_gel: 'combat', goblin_ear: 'combat', wolf_fur: 'combat', bandit_emblem: 'combat',
+    twine: 'producing', wooden_pegs: 'producing', iron_nails: 'producing', resin: 'producing',
+  };
+
+  function stackCapacity(state, skillId) {
+    const effect = carryEffectForSkill(skillId);
+    const bonus = window.WorldrootEngine?.effectBonus(state, effect) || 0;
+    return Math.floor(C.BASE_STACK_SIZE * (1 + bonus));
   }
 
-  function addToCharacter(char, state, resourceId, amount) {
+  function stackCapacityForResource(state, resourceId) {
+    const skillId = RESOURCE_SKILL_MAP[resourceId] || 'combat';
+    return stackCapacity(state, skillId);
+  }
+
+  function inventorySlotCount(char) {
+    return C.BASE_INVENTORY_SLOTS + (char.extraBagSlots || 0);
+  }
+
+  function countInSlots(slots, resourceId) {
+    return slots.reduce((sum, s) => (s?.resourceId === resourceId ? sum + s.amount : sum), 0);
+  }
+
+  function countEmptySlots(slots) {
+    return slots.filter((s) => !s).length;
+  }
+
+  function addToSlots(slots, resourceId, amount, maxStack, maxSlots) {
     let left = amount;
-    const cap = inventoryCapacity(state);
-    const used = inventoryUsed(char);
-    const space = Math.max(0, cap - used);
-    const toInv = Math.min(left, space);
-    if (toInv > 0) {
-      char.inventory[resourceId] = (char.inventory[resourceId] || 0) + toInv;
-      left -= toInv;
+    let added = 0;
+
+    for (let i = 0; i < maxSlots && left > 0; i++) {
+      const slot = slots[i];
+      if (!slot) continue;
+      if (slot.resourceId !== resourceId || slot.amount >= maxStack) continue;
+      const space = maxStack - slot.amount;
+      const put = Math.min(left, space);
+      slot.amount += put;
+      left -= put;
+      added += put;
     }
-    if (left > 0) {
-      state.storage[resourceId] = (state.storage[resourceId] || 0) + left;
+
+    for (let i = 0; i < maxSlots && left > 0; i++) {
+      if (slots[i]) continue;
+      const put = Math.min(left, maxStack);
+      slots[i] = { resourceId, amount: put };
+      left -= put;
+      added += put;
+    }
+
+    return { added, lost: left };
+  }
+
+  function removeFromSlots(slots, resourceId, amount) {
+    let left = amount;
+    for (let i = slots.length - 1; i >= 0 && left > 0; i--) {
+      const slot = slots[i];
+      if (!slot || slot.resourceId !== resourceId) continue;
+      const take = Math.min(left, slot.amount);
+      slot.amount -= take;
+      left -= take;
+      if (slot.amount <= 0) slots[i] = null;
     }
     return amount - left;
   }
 
+  function addToInventory(char, state, resourceId, amount, skillId) {
+    const maxStack = stackCapacity(state, skillId || RESOURCE_SKILL_MAP[resourceId] || 'combat');
+    const slots = char.inventorySlots;
+    const maxSlots = inventorySlotCount(char);
+    return addToSlots(slots, resourceId, amount, maxStack, maxSlots);
+  }
+
+  function addToStorage(state, resourceId, amount) {
+    const maxStack = C.BASE_STACK_SIZE;
+    return addToSlots(state.storageSlots, resourceId, amount, maxStack, state.storageSlots.length);
+  }
+
+  function storageHas(state, resourceId, amount) {
+    return countInSlots(state.storageSlots, resourceId) >= amount;
+  }
+
+  function removeFromStorage(state, resourceId, amount) {
+    return removeFromSlots(state.storageSlots, resourceId, amount);
+  }
+
   function loadState() {
-    const keys = [getSaveKey(), 'worldroot_save_v2', 'worldroot_save_offline_v2', 'worldroot_save_v1', 'worldroot_save_offline_v1'];
+    const keys = [
+      getSaveKey(), 'worldroot_save_v3', 'worldroot_save_offline_v3',
+      'worldroot_save_v2', 'worldroot_save_offline_v2',
+    ];
     for (const key of keys) {
       try {
         const raw = localStorage.getItem(key);
@@ -448,7 +590,7 @@ window.WorldrootConfig = {
   }
 
   function resetState() {
-    for (const k of [getSaveKey(), 'worldroot_save_v2', 'worldroot_save_offline_v2', 'worldroot_save_v1', 'worldroot_save_offline_v1']) {
+    for (const k of [getSaveKey(), 'worldroot_save_v3', 'worldroot_save_offline_v3', 'worldroot_save_v2', 'worldroot_save_offline_v2']) {
       localStorage.removeItem(k);
     }
     return defaultState();
@@ -519,9 +661,11 @@ window.WorldrootConfig = {
     setPlayMode, getSaveKey, createCharacter, xpForLevel, grantXp,
     characterTotalLevel, accountTotalLevel, maxUnlockedSlots, nextSlotUnlock,
     refreshPendingSlot, addCharacter, selectCharacter, getSelectedCharacter,
-    setActivity, stopActivity, emptyStorage, emptyUpgrades, recordRateEvent,
-    migrateUpgrades, inventoryUsed, inventoryCapacity, addToCharacter,
-    defaultSmeltSlots, defaultProduceSlots,
+    setActivity, stopActivity, emptyUpgrades, recordRateEvent, migrateUpgrades,
+    defaultSmeltSlots, defaultProduceSlots, emptySlotArray,
+    stackCapacity, inventorySlotCount, countInSlots, countEmptySlots,
+    addToInventory, addToStorage, removeFromStorage, storageHas,
+    addToSlots, removeFromSlots, carryEffectForSkill, stackCapacityForResource,
   };
 })();
 /** Worldroot — tick logic, resources, upgrades. */
@@ -547,8 +691,19 @@ window.WorldrootConfig = {
     return { [node.costRes]: Math.max(1, Math.floor(node.baseCost * scale)) };
   }
 
+  function upgradeBonusDisplay(state, node) {
+    const lv = upgradeLevel(state, node.id);
+    if (node.bonusType === 'flat') {
+      return { text: `+${lv * C.UPGRADE_FLAT_PER_LEVEL}`, isPercent: false };
+    }
+    return { text: `+${(lv * C.UPGRADE_BONUS_PER_LEVEL * 100).toFixed(0)}%`, isPercent: true };
+  }
+
   function upgradeBonusPercent(state, nodeId) {
-    return upgradeLevel(state, nodeId) * C.UPGRADE_BONUS_PER_LEVEL * 100;
+    const node = findUpgradeNode(nodeId)?.node;
+    if (!node) return 0;
+    const d = upgradeBonusDisplay(state, node);
+    return d.isPercent ? parseFloat(d.text) : upgradeLevel(state, nodeId) * C.UPGRADE_FLAT_PER_LEVEL;
   }
 
   function effectBonus(state, effectType) {
@@ -556,7 +711,11 @@ window.WorldrootConfig = {
     for (const branch of C.WORLD_TREE_BRANCHES) {
       for (const node of branch.nodes) {
         if (node.effect !== effectType) continue;
-        bonus += upgradeLevel(state, node.id) * C.UPGRADE_BONUS_PER_LEVEL;
+        if (node.bonusType === 'flat') {
+          bonus += upgradeLevel(state, node.id) * C.UPGRADE_FLAT_PER_LEVEL;
+        } else {
+          bonus += upgradeLevel(state, node.id) * C.UPGRADE_BONUS_PER_LEVEL;
+        }
       }
     }
     return bonus;
@@ -574,12 +733,26 @@ window.WorldrootConfig = {
     return effectBonus(state, `${skillId}_multi`);
   }
 
-  function hasSpecialty(char, skillId) {
-    return C.CLASSES[char.classId]?.specialty === skillId;
+  function charStat(state, char, statName) {
+    const cls = C.CLASSES[char.classId];
+    const base = cls?.baseStats?.[statName] ?? 0;
+    return base + effectBonus(state, statName);
   }
 
-  function specialtyMult(char, skillId) {
-    return hasSpecialty(char, skillId) ? 1 + C.SPECIALTY_BONUS : 1;
+  function gatherStatMult(state, char, skillId) {
+    const sk = C.SKILLS[skillId];
+    const statName = sk?.gatherStat || C.CLASSES[char.classId]?.gatherStat || 'strength';
+    const stat = charStat(state, char, statName);
+    return 1 + stat * C.STAT_SCALE;
+  }
+
+  function combatDamageMult(state, char) {
+    const cls = C.CLASSES[char.classId];
+    const statName = cls?.combatStat || 'strength';
+    const stat = charStat(state, char, statName);
+    const baseDmg = effectBonus(state, 'base_damage');
+    const pctDmg = effectBonus(state, 'pct_damage');
+    return (1 + stat * C.STAT_SCALE) * (1 + pctDmg) + baseDmg * 0.01;
   }
 
   function findVein(skillId, targetId) {
@@ -594,25 +767,23 @@ window.WorldrootConfig = {
 
   function canAffordUpgrade(state, nodeId) {
     const costs = upgradeCosts(nodeId, upgradeLevel(state, nodeId));
-    return Object.entries(costs).every(([res, amt]) => (state.storage[res] || 0) >= amt);
+    return Object.entries(costs).every(([res, amt]) => S.storageHas(state, res, amt));
   }
 
   function skillSpeed(state, skillId, char) {
     const skill = char.skills[skillId];
     const lv = skill?.level ?? 0;
     const yieldB = skillYieldBonus(state, skillId);
-    const spec = specialtyMult(char, skillId);
-    return Math.floor((1 + lv * 0.05 + yieldB) * spec * 100) / 100;
+    const statM = gatherStatMult(state, char, skillId);
+    return Math.floor((1 + lv * 0.05 + yieldB) * statM * 100) / 100;
   }
 
   function smeltSlotsUnlocked(state) {
-    const lv = state.smelting.skill.level;
-    return C.SMELT_SLOT_UNLOCKS.filter((req) => lv >= req).length;
+    return C.SMELT_SLOT_UNLOCKS.filter((req) => state.smelting.skill.level >= req).length;
   }
 
   function produceSlotsUnlocked(state) {
-    const lv = state.producing.skill.level;
-    return C.UNLOCK_LEVELS.filter((req) => lv >= req).length;
+    return C.UNLOCK_LEVELS.filter((req) => state.producing.skill.level >= req).length;
   }
 
   function tickSmelting(state) {
@@ -626,19 +797,21 @@ window.WorldrootConfig = {
       if (!slot.ore) continue;
       const recipe = C.SMELT_RECIPES.find((r) => r.ore === slot.ore);
       if (!recipe) continue;
+
       const ticksNeeded = Math.max(3, Math.floor(C.SMELT_TICKS_PER_ORE / speedMult));
       slot.progress += 1;
       if (slot.progress < ticksNeeded) continue;
 
-      if ((state.storage[slot.ore] || 0) < 1) {
+      if (!S.storageHas(state, slot.ore, 1)) {
         slot.progress = 0;
         continue;
       }
 
-      state.storage[slot.ore] -= 1;
+      S.removeFromStorage(state, slot.ore, 1);
       let bars = 1;
       if (Math.random() < multiMult * 0.1) bars += 1;
-      state.storage[recipe.bar] = (state.storage[recipe.bar] || 0) + bars;
+      slot.ready = (slot.ready || 0) + bars;
+      slot.readyBar = recipe.bar;
       S.grantXp(state.smelting.skill, Math.floor(C.BASE_XP_PER_TICK * xpMult));
       slot.progress = 0;
     }
@@ -663,7 +836,7 @@ window.WorldrootConfig = {
 
       let output = def.output;
       if (Math.random() < multiMult * 0.1) output += 1;
-      state.storage[def.id] = (state.storage[def.id] || 0) + output;
+      slot.ready = (slot.ready || 0) + output;
       S.grantXp(state.producing.skill, Math.floor(def.xp * xpMult));
       slot.progress = 0;
     }
@@ -680,14 +853,13 @@ window.WorldrootConfig = {
     if (!skill) return null;
 
     const xpMult = 1 + skillXpBonus(state, skillId);
-    const spec = specialtyMult(char, skillId);
-    const xpGain = Math.floor(C.BASE_XP_PER_TICK * xpMult * spec);
+    const xpGain = Math.floor(C.BASE_XP_PER_TICK * xpMult);
     S.grantXp(skill, xpGain);
 
     const event = {
       charClass: char.classId, activity: char.activity, target: char.target,
       xpGain, skill: skillId, resource: null, resourceAmount: 0, gold: 0,
-      kill: false, monster: null, loot: null, lootAmount: 0,
+      kill: false, monster: null, loot: null, lootAmount: 0, lost: 0,
     };
 
     if (char.activity === 'combat') {
@@ -695,17 +867,20 @@ window.WorldrootConfig = {
       if (skill.level < monster.level) return event;
 
       const goldMult = 1 + effectBonus(state, 'gold_gain');
+      const dropMult = 1 + effectBonus(state, 'drop_rate');
       event.kill = true;
       event.monster = monster.id;
 
       if (monster.drop) {
-        const dropAmt = Math.max(1, Math.floor(monster.drop.amount));
-        S.addToCharacter(char, state, monster.drop.id, dropAmt);
+        const dropAmt = Math.max(1, Math.floor(monster.drop.amount * dropMult));
+        const result = S.addToInventory(char, state, monster.drop.id, dropAmt, 'combat');
         event.loot = monster.drop.id;
-        event.lootAmount = dropAmt;
+        event.lootAmount = result.added;
+        event.lost = result.lost;
       }
 
-      const goldGain = Math.floor((monster.level + 1) * 0.5 * goldMult);
+      const dmgM = combatDamageMult(state, char);
+      const goldGain = Math.floor((monster.level + 1) * 0.5 * goldMult * dmgM);
       if (goldGain > 0) {
         state.gold += goldGain;
         event.gold = goldGain;
@@ -719,11 +894,14 @@ window.WorldrootConfig = {
     const speed = skillSpeed(state, skillId, char);
     const multiMult = skillMultiBonus(state, skillId);
     let amount = Math.max(1, Math.floor(C.BASE_RESOURCE_PER_TICK * speed));
-    if (Math.random() < multiMult * 0.1) amount += Math.max(1, Math.floor(C.BASE_RESOURCE_PER_TICK * spec));
+    if (Math.random() < multiMult * 0.1) {
+      amount += Math.max(1, Math.floor(C.BASE_RESOURCE_PER_TICK * gatherStatMult(state, char, skillId)));
+    }
 
-    S.addToCharacter(char, state, vein.resource, amount);
+    const result = S.addToInventory(char, state, vein.resource, amount, skillId);
     event.resource = vein.resource;
-    event.resourceAmount = amount;
+    event.resourceAmount = result.added;
+    event.lost = result.lost;
     return event;
   }
 
@@ -748,9 +926,9 @@ window.WorldrootConfig = {
     const costs = upgradeCosts(nodeId, current);
     if (!Object.keys(costs).length) return false;
     for (const [res, amt] of Object.entries(costs)) {
-      if ((state.storage[res] || 0) < amt) return false;
+      if (!S.storageHas(state, res, amt)) return false;
     }
-    for (const [res, amt] of Object.entries(costs)) state.storage[res] -= amt;
+    for (const [res, amt] of Object.entries(costs)) S.removeFromStorage(state, res, amt);
     state.upgrades[nodeId] = current + 1;
     S.saveState(state);
     return true;
@@ -776,6 +954,8 @@ window.WorldrootConfig = {
     if (!slot) return false;
     slot.ore = oreId;
     slot.progress = 0;
+    slot.ready = 0;
+    slot.readyBar = null;
     S.saveState(state);
     return true;
   }
@@ -785,6 +965,7 @@ window.WorldrootConfig = {
     if (!slot) return false;
     slot.item = itemId;
     slot.progress = 0;
+    slot.ready = 0;
     S.saveState(state);
     return true;
   }
@@ -794,6 +975,8 @@ window.WorldrootConfig = {
     if (!slot) return;
     slot.ore = null;
     slot.progress = 0;
+    slot.ready = 0;
+    slot.readyBar = null;
     S.saveState(state);
   }
 
@@ -802,15 +985,45 @@ window.WorldrootConfig = {
     if (!slot) return;
     slot.item = null;
     slot.progress = 0;
+    slot.ready = 0;
     S.saveState(state);
   }
 
+  function collectProduce(state, slotIndex, charIndex) {
+    const slot = state.producing.slots[slotIndex];
+    const char = state.characters[charIndex];
+    if (!slot?.ready || !char || !slot.item) return { collected: 0, lost: 0 };
+
+    const result = S.addToInventory(char, state, slot.item, slot.ready, 'producing');
+    const collected = result.added;
+    slot.ready -= collected;
+    if (slot.ready <= 0) slot.ready = 0;
+    S.saveState(state);
+    return { collected, lost: result.lost };
+  }
+
+  function collectSmelt(state, slotIndex) {
+    const slot = state.smelting.slots[slotIndex];
+    if (!slot?.ready || !slot.readyBar) return 0;
+    const result = S.addToStorage(state, slot.readyBar, slot.ready);
+    const collected = result.added;
+    slot.ready -= collected;
+    if (slot.ready <= 0) {
+      slot.ready = 0;
+      slot.readyBar = null;
+    }
+    S.saveState(state);
+    return collected;
+  }
+
   window.WorldrootEngine = {
-    upgradeLevel, upgradeCosts, upgradeBonusPercent, effectBonus,
+    upgradeLevel, upgradeCosts, upgradeBonusDisplay, upgradeBonusPercent, effectBonus,
     skillXpBonus, skillYieldBonus, skillMultiBonus, skillSpeed,
+    charStat, gatherStatMult, combatDamageMult,
     tick, buyUpgrade, canAffordUpgrade, findVein, findMonster,
     getRatePerHour, findUpgradeNode, smeltSlotsUnlocked, produceSlotsUnlocked,
     setSmeltSlot, setProduceSlot, clearSmeltSlot, clearProduceSlot,
+    collectProduce, collectSmelt,
   };
 })();
 /** Worldroot — sidebar Melvor-style UI. */
@@ -831,7 +1044,30 @@ window.WorldrootConfig = {
   function $(id) { return document.getElementById(id); }
   function fmt(n) { return Math.floor(n).toLocaleString(); }
   function resName(id) { return C.RESOURCE_NAMES?.[id] ?? id; }
+  function resIcon(id) { return C.RESOURCE_ICONS?.[id] ?? '📦'; }
   function skillName(id) { return C.SKILLS[id]?.name ?? id; }
+
+  function renderSlotGrid(slots, maxSlots, isInventory) {
+    let html = '';
+    for (let i = 0; i < maxSlots; i++) {
+      const slot = slots[i];
+      if (!slot) {
+        html += `<div class="item-slot empty"><span class="item-slot-empty">+</span></div>`;
+      } else {
+        const maxStack = isInventory
+          ? S.stackCapacityForResource(state, slot.resourceId)
+          : C.BASE_STACK_SIZE;
+        html += `
+          <div class="item-slot filled" title="${resName(slot.resourceId)}">
+            <span class="item-slot-qty">${fmt(slot.amount)}</span>
+            <span class="item-slot-icon">${resIcon(slot.resourceId)}</span>
+            <span class="item-slot-name">${resName(slot.resourceId)}</span>
+            <span class="item-slot-max">/${maxStack}</span>
+          </div>`;
+      }
+    }
+    return `<div class="item-slot-grid">${html}</div>`;
+  }
 
   function selectedIndex() {
     return state?.selectedCharIndex ?? 0;
@@ -986,6 +1222,10 @@ window.WorldrootConfig = {
           </div>`;
       }).join('');
 
+      const str = E.charStat(state, char, 'strength').toFixed(1);
+      const agi = E.charStat(state, char, 'agility').toFixed(1);
+      const mag = E.charStat(state, char, 'magic').toFixed(1);
+
       detail = `
         <div class="char-detail-head">
           <div class="char-portrait lg">${cls.icon}</div>
@@ -996,8 +1236,13 @@ window.WorldrootConfig = {
           </div>
           <div class="char-total-badge"><span>Total</span><strong>${S.characterTotalLevel(char)}</strong></div>
         </div>
+        <div class="char-stats-row" style="margin-bottom:12px">
+          <span class="char-stat"><em>STR</em> ${str}</span>
+          <span class="char-stat"><em>AGI</em> ${agi}</span>
+          <span class="char-stat"><em>MAG</em> ${mag}</span>
+        </div>
         <div class="char-skills-grid">${skills}</div>
-        <p class="hint-bar">Select this hero, then open a skill page to assign them to an activity.</p>
+        <p class="hint-bar">Select this hero, then open a skill page to assign them. Full inventory = lost loot.</p>
         <button type="button" class="btn-xs ghost" data-action="stop-selected">Stop activity</button>`;
     }
 
@@ -1030,38 +1275,31 @@ window.WorldrootConfig = {
   function renderInventoryPanel() {
     const char = selectedChar();
     if (!char) return '<p class="empty-msg">Select a character from the Characters page.</p>';
-    const cap = S.inventoryCapacity(state);
-    const used = S.inventoryUsed(char);
-    const items = Object.entries(char.inventory)
-      .filter(([, n]) => n > 0)
-      .map(([id, n]) => `<div class="res-item"><span>${resName(id)}</span><strong>${fmt(n)}</strong></div>`)
-      .join('') || '<p class="empty-msg">Inventory is empty.</p>';
-
+    const slotCount = S.inventorySlotCount(char);
+    const filled = char.inventorySlots.filter(Boolean).length;
     return `
       <header class="page-header">
         <span class="page-header-icon">🎒</span>
         <div class="page-header-text">
           <h1>${charLabel(char)}'s Inventory</h1>
-          <p>${used} / ${cap} items carried · overflow goes to Storage</p>
+          <p>${filled} / ${slotCount} slots · overflow is lost</p>
         </div>
       </header>
-      <div class="res-grid">${items}</div>`;
+      ${renderSlotGrid(char.inventorySlots, slotCount, true)}`;
   }
 
   function renderStoragePanel() {
-    const groups = C.STORAGE_GROUPS.map((g) => {
-      const items = g.ids.map((id) =>
-        `<div class="res-item"><span>${resName(id)}</span><strong>${fmt(state.storage[id] || 0)}</strong></div>`
-      ).join('');
-      return `<section class="res-section"><h3>${g.title}</h3><div class="res-grid">${items}</div></section>`;
-    }).join('');
+    const filled = state.storageSlots.filter(Boolean).length;
 
     return `
       <header class="page-header">
         <span class="page-header-icon">📦</span>
-        <div class="page-header-text"><h1>Storage</h1><p>Shared resources for all characters</p></div>
+        <div class="page-header-text">
+          <h1>Storage</h1>
+          <p>${filled} / ${state.storageSlots.length} slots · shared by all characters</p>
+        </div>
       </header>
-      ${groups}`;
+      ${renderSlotGrid(state.storageSlots, state.storageSlots.length, false)}`;
   }
 
   /* ── Combat ── */
@@ -1162,6 +1400,11 @@ window.WorldrootConfig = {
         `<option value="${r.ore}" ${slot.ore === r.ore ? 'selected' : ''}>${r.name}</option>`
       ).join('');
 
+      const readyBtn = slot.ready > 0
+        ? `<button type="button" class="btn-sm primary" data-action="collect-smelt" data-slot="${i}">
+            Collect ${fmt(slot.ready)} ${resName(slot.readyBar)} → Storage
+          </button>` : '';
+
       return `
         <article class="activity-card">
           <strong>Smelter Slot ${i + 1}</strong>
@@ -1169,8 +1412,9 @@ window.WorldrootConfig = {
             <option value="">— Select ore —</option>${oreOpts}
           </select>
           ${slot.ore ? `<div class="progress-bar"><div class="progress-bar-fill" style="width:${pct}%"></div></div>
-            <p class="empty-msg">Smelting ${recipe?.name ?? slot.ore}…</p>
-            <button type="button" class="btn-xs ghost" data-action="clear-smelt" data-slot="${i}">Clear</button>` : ''}
+            <p class="empty-msg">Smelting ${recipe?.name ?? slot.ore}… (uses Storage ore)</p>` : ''}
+          ${readyBtn}
+          ${slot.ore ? `<button type="button" class="btn-xs ghost" data-action="clear-smelt" data-slot="${i}">Clear</button>` : ''}
         </article>`;
     }).join('');
 
@@ -1198,6 +1442,11 @@ window.WorldrootConfig = {
         return `<option value="${p.id}" ${slot.item === p.id ? 'selected' : ''} ${ok ? '' : 'disabled'}>${p.name} (Lv ${p.minLevel})</option>`;
       }).join('');
 
+      const readyBtn = slot.ready > 0
+        ? `<button type="button" class="btn-sm primary" data-action="collect-produce" data-slot="${i}">
+            Collect ${fmt(slot.ready)} ${def?.name ?? slot.item} → Inventory
+          </button>` : '';
+
       return `
         <article class="activity-card">
           <strong>Producer Slot ${i + 1}</strong>
@@ -1205,23 +1454,19 @@ window.WorldrootConfig = {
             <option value="">— Select product —</option>${itemOpts}
           </select>
           ${slot.item ? `<div class="progress-bar"><div class="progress-bar-fill" style="width:${pct}%"></div></div>
-            <p class="empty-msg">Producing ${def?.name ?? slot.item}…</p>
-            <button type="button" class="btn-xs ghost" data-action="clear-produce" data-slot="${i}">Clear</button>` : ''}
+            <p class="empty-msg">Producing ${def?.name ?? slot.item}…${slot.ready ? ` · ${slot.ready} ready` : ''}</p>` : ''}
+          ${readyBtn}
+          ${slot.item ? `<button type="button" class="btn-xs ghost" data-action="clear-produce" data-slot="${i}">Clear</button>` : ''}
         </article>`;
     }).join('');
-
-    const products = C.PRODUCE_ITEMS.map((p) =>
-      `<div class="res-item"><span>${p.icon} ${p.name}</span><strong>${fmt(state.storage[p.id] || 0)}</strong></div>`
-    ).join('');
 
     return `
       <header class="page-header">
         <span class="page-header-icon">${sk.icon}</span>
-        <div class="page-header-text"><h1>${sk.name}</h1><p>Passive production — heroes can work other skills simultaneously</p></div>
+        <div class="page-header-text"><h1>${sk.name}</h1><p>Passive production — collect items into your selected hero's inventory</p></div>
         <div class="page-header-stat"><span class="page-header-stat-label">Producing Lv</span><span class="page-header-stat-value">${lv}</span></div>
       </header>
-      <div class="activity-grid">${slotCards}</div>
-      <section class="detail-box" style="margin-top:16px"><h3>Stored Products</h3><div class="res-grid">${products}</div></section>`;
+      <div class="activity-grid">${slotCards}</div>`;
   }
 
   function renderComingSoon(sk) {
@@ -1244,12 +1489,13 @@ window.WorldrootConfig = {
     const branches = C.WORLD_TREE_BRANCHES.map((branch) => {
       const cards = branch.nodes.map((node) => {
         const lv = E.upgradeLevel(state, node.id);
-        const bonus = E.upgradeBonusPercent(state, node.id).toFixed(0);
+        const bonus = E.upgradeBonusDisplay(state, node);
+        const bonusClass = bonus.isPercent ? 'upgrade-card-bonus' : 'upgrade-card-bonus flat';
         return `
           <button type="button" class="upgrade-card" data-action="open-upgrade" data-upgrade="${node.id}">
             <span class="upgrade-card-name">${node.name}</span>
             <span class="upgrade-card-level">Lv ${lv}</span>
-            <span class="upgrade-card-bonus">+${bonus}%</span>
+            <span class="${bonusClass}">${bonus.text}</span>
           </button>`;
       }).join('');
       return `<section class="branch-section"><div class="branch-header"><span class="branch-icon">${branch.icon}</span><h2>${branch.name}</h2></div><div class="upgrade-grid">${cards}</div></section>`;
@@ -1274,19 +1520,21 @@ window.WorldrootConfig = {
     const lv = E.upgradeLevel(state, node.id);
     const costs = E.upgradeCosts(node.id, lv);
     const canBuy = E.canAffordUpgrade(state, node.id);
-    const currentBonus = E.upgradeBonusPercent(state, node.id).toFixed(0);
-    const nextBonus = ((lv + 1) * C.UPGRADE_BONUS_PER_LEVEL * 100).toFixed(0);
+    const currentBonus = E.upgradeBonusDisplay(state, node);
+    const nextBonusText = node.bonusType === 'flat'
+      ? `+${(lv + 1) * C.UPGRADE_FLAT_PER_LEVEL}`
+      : `+${((lv + 1) * C.UPGRADE_BONUS_PER_LEVEL * 100).toFixed(0)}%`;
 
     const reqList = Object.entries(costs).map(([res, amt]) => {
-      const owned = state.storage[res] || 0;
-      return `<li class="${owned >= amt ? 'met' : 'unmet'}"><span>${resName(res)}</span><span>${fmt(owned)} / ${fmt(amt)}</span></li>`;
+      const owned = S.countInSlots(state.storageSlots, res);
+      return `<li class="${owned >= amt ? 'met' : 'unmet'}"><span>${resIcon(res)} ${resName(res)}</span><span>${fmt(owned)} / ${fmt(amt)}</span></li>`;
     }).join('');
 
     content.innerHTML = `
       <div class="upgrade-modal-head"><h2>${node.name}</h2><p>${branch.name} · ${node.desc}</p></div>
       <div class="upgrade-detail-row"><span class="upgrade-detail-label">Current Level</span><span class="upgrade-detail-value">${lv}</span></div>
-      <div class="upgrade-detail-row"><span class="upgrade-detail-label">Current Bonus</span><span class="upgrade-detail-value bonus">+${currentBonus}%</span></div>
-      <div class="upgrade-detail-row"><span class="upgrade-detail-label">Next Level Bonus</span><span class="upgrade-detail-value bonus">+${nextBonus}%</span></div>
+      <div class="upgrade-detail-row"><span class="upgrade-detail-label">Current Bonus</span><span class="upgrade-detail-value bonus">${currentBonus.text}</span></div>
+      <div class="upgrade-detail-row"><span class="upgrade-detail-label">Next Level Bonus</span><span class="upgrade-detail-value bonus">${nextBonusText}</span></div>
       <div class="upgrade-requirements"><h3>Requirement</h3><ul class="req-list">${reqList}</ul></div>
       <div class="upgrade-modal-actions">
         <button type="button" class="btn-sm primary ${canBuy ? '' : 'disabled'}" data-action="buy-upgrade" data-upgrade="${node.id}" ${canBuy ? '' : 'disabled'}>Upgrade</button>
@@ -1386,6 +1634,23 @@ window.WorldrootConfig = {
         addLog(`Upgraded ${found.node.name} to Lv ${E.upgradeLevel(state, btn.dataset.upgrade)}.`);
         render();
       }
+      return;
+    }
+
+    if (action === 'collect-produce') {
+      const result = E.collectProduce(state, Number(btn.dataset.slot), selectedIndex());
+      if (result.collected > 0) {
+        addLog(`Collected ${result.collected} items into inventory.`);
+        if (result.lost > 0) addLog(`${result.lost} items lost — inventory full.`);
+      }
+      render();
+      return;
+    }
+
+    if (action === 'collect-smelt') {
+      const n = E.collectSmelt(state, Number(btn.dataset.slot));
+      if (n > 0) addLog(`Collected ${n} bars into storage.`);
+      render();
       return;
     }
     if (action === 'reset-save') {

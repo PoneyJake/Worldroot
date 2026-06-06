@@ -21,8 +21,19 @@
     return { [node.costRes]: Math.max(1, Math.floor(node.baseCost * scale)) };
   }
 
+  function upgradeBonusDisplay(state, node) {
+    const lv = upgradeLevel(state, node.id);
+    if (node.bonusType === 'flat') {
+      return { text: `+${lv * C.UPGRADE_FLAT_PER_LEVEL}`, isPercent: false };
+    }
+    return { text: `+${(lv * C.UPGRADE_BONUS_PER_LEVEL * 100).toFixed(0)}%`, isPercent: true };
+  }
+
   function upgradeBonusPercent(state, nodeId) {
-    return upgradeLevel(state, nodeId) * C.UPGRADE_BONUS_PER_LEVEL * 100;
+    const node = findUpgradeNode(nodeId)?.node;
+    if (!node) return 0;
+    const d = upgradeBonusDisplay(state, node);
+    return d.isPercent ? parseFloat(d.text) : upgradeLevel(state, nodeId) * C.UPGRADE_FLAT_PER_LEVEL;
   }
 
   function effectBonus(state, effectType) {
@@ -30,7 +41,11 @@
     for (const branch of C.WORLD_TREE_BRANCHES) {
       for (const node of branch.nodes) {
         if (node.effect !== effectType) continue;
-        bonus += upgradeLevel(state, node.id) * C.UPGRADE_BONUS_PER_LEVEL;
+        if (node.bonusType === 'flat') {
+          bonus += upgradeLevel(state, node.id) * C.UPGRADE_FLAT_PER_LEVEL;
+        } else {
+          bonus += upgradeLevel(state, node.id) * C.UPGRADE_BONUS_PER_LEVEL;
+        }
       }
     }
     return bonus;
@@ -48,12 +63,26 @@
     return effectBonus(state, `${skillId}_multi`);
   }
 
-  function hasSpecialty(char, skillId) {
-    return C.CLASSES[char.classId]?.specialty === skillId;
+  function charStat(state, char, statName) {
+    const cls = C.CLASSES[char.classId];
+    const base = cls?.baseStats?.[statName] ?? 0;
+    return base + effectBonus(state, statName);
   }
 
-  function specialtyMult(char, skillId) {
-    return hasSpecialty(char, skillId) ? 1 + C.SPECIALTY_BONUS : 1;
+  function gatherStatMult(state, char, skillId) {
+    const sk = C.SKILLS[skillId];
+    const statName = sk?.gatherStat || C.CLASSES[char.classId]?.gatherStat || 'strength';
+    const stat = charStat(state, char, statName);
+    return 1 + stat * C.STAT_SCALE;
+  }
+
+  function combatDamageMult(state, char) {
+    const cls = C.CLASSES[char.classId];
+    const statName = cls?.combatStat || 'strength';
+    const stat = charStat(state, char, statName);
+    const baseDmg = effectBonus(state, 'base_damage');
+    const pctDmg = effectBonus(state, 'pct_damage');
+    return (1 + stat * C.STAT_SCALE) * (1 + pctDmg) + baseDmg * 0.01;
   }
 
   function findVein(skillId, targetId) {
@@ -68,25 +97,23 @@
 
   function canAffordUpgrade(state, nodeId) {
     const costs = upgradeCosts(nodeId, upgradeLevel(state, nodeId));
-    return Object.entries(costs).every(([res, amt]) => (state.storage[res] || 0) >= amt);
+    return Object.entries(costs).every(([res, amt]) => S.storageHas(state, res, amt));
   }
 
   function skillSpeed(state, skillId, char) {
     const skill = char.skills[skillId];
     const lv = skill?.level ?? 0;
     const yieldB = skillYieldBonus(state, skillId);
-    const spec = specialtyMult(char, skillId);
-    return Math.floor((1 + lv * 0.05 + yieldB) * spec * 100) / 100;
+    const statM = gatherStatMult(state, char, skillId);
+    return Math.floor((1 + lv * 0.05 + yieldB) * statM * 100) / 100;
   }
 
   function smeltSlotsUnlocked(state) {
-    const lv = state.smelting.skill.level;
-    return C.SMELT_SLOT_UNLOCKS.filter((req) => lv >= req).length;
+    return C.SMELT_SLOT_UNLOCKS.filter((req) => state.smelting.skill.level >= req).length;
   }
 
   function produceSlotsUnlocked(state) {
-    const lv = state.producing.skill.level;
-    return C.UNLOCK_LEVELS.filter((req) => lv >= req).length;
+    return C.UNLOCK_LEVELS.filter((req) => state.producing.skill.level >= req).length;
   }
 
   function tickSmelting(state) {
@@ -100,19 +127,21 @@
       if (!slot.ore) continue;
       const recipe = C.SMELT_RECIPES.find((r) => r.ore === slot.ore);
       if (!recipe) continue;
+
       const ticksNeeded = Math.max(3, Math.floor(C.SMELT_TICKS_PER_ORE / speedMult));
       slot.progress += 1;
       if (slot.progress < ticksNeeded) continue;
 
-      if ((state.storage[slot.ore] || 0) < 1) {
+      if (!S.storageHas(state, slot.ore, 1)) {
         slot.progress = 0;
         continue;
       }
 
-      state.storage[slot.ore] -= 1;
+      S.removeFromStorage(state, slot.ore, 1);
       let bars = 1;
       if (Math.random() < multiMult * 0.1) bars += 1;
-      state.storage[recipe.bar] = (state.storage[recipe.bar] || 0) + bars;
+      slot.ready = (slot.ready || 0) + bars;
+      slot.readyBar = recipe.bar;
       S.grantXp(state.smelting.skill, Math.floor(C.BASE_XP_PER_TICK * xpMult));
       slot.progress = 0;
     }
@@ -137,7 +166,7 @@
 
       let output = def.output;
       if (Math.random() < multiMult * 0.1) output += 1;
-      state.storage[def.id] = (state.storage[def.id] || 0) + output;
+      slot.ready = (slot.ready || 0) + output;
       S.grantXp(state.producing.skill, Math.floor(def.xp * xpMult));
       slot.progress = 0;
     }
@@ -154,14 +183,13 @@
     if (!skill) return null;
 
     const xpMult = 1 + skillXpBonus(state, skillId);
-    const spec = specialtyMult(char, skillId);
-    const xpGain = Math.floor(C.BASE_XP_PER_TICK * xpMult * spec);
+    const xpGain = Math.floor(C.BASE_XP_PER_TICK * xpMult);
     S.grantXp(skill, xpGain);
 
     const event = {
       charClass: char.classId, activity: char.activity, target: char.target,
       xpGain, skill: skillId, resource: null, resourceAmount: 0, gold: 0,
-      kill: false, monster: null, loot: null, lootAmount: 0,
+      kill: false, monster: null, loot: null, lootAmount: 0, lost: 0,
     };
 
     if (char.activity === 'combat') {
@@ -169,17 +197,20 @@
       if (skill.level < monster.level) return event;
 
       const goldMult = 1 + effectBonus(state, 'gold_gain');
+      const dropMult = 1 + effectBonus(state, 'drop_rate');
       event.kill = true;
       event.monster = monster.id;
 
       if (monster.drop) {
-        const dropAmt = Math.max(1, Math.floor(monster.drop.amount));
-        S.addToCharacter(char, state, monster.drop.id, dropAmt);
+        const dropAmt = Math.max(1, Math.floor(monster.drop.amount * dropMult));
+        const result = S.addToInventory(char, state, monster.drop.id, dropAmt, 'combat');
         event.loot = monster.drop.id;
-        event.lootAmount = dropAmt;
+        event.lootAmount = result.added;
+        event.lost = result.lost;
       }
 
-      const goldGain = Math.floor((monster.level + 1) * 0.5 * goldMult);
+      const dmgM = combatDamageMult(state, char);
+      const goldGain = Math.floor((monster.level + 1) * 0.5 * goldMult * dmgM);
       if (goldGain > 0) {
         state.gold += goldGain;
         event.gold = goldGain;
@@ -193,11 +224,14 @@
     const speed = skillSpeed(state, skillId, char);
     const multiMult = skillMultiBonus(state, skillId);
     let amount = Math.max(1, Math.floor(C.BASE_RESOURCE_PER_TICK * speed));
-    if (Math.random() < multiMult * 0.1) amount += Math.max(1, Math.floor(C.BASE_RESOURCE_PER_TICK * spec));
+    if (Math.random() < multiMult * 0.1) {
+      amount += Math.max(1, Math.floor(C.BASE_RESOURCE_PER_TICK * gatherStatMult(state, char, skillId)));
+    }
 
-    S.addToCharacter(char, state, vein.resource, amount);
+    const result = S.addToInventory(char, state, vein.resource, amount, skillId);
     event.resource = vein.resource;
-    event.resourceAmount = amount;
+    event.resourceAmount = result.added;
+    event.lost = result.lost;
     return event;
   }
 
@@ -222,9 +256,9 @@
     const costs = upgradeCosts(nodeId, current);
     if (!Object.keys(costs).length) return false;
     for (const [res, amt] of Object.entries(costs)) {
-      if ((state.storage[res] || 0) < amt) return false;
+      if (!S.storageHas(state, res, amt)) return false;
     }
-    for (const [res, amt] of Object.entries(costs)) state.storage[res] -= amt;
+    for (const [res, amt] of Object.entries(costs)) S.removeFromStorage(state, res, amt);
     state.upgrades[nodeId] = current + 1;
     S.saveState(state);
     return true;
@@ -250,6 +284,8 @@
     if (!slot) return false;
     slot.ore = oreId;
     slot.progress = 0;
+    slot.ready = 0;
+    slot.readyBar = null;
     S.saveState(state);
     return true;
   }
@@ -259,6 +295,7 @@
     if (!slot) return false;
     slot.item = itemId;
     slot.progress = 0;
+    slot.ready = 0;
     S.saveState(state);
     return true;
   }
@@ -268,6 +305,8 @@
     if (!slot) return;
     slot.ore = null;
     slot.progress = 0;
+    slot.ready = 0;
+    slot.readyBar = null;
     S.saveState(state);
   }
 
@@ -276,14 +315,44 @@
     if (!slot) return;
     slot.item = null;
     slot.progress = 0;
+    slot.ready = 0;
     S.saveState(state);
   }
 
+  function collectProduce(state, slotIndex, charIndex) {
+    const slot = state.producing.slots[slotIndex];
+    const char = state.characters[charIndex];
+    if (!slot?.ready || !char || !slot.item) return { collected: 0, lost: 0 };
+
+    const result = S.addToInventory(char, state, slot.item, slot.ready, 'producing');
+    const collected = result.added;
+    slot.ready -= collected;
+    if (slot.ready <= 0) slot.ready = 0;
+    S.saveState(state);
+    return { collected, lost: result.lost };
+  }
+
+  function collectSmelt(state, slotIndex) {
+    const slot = state.smelting.slots[slotIndex];
+    if (!slot?.ready || !slot.readyBar) return 0;
+    const result = S.addToStorage(state, slot.readyBar, slot.ready);
+    const collected = result.added;
+    slot.ready -= collected;
+    if (slot.ready <= 0) {
+      slot.ready = 0;
+      slot.readyBar = null;
+    }
+    S.saveState(state);
+    return collected;
+  }
+
   window.WorldrootEngine = {
-    upgradeLevel, upgradeCosts, upgradeBonusPercent, effectBonus,
+    upgradeLevel, upgradeCosts, upgradeBonusDisplay, upgradeBonusPercent, effectBonus,
     skillXpBonus, skillYieldBonus, skillMultiBonus, skillSpeed,
+    charStat, gatherStatMult, combatDamageMult,
     tick, buyUpgrade, canAffordUpgrade, findVein, findMonster,
     getRatePerHour, findUpgradeNode, smeltSlotsUnlocked, produceSlotsUnlocked,
     setSmeltSlot, setProduceSlot, clearSmeltSlot, clearProduceSlot,
+    collectProduce, collectSmelt,
   };
 })();
