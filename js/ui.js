@@ -60,13 +60,11 @@
   }
 
   function skillLevelForNav(skillId) {
-    if (skillId === 'producing') {
-      return state.characters.length
-        ? Math.max(...state.characters.map((c) => c.producing?.skill?.level ?? 0))
-        : 0;
-    }
     if (skillId === 'smelting') return state.smelting.skill.level;
-    return bestSkillLevel(skillId);
+    const char = selectedChar();
+    if (!char) return 0;
+    if (skillId === 'producing') return char.producing?.skill?.level ?? 0;
+    return charSkillLevel(char, skillId);
   }
 
   function pageCharBar() {
@@ -588,7 +586,7 @@
       const gatherPct = on ? Math.min(100, ((char.gatherCd || 0) / E.gatherIntervalTicks()) * 100) : 0;
       const tier = char ? E.gatherYieldTierInfo(state, char, sk.id, vein) : null;
       const tierChance = tier ? (tier.progressToNext >= 100 ? '100' : tier.progressToNext.toFixed(1)) : '0';
-      const catchRaw = char ? E.gatherSuccessChance(state, char, sk.id, vein) : 0;
+      const catchRaw = char ? E.gatherCatchDisplayPercent(state, char, sk.id, vein) : 0;
       const catchPct = catchRaw >= 100 ? catchRaw.toFixed(0) : catchRaw.toFixed(1);
 
       return `
@@ -601,16 +599,17 @@
             </div>
           </div>
           ${tier ? `
-          <div class="activity-stats vein-tier-stats">
-            <div class="activity-stat vein-yield-row">
-              <span class="activity-stat-label">${labels.chance}</span>
-              <span class="activity-stat-value">${catchPct}%</span>
-              <span class="vein-yield-sep">·</span>
-              <span class="activity-stat-label">+${tier.nextAmount} ${resLabel}</span>
-              <span class="activity-stat-value">${tierChance}%</span>
+          <div class="vein-yield-pair">
+            <div class="vein-stat-box">
+              <span class="vein-stat-label">${labels.chance}</span>
+              <span class="vein-stat-value">${catchPct}%</span>
             </div>
-            <div class="activity-stat"><span class="activity-stat-label">100% +${tier.nextAmount} at</span><span class="activity-stat-value">${fmt(tier.effFor100Next)} eff</span></div>
-          </div>` : ''}
+            <div class="vein-stat-box">
+              <span class="vein-stat-label">+${tier.nextAmount} ${resLabel}</span>
+              <span class="vein-stat-value">${tierChance}%</span>
+            </div>
+          </div>
+          <div class="activity-stat vein-eff-hint"><span class="activity-stat-label">100% +${tier.nextAmount} at</span><span class="activity-stat-value">${fmt(tier.effFor100Next)} eff</span></div>` : ''}
           ${on ? `<div class="progress-bar"><div class="progress-bar-fill" data-gather-progress data-gather-vein="${vein.id}" style="width:${gatherPct}%"></div></div>` : ''}
           ${locked ? `<p class="empty-msg">Requires ${sk.name} Lv ${vein.minLevel}</p>` : `<div class="activity-actions">${renderAssignBtn(sk.activity, vein.id, false)}</div>`}
           ${on ? '<p class="activity-assigned"><strong>Active on selected hero</strong></p>' : ''}
@@ -707,8 +706,8 @@
           </div>` : '';
 
       return `
-        <article class="activity-card smelt-drop-zone${selected}" data-action="select-smelt-slot" data-slot="${i}" data-smelt-slot="${i}">
-          <strong>Smelter Slot ${i + 1}</strong>
+        <article class="activity-card smelt-drop-zone${selected}" data-smelt-slot="${i}">
+          <strong class="smelt-slot-title" data-action="select-smelt-slot" data-slot="${i}">Smelter Slot ${i + 1}</strong>
           <div class="picker-row">${oreBtns}</div>
           <div class="smelt-slot-items">${oreSlot}${readySlot}</div>
           ${slot.ore ? `<p class="empty-msg">${fmt(slot.oreLoaded || 0)} / ${batchCap} ore · ${recipe?.orePerBar ?? '?'} ore/bar · ${recipe?.ticks ?? '?'}s</p>
@@ -920,6 +919,7 @@
   }
 
   function handleClick(e) {
+    if (e.target.closest('[data-collect-type]')) return;
     const btn = e.target.closest('[data-action]');
     if (!btn) return;
     const action = btn.dataset.action;
@@ -1091,7 +1091,7 @@
 
   function handleCollectDbl(el) {
     const type = el.dataset.collectType;
-    const slotIdx = Number(el.dataset.slot);
+    const slotIdx = el.dataset.slot != null ? Number(el.dataset.slot) : -1;
     if (type === 'produce') {
       const result = E.collectProduce(state, selectedIndex());
       if (result.collected > 0) {
@@ -1121,6 +1121,7 @@
     const collectEl = e.target.closest('[data-collect-type]');
     if (collectEl && e.type === 'dblclick') {
       e.preventDefault();
+      e.stopPropagation();
       handleCollectDbl(collectEl);
       return;
     }

@@ -196,11 +196,25 @@
     return { eff, successPct, nextAmount, progressToNext, effFor100Next, multiPct };
   }
 
+  function gatherMinCatchPercent() {
+    return C.VEIN_EFF_CURVE[0]?.[1] ?? 10;
+  }
+
+  function gatherCatchDisplayPercent(state, char, skillId, vein) {
+    const eff = gatherEfficiency(state, char, skillId);
+    const successPct = gatherSuccessPercent(eff, vein);
+    const minCatch = gatherMinCatchPercent();
+    if (successPct < minCatch) return 0;
+    if (successPct >= 100) return 100;
+    return successPct;
+  }
+
   function gatherSuccessPercent(eff, vein) {
     const bps = veinEffBreakpoints(vein);
     if (eff <= 0) return 0;
+    if (eff < bps[0].eff) return 0;
     if (eff <= bps[0].eff) {
-      return (eff / bps[0].eff) * bps[0].pct;
+      return bps[0].pct;
     }
     for (let i = 0; i < bps.length - 1; i++) {
       const a = bps[i];
@@ -214,7 +228,7 @@
   }
 
   function rollAmountFromSuccessPct(successPct) {
-    if (successPct <= 0) return 0;
+    if (successPct < gatherMinCatchPercent()) return 0;
     const full = Math.floor(successPct / 100);
     const rem = (successPct % 100) / 100;
     return full + (Math.random() < rem ? 1 : 0);
@@ -665,7 +679,7 @@
     upgradeCosts, upgradeBonusDisplay, upgradeBonusPercent, effectBonus,
     skillXpBonus, skillYieldBonus, skillMultiBonus,
     gatherEfficiency, gatherStatBonus, gatherSuccessChance, gatherSuccessPercent, gatherMultiChance,
-    gatherYieldTierInfo, effForSuccessPercent,
+    gatherYieldTierInfo, gatherCatchDisplayPercent, effForSuccessPercent,
     veinEffThreshold, veinEffBreakpoints,
     gatherRatePerMin, gatherIntervalTicks, charMaxHp, charMaxMp, charDamage, mobMaxHp, dropChance, dropBonus,
     getTheoreticalCombatRates, smeltBatchCapacity, produceBatchCapacity,

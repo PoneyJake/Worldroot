@@ -1066,15 +1066,47 @@ body {
   transition: width 0.08s linear;
 }
 
-.vein-yield-row {
+.vein-yield-pair {
   display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
 }
 
-.vein-yield-sep {
-  color: #5a6a58;
+.vein-stat-box {
+  flex: 1;
+  min-width: 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid #2a382a;
+  background: rgba(0, 0, 0, 0.2);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.vein-stat-label {
+  font-size: 0.68rem;
+  color: #7a9a76;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.vein-stat-value {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #d8ead4;
+}
+
+.vein-eff-hint {
+  margin-top: 6px;
+}
+
+.smelt-slot-title {
+  cursor: pointer;
+}
+
+.smelt-slot-title:hover {
+  color: #9acc94;
 }
 
 .smelt-slot-items {
