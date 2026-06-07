@@ -883,23 +883,32 @@ body {
   width: 76px;
   height: 76px;
   min-height: 76px;
-  padding: 4px 3px;
+  padding: 2px;
+  justify-content: center;
 }
 
 .item-slot-grid.grid-inv-4 .item-slot-icon,
 .item-slot-grid.grid-storage-6 .item-slot-icon {
-  min-height: 2.25rem;
+  min-height: 0;
+  margin-bottom: 0;
+  flex: 1;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .item-slot-grid.grid-inv-4 .item-slot-icon .game-icon,
 .item-slot-grid.grid-storage-6 .item-slot-icon .game-icon {
-  width: 2.25rem;
-  height: 2.25rem;
+  width: 3.5rem;
+  height: 3.5rem;
 }
 
-.item-slot-grid.grid-inv-4 .item-slot-name,
-.item-slot-grid.grid-storage-6 .item-slot-name {
-  font-size: 0.55rem;
+.item-slot-grid .item-slot-qty {
+  top: 3px;
+  right: 4px;
+  z-index: 2;
+  pointer-events: none;
 }
 
 .smelt-ore-pick {
@@ -977,7 +986,9 @@ body {
   font-size: 0.78rem;
   font-weight: 800;
   color: #c8e6c3;
-  text-shadow: 0 1px 2px rgba(0,0,0,0.8);
+  text-shadow: 0 1px 3px rgba(0,0,0,0.95), 0 0 6px rgba(0,0,0,0.6);
+  z-index: 2;
+  pointer-events: none;
 }
 
 .item-slot-icon {
@@ -1017,7 +1028,7 @@ body {
   border-radius: 10px;
   border: 2px solid #3a5a38;
   background: #161e16;
-  padding: 10px 6px;
+  padding: 2px;
 }
 
 .produce-ready-slot.transferable {
@@ -1027,6 +1038,16 @@ body {
 .produce-ready-slot.transferable:hover {
   border-color: #5a9a52;
   background: #1a281a;
+}
+
+.produce-ready-slot .item-slot-icon {
+  min-height: 0;
+  margin-bottom: 0;
+  flex: 1;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .produce-ready-slot .item-slot-icon .game-icon,
@@ -1302,45 +1323,34 @@ body {
 }
 
 .storage-dual {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
+  display: flex;
+  flex-wrap: wrap;
   gap: 24px;
+  align-items: flex-start;
 }
 
-.storage-panel {
+.storage-panel,
+.inventory-panel {
   padding: 14px;
   border-radius: 12px;
   border: 2px solid #3a5a38;
   background: #0c120c;
 }
 
-.inventory-panel {
-  padding: 14px;
-  border-radius: 12px;
-  border: 2px solid #3a4a5a;
-  background: #0c1014;
+.slot-panel-fit {
+  width: fit-content;
+  max-width: 100%;
 }
 
-.storage-panel .storage-half-title {
-  color: #8ab086;
-}
-
+.storage-panel .storage-half-title,
 .inventory-panel .storage-half-title {
-  color: #8aa0b8;
+  color: #8ab086;
 }
 
 .storage-half-title {
   margin: 0 0 10px;
   font-size: 0.82rem;
-  color: #9aaa96;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.storage-half-title span {
-  font-size: 0.72rem;
-  color: #6a7a66;
+  color: #8ab086;
 }
 
 .picker-row {

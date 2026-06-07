@@ -116,9 +116,8 @@
           : '';
         html += `
           <div class="item-slot filled${transferType ? ' transferable' : ''}" title="${resName(slot.resourceId)}${transferType ? ' — double-click: move 1 · shift+click: move all' : ''}"${transferAttr}>
-            <span class="item-slot-qty">${fmt(slot.amount)}</span>
             <span class="item-slot-icon">${resIcon(slot.resourceId, 'game-icon')}</span>
-            <span class="item-slot-name">${resName(slot.resourceId)}</span>
+            <span class="item-slot-qty">${fmt(slot.amount)}</span>
           </div>`;
       }
     }
@@ -442,26 +441,25 @@
     const char = selectedChar();
     if (!char) return '<p class="empty-msg">Select a character from the Characters page.</p>';
     const slotCount = S.inventorySlotCount(char);
-    const filled = char.inventorySlots.filter(Boolean).length;
     return `
       <header class="page-header">
         <span class="page-header-icon">🎒</span>
         <div class="page-header-text">
           <h1>Inventory</h1>
-          <p>${filled} / ${slotCount} slots · ${C.BASE_STACK_SIZE} per stack · overflow is lost</p>
+          <p>${C.BASE_STACK_SIZE} per stack · overflow is lost</p>
         </div>
       </header>
       ${pageCharBar()}
-      <p class="hint-bar">${charLabel(char)} — double-click to move 1 to storage · shift+click to move all</p>
-      ${renderSlotGrid(char.inventorySlots, slotCount, { transferType: 'inv', gridClass: 'grid-inv-4' })}`;
+      <section class="storage-panel slot-panel-fit">
+        <h3 class="storage-half-title">${charLabel(char)}'s Inventory</h3>
+        ${renderSlotGrid(char.inventorySlots, slotCount, { transferType: 'inv', gridClass: 'grid-inv-4' })}
+      </section>`;
   }
 
   function renderStoragePanel() {
     const char = selectedChar();
     if (!char) return '<p class="empty-msg">Create a character first.</p>';
     const invCount = S.inventorySlotCount(char);
-    const invFilled = char.inventorySlots.filter(Boolean).length;
-    const storFilled = state.storageSlots.filter(Boolean).length;
 
     return `
       <header class="page-header">
@@ -476,12 +474,12 @@
         <button type="button" class="btn-sm primary" data-action="deposit-all">Deposit all to storage</button>
       </div>
       <div class="storage-dual">
-        <section class="storage-half storage-panel">
-          <h3 class="storage-half-title">Storage <span>${storFilled}/${state.storageSlots.length} · ∞ per resource</span></h3>
+        <section class="storage-half storage-panel slot-panel-fit">
+          <h3 class="storage-half-title">Storage</h3>
           ${renderSlotGrid(state.storageSlots, state.storageSlots.length, { transferType: 'storage', gridClass: 'grid-storage-6' })}
         </section>
-        <section class="storage-half inventory-panel">
-          <h3 class="storage-half-title">${charLabel(char)}'s Inventory <span>${invFilled}/${invCount}</span></h3>
+        <section class="storage-half storage-panel slot-panel-fit">
+          <h3 class="storage-half-title">${charLabel(char)}'s Inventory</h3>
           ${renderSlotGrid(char.inventorySlots, invCount, { transferType: 'inv', gridClass: 'grid-inv-4' })}
         </section>
       </div>`;
@@ -665,9 +663,8 @@
         <div class="item-slot filled${canLoad ? ' smelt-ore-pick' : ''}"
           ${canLoad ? `data-action="load-smelt-ore" data-inv="${i}"` : ''}
           title="${resName(slot.resourceId)}${canLoad ? ' — click to load into smelter' : ''}">
-          <span class="item-slot-qty">${fmt(slot.amount)}</span>
           <span class="item-slot-icon">${resIcon(slot.resourceId, 'game-icon')}</span>
-          <span class="item-slot-name">${resName(slot.resourceId)}</span>
+          <span class="item-slot-qty">${fmt(slot.amount)}</span>
         </div>`;
     }
     return `<div class="item-slot-grid grid-inv-4">${html}</div>`;
@@ -688,10 +685,9 @@
       const readySlot = slot.ready > 0
         ? `<div class="smelt-item-wrap">
             <div class="smelt-slot-pair-label">Click to collect</div>
-            <div class="produce-ready-slot transferable" data-collect-type="smelt" data-slot="${i}" title="Click to collect bars into inventory">
-              <span class="item-slot-qty">${fmt(slot.ready)}</span>
+            <div class="produce-ready-slot transferable" data-collect-type="smelt" data-slot="${i}" title="Click to collect ${resName(slot.readyBar)} into inventory">
               <span class="item-slot-icon">${resIcon(slot.readyBar)}</span>
-              <span class="item-slot-name">${resName(slot.readyBar)}</span>
+              <span class="item-slot-qty">${fmt(slot.ready)}</span>
             </div>
           </div>` : '';
 
@@ -706,11 +702,11 @@
     }).join('');
 
     const invSection = char
-      ? `<section class="skill-split-side inventory-panel">
-          <h3 class="storage-half-title">${charLabel(char)}'s Inventory <span>Slot ${selectedSmeltSlot + 1}</span></h3>
+      ? `<section class="skill-split-side storage-panel slot-panel-fit">
+          <h3 class="storage-half-title">${charLabel(char)}'s Inventory</h3>
           ${renderInventoryForSmelt(char)}
         </section>`
-      : '<section class="skill-split-side inventory-panel"><p class="empty-msg">Select a character to load ore.</p></section>';
+      : '<section class="skill-split-side storage-panel slot-panel-fit"><p class="empty-msg">Select a character to load ore.</p></section>';
 
     return `
       <header class="page-header">
@@ -771,10 +767,9 @@
 
     const activeDef = prod.activeSlot != null ? C.PRODUCE_SLOTS[prod.activeSlot] : null;
     const readySlot = prod.ready > 0 && prod.readyItem
-      ? `<div class="produce-ready-slot transferable" data-collect-type="produce" title="Click to collect all into inventory">
-          <span class="item-slot-qty">${fmt(prod.ready)} / ${cap}</span>
+      ? `<div class="produce-ready-slot transferable" data-collect-type="produce" title="Click to collect ${activeDef?.name ?? resName(prod.readyItem)} into inventory">
           <span class="item-slot-icon">${resIcon(prod.readyItem)}</span>
-          <span class="item-slot-name">${activeDef?.name ?? resName(prod.readyItem)}</span>
+          <span class="item-slot-qty">${fmt(prod.ready)} / ${cap}</span>
         </div>` : '';
 
     return `
@@ -789,7 +784,7 @@
           <div class="activity-grid produce-slots-grid">${slotCards}</div>
           ${readySlot ? `<div class="produce-ready-wrap"><h3 class="storage-half-title">Ready to collect</h3>${readySlot}</div>` : ''}
         </section>
-        <section class="skill-split-side inventory-panel">
+        <section class="skill-split-side storage-panel slot-panel-fit">
           <h3 class="storage-half-title">${charLabel(char)}'s Inventory</h3>
           ${renderSlotGrid(char.inventorySlots, S.inventorySlotCount(char), { transferType: 'inv', gridClass: 'grid-inv-4' })}
         </section>
