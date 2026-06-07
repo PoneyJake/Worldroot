@@ -451,6 +451,23 @@
     return addToSlots(state.storageSlots, resourceId, amount, maxStack, state.storageSlots.length);
   }
 
+  function depositAllToStorage(state, char) {
+    if (!char) return 0;
+    let moved = 0;
+    for (let i = 0; i < char.inventorySlots.length; i++) {
+      const slot = char.inventorySlots[i];
+      if (!slot?.amount) continue;
+      const result = addToStorage(state, slot.resourceId, slot.amount);
+      if (result.added > 0) {
+        slot.amount -= result.added;
+        moved += result.added;
+        if (slot.amount <= 0) char.inventorySlots[i] = null;
+      }
+    }
+    if (moved > 0) saveState(state);
+    return moved;
+  }
+
   function transferInvToStorage(state, char, slotIdx, amount = null) {
     const slot = char.inventorySlots[slotIdx];
     if (!slot || slot.amount <= 0) return false;
@@ -692,7 +709,7 @@
     charInventoryResourceHas, maxCharInventoryResource, anyCharInventoryResourceHas,
     findCharForResource, removeFromCharInventory,
     addToSlots, removeFromSlots, carryEffectForSkill, stackCapacityForResource,
-    transferInvToStorage, transferStorageToInv,
+    depositAllToStorage, transferInvToStorage, transferStorageToInv,
     countInInventory, removeFromInventorySlot, loadOreToSmelt,
     stopAllSmelting, stopAllProducing, stopCharacterProducing,
   };

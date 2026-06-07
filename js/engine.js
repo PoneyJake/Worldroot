@@ -357,6 +357,33 @@
     return C.SMELT_SLOT_UNLOCKS.filter((req) => state.smelting.skill.level >= req).length;
   }
 
+  function findFirstSmeltSlotForOre(state, oreId) {
+    const slotsOpen = smeltSlotsUnlocked(state);
+    const cap = smeltBatchCapacity(state);
+    for (let i = 0; i < slotsOpen; i++) {
+      const slot = state.smelting.slots[i];
+      const loaded = slot.oreLoaded || 0;
+      if (loaded >= cap) continue;
+      if (loaded > 0 && slot.ore !== oreId) continue;
+      return i;
+    }
+    return -1;
+  }
+
+  function loadOreStackFromInv(state, char, invSlotIdx) {
+    let total = 0;
+    for (;;) {
+      const invSlot = char.inventorySlots[invSlotIdx];
+      if (!invSlot?.amount) break;
+      const smeltIdx = findFirstSmeltSlotForOre(state, invSlot.resourceId);
+      if (smeltIdx < 0) break;
+      const n = S.loadOreToSmelt(state, char, invSlotIdx, smeltIdx, smeltBatchCapacity(state));
+      if (n <= 0) break;
+      total += n;
+    }
+    return total;
+  }
+
   function produceSlotsUnlocked(char) {
     const lv = char?.producing?.skill?.level ?? 0;
     return C.UNLOCK_LEVELS.filter((req) => lv >= req).length;
@@ -692,7 +719,8 @@
     getTheoreticalCombatRates, smeltBatchCapacity, produceBatchCapacity,
     charStat, gatherStatMult, combatDamageMult,
     tick, buyUpgrade, canAffordUpgrade, findVein, findMonster,
-    getRatePerHour, findUpgradeNode, smeltSlotsUnlocked, produceSlotsUnlocked,
+    getRatePerHour, findUpgradeNode, smeltSlotsUnlocked, findFirstSmeltSlotForOre,
+    loadOreStackFromInv, produceSlotsUnlocked,
     setSmeltSlot, setProduceSlot, clearSmeltSlot, clearProduceSlot,
     collectProduce, collectSmelt, unloadSmeltOre,
   };

@@ -453,7 +453,7 @@
       </header>
       ${pageCharBar()}
       <p class="hint-bar">${charLabel(char)} — double-click to move 1 to storage · shift+click to move all</p>
-      ${renderSlotGrid(char.inventorySlots, slotCount, { transferType: 'inv', gridClass: 'grid-slots' })}`;
+      ${renderSlotGrid(char.inventorySlots, slotCount, { transferType: 'inv', gridClass: 'grid-inv-4' })}`;
   }
 
   function renderStoragePanel() {
@@ -472,14 +472,17 @@
         </div>
       </header>
       ${pageCharBar()}
+      <div class="storage-actions">
+        <button type="button" class="btn-sm primary" data-action="deposit-all">Deposit all to storage</button>
+      </div>
       <div class="storage-dual">
         <section class="storage-half storage-panel">
           <h3 class="storage-half-title">Storage <span>${storFilled}/${state.storageSlots.length} · ∞ per resource</span></h3>
-          ${renderSlotGrid(state.storageSlots, state.storageSlots.length, { transferType: 'storage', gridClass: 'grid-slots' })}
+          ${renderSlotGrid(state.storageSlots, state.storageSlots.length, { transferType: 'storage', gridClass: 'grid-storage-6' })}
         </section>
         <section class="storage-half inventory-panel">
           <h3 class="storage-half-title">${charLabel(char)}'s Inventory <span>${invFilled}/${invCount}</span></h3>
-          ${renderSlotGrid(char.inventorySlots, invCount, { transferType: 'inv', gridClass: 'grid-slots' })}
+          ${renderSlotGrid(char.inventorySlots, invCount, { transferType: 'inv', gridClass: 'grid-inv-4' })}
         </section>
       </div>`;
   }
@@ -649,8 +652,6 @@
   function renderInventoryForSmelt(char) {
     if (!char) return '';
     const slotCount = S.inventorySlotCount(char);
-    const cap = E.smeltBatchCapacity(state);
-    const smeltSlot = state.smelting.slots[selectedSmeltSlot];
     let html = '';
     for (let i = 0; i < slotCount; i++) {
       const slot = char.inventorySlots[i];
@@ -659,19 +660,17 @@
         continue;
       }
       const isOre = C.SMELT_RECIPES.some((r) => r.ore === slot.resourceId);
-      const oreBusy = (smeltSlot?.oreLoaded || 0) > 0 && smeltSlot?.ore && slot.resourceId !== smeltSlot.ore;
-      const canLoad = isOre && !oreBusy && (smeltSlot?.oreLoaded || 0) < cap;
-      const dragAttr = canLoad ? 'true' : 'false';
+      const canLoad = isOre && E.findFirstSmeltSlotForOre(state, slot.resourceId) >= 0;
       html += `
-        <div class="item-slot filled smelt-drag-source${canLoad ? ' can-drag' : ''}" draggable="${dragAttr}"
-          data-drag-type="smelt-ore" data-inv="${i}" data-resource="${slot.resourceId}"
-          title="${resName(slot.resourceId)}${canLoad ? ' — drag to smelter' : ''}">
+        <div class="item-slot filled${canLoad ? ' smelt-ore-pick' : ''}"
+          ${canLoad ? `data-action="load-smelt-ore" data-inv="${i}"` : ''}
+          title="${resName(slot.resourceId)}${canLoad ? ' — click to load into smelter' : ''}">
           <span class="item-slot-qty">${fmt(slot.amount)}</span>
           <span class="item-slot-icon">${resIcon(slot.resourceId, 'game-icon')}</span>
           <span class="item-slot-name">${resName(slot.resourceId)}</span>
         </div>`;
     }
-    return `<div class="item-slot-grid grid-slots">${html}</div>`;
+    return `<div class="item-slot-grid grid-inv-4">${html}</div>`;
   }
 
   function renderSmeltingPage(sk) {
@@ -688,8 +687,8 @@
 
       const readySlot = slot.ready > 0
         ? `<div class="smelt-item-wrap">
-            <div class="smelt-slot-pair-label">Double-click to collect</div>
-            <div class="produce-ready-slot transferable" data-collect-type="smelt" data-slot="${i}" title="Double-click to collect bars into inventory">
+            <div class="smelt-slot-pair-label">Click to collect</div>
+            <div class="produce-ready-slot transferable" data-collect-type="smelt" data-slot="${i}" title="Click to collect bars into inventory">
               <span class="item-slot-qty">${fmt(slot.ready)}</span>
               <span class="item-slot-icon">${resIcon(slot.readyBar)}</span>
               <span class="item-slot-name">${resName(slot.readyBar)}</span>
@@ -702,7 +701,7 @@
           <div class="smelt-slot-items">${readySlot}</div>
           ${slot.ore ? `<p class="empty-msg">${resIcon(slot.ore, 'game-icon')} ${fmt(slot.oreLoaded || 0)} / ${batchCap} · ${recipe?.orePerBar ?? '?'} ore/bar · ${recipe?.ticks ?? '?'}s</p>
             <div class="progress-bar"><div class="progress-bar-fill" style="width:${pct}%"></div></div>
-            <p class="empty-msg">Smelting ${resName(slot.ore)}…</p>` : '<p class="empty-msg">Drag ore from inventory</p>'}
+            <p class="empty-msg">Smelting ${resName(slot.ore)}…</p>` : '<p class="empty-msg">Click ore in inventory to load</p>'}
         </article>`;
     }).join('');
 
@@ -716,7 +715,7 @@
     return `
       <header class="page-header">
         <span class="page-header-icon">${sk.icon}</span>
-        <div class="page-header-text"><h1>${sk.name}</h1><p>Load ore from inventory — max ${batchCap} per slot · double-click bars to collect</p></div>
+        <div class="page-header-text"><h1>${sk.name}</h1><p>Click ore to load smelters — max ${batchCap} per slot · click bars to collect</p></div>
         <div class="page-header-stat"><span class="page-header-stat-label">Smelting Lv</span><span class="page-header-stat-value">${lv}</span></div>
       </header>
       ${pageCharBar()}
@@ -772,7 +771,7 @@
 
     const activeDef = prod.activeSlot != null ? C.PRODUCE_SLOTS[prod.activeSlot] : null;
     const readySlot = prod.ready > 0 && prod.readyItem
-      ? `<div class="produce-ready-slot transferable" data-collect-type="produce" title="Double-click to collect all into inventory">
+      ? `<div class="produce-ready-slot transferable" data-collect-type="produce" title="Click to collect all into inventory">
           <span class="item-slot-qty">${fmt(prod.ready)} / ${cap}</span>
           <span class="item-slot-icon">${resIcon(prod.readyItem)}</span>
           <span class="item-slot-name">${activeDef?.name ?? resName(prod.readyItem)}</span>
@@ -792,7 +791,7 @@
         </section>
         <section class="skill-split-side inventory-panel">
           <h3 class="storage-half-title">${charLabel(char)}'s Inventory</h3>
-          ${renderSlotGrid(char.inventorySlots, S.inventorySlotCount(char), { transferType: 'inv', gridClass: 'grid-slots' })}
+          ${renderSlotGrid(char.inventorySlots, S.inventorySlotCount(char), { transferType: 'inv', gridClass: 'grid-inv-4' })}
         </section>
       </div>`;
   }
@@ -934,6 +933,22 @@
     }
     if (action === 'select-smelt-slot') {
       selectedSmeltSlot = Number(btn.dataset.slot);
+      render();
+      return;
+    }
+    if (action === 'deposit-all') {
+      const char = selectedChar();
+      const n = char ? S.depositAllToStorage(state, char) : 0;
+      if (n > 0) addLog(`Deposited ${n} items to storage.`);
+      else addLog('Nothing to deposit.');
+      render();
+      return;
+    }
+    if (action === 'load-smelt-ore') {
+      const char = selectedChar();
+      const n = char ? E.loadOreStackFromInv(state, char, Number(btn.dataset.inv)) : 0;
+      if (n > 0) addLog(`Loaded ${n} ore into smelter.`);
+      else addLog('No smelter space available for that ore.');
       render();
       return;
     }
@@ -1085,7 +1100,7 @@
     }
   }
 
-  function handleCollectDbl(el) {
+  function handleCollect(el) {
     const type = el.dataset.collectType;
     const slotIdx = el.dataset.slot != null ? Number(el.dataset.slot) : -1;
     if (type === 'produce') {
@@ -1115,10 +1130,10 @@
 
   function handlePointerSlot(e) {
     const collectEl = e.target.closest('[data-collect-type]');
-    if (collectEl && e.type === 'dblclick') {
+    if (collectEl && e.type === 'click' && !e.shiftKey) {
       e.preventDefault();
       e.stopPropagation();
-      handleCollectDbl(collectEl);
+      handleCollect(collectEl);
       return;
     }
 
