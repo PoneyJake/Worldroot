@@ -154,7 +154,7 @@
   }
 
   function veinTier(vein) {
-    return Math.floor((vein?.minLevel ?? 0) / 5);
+    return Math.floor((vein?.minLevel ?? 0) / 10);
   }
 
   function veinEffBreakpoints(vein) {
@@ -241,16 +241,24 @@
     return full + (Math.random() < rem ? 1 : 0);
   }
 
+  function baseMultiKillBonus(state) {
+    return effectBonus(state, 'multikill_rate');
+  }
+
+  function allSkillEffBonus(state) {
+    return effectBonus(state, 'all_skill_eff');
+  }
+
   function gatherEfficiency(state, char, skillId) {
     const lv = char.skills[skillId]?.level ?? 0;
     const yieldB = skillYieldBonus(state, skillId);
     const statB = gatherStatBonus(state, char, skillId);
-    return C.BASE_GATHER_EFFICIENCY + Math.floor(lv * C.LEVEL_EFF_BONUS + yieldB) + statB;
+    return C.BASE_GATHER_EFFICIENCY + Math.floor(lv * C.LEVEL_EFF_BONUS + yieldB) + statB + allSkillEffBonus(state);
   }
 
   function gatherMultiChance(state, char, skillId) {
     const lv = char.skills[skillId]?.level ?? 0;
-    return lv * C.LEVEL_MULTI_BONUS + skillMultiBonus(state, skillId);
+    return lv * C.LEVEL_MULTI_BONUS + skillMultiBonus(state, skillId) + baseMultiKillBonus(state);
   }
 
   function gatherSuccessChance(state, char, skillId, vein) {
@@ -393,7 +401,7 @@
     const slotsOpen = smeltSlotsUnlocked(state);
     const speedMult = 1 + effectBonus(state, 'smelt_speed');
     const xpMult = 1 + effectBonus(state, 'smelt_xp');
-    const multiMult = effectBonus(state, 'smelt_multi');
+    const multiMult = effectBonus(state, 'smelt_multi') + baseMultiKillBonus(state);
 
     for (let i = 0; i < slotsOpen; i++) {
       const slot = state.smelting.slots[i];
@@ -419,7 +427,7 @@
   function tickProducing(state) {
     const speedMult = 1 + effectBonus(state, 'produce_speed');
     const xpMult = 1 + effectBonus(state, 'produce_xp');
-    const multiMult = effectBonus(state, 'produce_multi');
+    const multiMult = effectBonus(state, 'produce_multi') + baseMultiKillBonus(state);
     const cap = produceBatchCapacity(state);
 
     for (const char of state.characters) {
@@ -439,20 +447,22 @@
       const made = Math.min(output, space);
       prod.ready = (prod.ready || 0) + made;
       prod.readyItem = def.id;
-      recordProduceProgress(state, def.id, made);
+      recordProduceProgress(state, char, def.id, made);
       S.grantXp(prod.skill, Math.floor(def.xp * xpMult));
       prod.progress = 0;
     }
   }
 
-  function recordProduceProgress(state, resourceId, amount) {
-    if (!amount || !state.questProgress) return;
-    state.questProgress.produced[resourceId] = (state.questProgress.produced[resourceId] || 0) + amount;
+  function recordProduceProgress(state, char, resourceId, amount) {
+    if (!amount || !char) return;
+    if (!char.questProgress) char.questProgress = S.defaultQuestProgress();
+    char.questProgress.produced[resourceId] = (char.questProgress.produced[resourceId] || 0) + amount;
   }
 
-  function recordQuestFromEvent(state, event) {
-    if (!state.questProgress) state.questProgress = S.defaultQuestProgress();
-    const qp = state.questProgress;
+  function recordQuestFromEvent(state, char, event) {
+    if (!char) return;
+    if (!char.questProgress) char.questProgress = S.defaultQuestProgress();
+    const qp = char.questProgress;
     if (event.kill && event.monster) {
       qp.kills[event.monster] = (qp.kills[event.monster] || 0) + 1;
     }
@@ -461,20 +471,20 @@
     }
   }
 
-  function questTrackProgress(state, track) {
-    const qp = state.questProgress || {};
+  function questTrackProgress(char, track) {
+    const qp = char?.questProgress || {};
     if (track.type === 'kill') return qp.kills?.[track.monster] || 0;
     if (track.type === 'gather') return qp.gathered?.[track.resource] || 0;
     if (track.type === 'produce') return qp.produced?.[track.resource] || 0;
     return 0;
   }
 
-  function questIsComplete(state, quest) {
-    return questTrackProgress(state, quest.track) >= quest.track.count;
+  function questIsComplete(char, quest) {
+    return questTrackProgress(char, quest.track) >= quest.track.count;
   }
 
-  function questIsClaimed(state, questId) {
-    return !!state.questClaims?.[questId];
+  function questIsClaimed(char, questId) {
+    return !!char?.questClaims?.[questId];
   }
 
   function findQuest(questId) {
@@ -487,9 +497,8 @@
 
   function claimQuest(state, questId, charIndex) {
     const found = findQuest(questId);
-    if (!found || questIsClaimed(state, questId) || !questIsComplete(state, found.quest)) return false;
     const char = state.characters[charIndex];
-    if (!char) return false;
+    if (!found || !char || questIsClaimed(char, questId) || !questIsComplete(char, found.quest)) return false;
     for (const reward of found.quest.rewards) {
       if (reward.type === 'gold') state.gold += reward.amount;
       else if (reward.type === 'item') {
@@ -497,8 +506,8 @@
         if (result.lost > 0) return false;
       }
     }
-    if (!state.questClaims) state.questClaims = {};
-    state.questClaims[questId] = true;
+    if (!char.questClaims) char.questClaims = {};
+    char.questClaims[questId] = true;
     S.saveState(state);
     return true;
   }
@@ -738,7 +747,7 @@
     for (const char of state.characters) {
       const ev = tickCharacter(state, char);
       if (ev) {
-        recordQuestFromEvent(state, ev);
+        recordQuestFromEvent(state, char, ev);
         S.recordRateEvent(state, ev);
         events.push(ev);
       }

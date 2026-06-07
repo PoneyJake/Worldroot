@@ -921,7 +921,66 @@ body {
 }
 
 .storage-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
   margin-bottom: 12px;
+  align-items: center;
+}
+
+.skill-xp-panel {
+  margin: 0 0 12px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1px solid #2a382a;
+  background: #121812;
+}
+
+.skill-xp-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.skill-xp-label {
+  font-size: 0.78rem;
+  color: #8ab886;
+  font-weight: 600;
+}
+
+.skill-xp-level {
+  font-size: 0.78rem;
+  color: #9aaa96;
+}
+
+.skill-xp-bar {
+  height: 8px;
+}
+
+.skill-xp-text {
+  display: block;
+  margin-top: 4px;
+  font-size: 0.72rem;
+  color: #6a7a66;
+}
+
+.item-slot.slot-selected {
+  outline: 2px solid #5a9a52;
+  box-shadow: 0 0 0 2px rgba(90, 154, 82, 0.25);
+}
+
+.equip-slot-symbol {
+  font-size: 1.75rem;
+  opacity: 0.45;
+  line-height: 1;
+}
+
+.equipment-split .skill-split-main {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: flex-start;
 }
 
 .item-slot.can-drag {

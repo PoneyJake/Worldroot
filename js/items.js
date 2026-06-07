@@ -13,20 +13,20 @@
     POUCH_CAPACITIES: [25, 50, 100, 250, 500, 1000],
 
     EQUIPMENT_SLOTS: [
-      { id: 'helmet', label: 'Helmet', placeholder: 'copper_helmet' },
-      { id: 'chest', label: 'Chest', placeholder: 'copper_chest' },
-      { id: 'legs', label: 'Legs', placeholder: 'copper_legs' },
-      { id: 'boots', label: 'Boots', placeholder: 'copper_boots' },
-      { id: 'weapon', label: 'Weapon', placeholder: 'copper_sword' },
-      { id: 'amulet', label: 'Amulet', placeholder: 'amulet_of_mining' },
-      { id: 'ring1', label: 'Ring', placeholder: 'ring_of_strength' },
-      { id: 'ring2', label: 'Ring', placeholder: 'ring_of_strength' },
+      { id: 'helmet', label: 'Helmet', symbol: '🪖' },
+      { id: 'chest', label: 'Chest', symbol: '🛡' },
+      { id: 'legs', label: 'Legs', symbol: '👖' },
+      { id: 'boots', label: 'Boots', symbol: '👢' },
+      { id: 'weapon', label: 'Weapon', symbol: '⚔' },
+      { id: 'amulet', label: 'Amulet', symbol: '📿' },
+      { id: 'ring1', label: 'Ring', symbol: '💍' },
+      { id: 'ring2', label: 'Ring', symbol: '💍' },
     ],
 
     TOOL_SLOTS: [
-      { id: 'pickaxe', label: 'Pickaxe', placeholder: 'copper_pickaxe' },
-      { id: 'axe', label: 'Axe', placeholder: 'copper_axe' },
-      { id: 'rod', label: 'Rod', placeholder: 'copper_rod' },
+      { id: 'pickaxe', label: 'Pickaxe', symbol: '⛏' },
+      { id: 'axe', label: 'Axe', symbol: '🪓' },
+      { id: 'rod', label: 'Rod', symbol: '🎣' },
     ],
 
     CONSUMABLE_ITEMS: {
@@ -224,8 +224,8 @@
   Object.assign(C.GAME_ICONS, extraIcons);
 
   C.MONSTERS.push(
-    { id: 'bog_leech', name: 'Bog Leech', level: 20, hp: 160, damage: 12, goldMin: 12, goldMax: 20, drop: { id: 'leech_sucker', name: 'Leech Sucker', amount: 1 } },
-    { id: 'pollen_moth', name: 'Pollen Moth', level: 25, hp: 200, damage: 14, goldMin: 15, goldMax: 25, drop: { id: 'moth_pollen', name: 'Moth Pollen', amount: 1 } },
+    { id: 'bog_leech', name: 'Bog Leech', level: 20, hp: 750, damage: 35, goldMin: 12, goldMax: 20, drop: { id: 'leech_sucker', name: 'Leech Sucker', amount: 1 } },
+    { id: 'pollen_moth', name: 'Pollen Moth', level: 25, hp: 1250, damage: 50, goldMin: 15, goldMax: 25, drop: { id: 'moth_pollen', name: 'Moth Pollen', amount: 1 } },
   );
 
   const navInsert = [

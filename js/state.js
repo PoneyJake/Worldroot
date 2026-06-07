@@ -100,6 +100,8 @@
       combatCd: 0,
       combatState: null,
       producing: defaultCharacterProducing(),
+      questProgress: defaultQuestProgress(),
+      questClaims: {},
     };
   }
 
@@ -114,8 +116,6 @@
       pendingSlot: 1,
       selectedCharIndex: 0,
       rateStats: defaultRateStats(),
-      questProgress: defaultQuestProgress(),
-      questClaims: {},
       smelting: { skill: defaultSkill(), slots: defaultSmeltSlots() },
       lastTickAt: Date.now(),
     };
@@ -132,8 +132,6 @@
       pendingSlot: state.pendingSlot,
       selectedCharIndex: state.selectedCharIndex,
       rateStats: state.rateStats,
-      questProgress: state.questProgress,
-      questClaims: state.questClaims,
       smelting: state.smelting,
     };
   }
@@ -278,6 +276,8 @@
       combatCd: c.combatCd ?? 0,
       combatState,
       producing,
+      questProgress: { ...defaultQuestProgress(), ...c.questProgress },
+      questClaims: { ...(c.questClaims || {}) },
     };
   }
 
@@ -293,9 +293,6 @@
     state.storageChestsUsed = Array.isArray(data.storageChestsUsed) ? [...data.storageChestsUsed] : [];
     const storCount = storageSlotCount(state);
     while (state.storageSlots.length < storCount) state.storageSlots.push(null);
-
-    state.questProgress = { ...defaultQuestProgress(), ...data.questProgress };
-    state.questClaims = { ...(data.questClaims || {}) };
 
     if (data.rateStats) {
       const rs = { ...defaultRateStats(), ...data.rateStats };
@@ -331,6 +328,17 @@
     if (Array.isArray(data.characters)) {
       state.characters = data.characters.map(hydrateCharacter);
       for (const char of state.characters) ensureInventorySize(char);
+      if (data.questProgress && state.characters[0]) {
+        const legacy = data.questProgress;
+        const qp0 = state.characters[0].questProgress;
+        const empty = !Object.keys(qp0.kills || {}).length
+          && !Object.keys(qp0.gathered || {}).length
+          && !Object.keys(qp0.produced || {}).length;
+        if (empty) {
+          state.characters[0].questProgress = { ...defaultQuestProgress(), ...legacy };
+          state.characters[0].questClaims = { ...(data.questClaims || {}) };
+        }
+      }
     }
     if (data.producing && state.characters.length) {
       const legacy = data.producing;
@@ -615,6 +623,36 @@
     return countInSlots(char.inventorySlots, resourceId);
   }
 
+  function splitSlotStack(slots, slotIdx, maxSlots) {
+    const slot = slots[slotIdx];
+    if (!slot || slot.amount < 2) return false;
+    let emptyIdx = -1;
+    for (let i = 0; i < maxSlots; i++) {
+      if (!slots[i]) { emptyIdx = i; break; }
+    }
+    if (emptyIdx < 0) return false;
+    const half = Math.floor(slot.amount / 2);
+    if (half < 1) return false;
+    const resourceId = slot.resourceId;
+    slot.amount -= half;
+    if (slot.amount <= 0) slots[slotIdx] = null;
+    slots[emptyIdx] = { resourceId, amount: half };
+    return true;
+  }
+
+  function splitInventorySlot(state, char, slotIdx) {
+    if (!char) return false;
+    const ok = splitSlotStack(char.inventorySlots, slotIdx, inventorySlotCount(char));
+    if (ok) saveState(state);
+    return ok;
+  }
+
+  function splitStorageSlot(state, slotIdx) {
+    const ok = splitSlotStack(state.storageSlots, slotIdx, storageSlotCount(state));
+    if (ok) saveState(state);
+    return ok;
+  }
+
   function removeFromInventorySlot(char, slotIdx, amount) {
     const slot = char.inventorySlots[slotIdx];
     if (!slot || slot.amount <= 0) return 0;
@@ -787,6 +825,7 @@
     addToSlots, removeFromSlots, carryEffectForSkill, stackCapacityForResource,
     depositAllToStorage, transferInvToStorage, transferStorageToInv,
     countInInventory, removeFromInventorySlot, loadOreToSmelt,
+    splitInventorySlot, splitStorageSlot, defaultQuestProgress,
     stopAllSmelting, stopAllProducing, stopCharacterProducing,
   };
 })();

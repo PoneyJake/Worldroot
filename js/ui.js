@@ -15,6 +15,8 @@
   let storPage = 0;
   let questTrack = 'main';
   let craftCategory = 'armor';
+  let storageQuickTap = true;
+  let storageSelected = null;
   let logBuffer = [];
   let holdTimer = null;
   let holdEl = null;
@@ -110,7 +112,11 @@
   }
 
   function renderSlotGrid(slots, totalSlots, opts = {}) {
-    const { transferType = null, gridClass = '', start = 0, end = totalSlots, holdUse = false, char = null, smeltOrePick = false } = opts;
+    const {
+      transferType = null, gridClass = '', start = 0, end = totalSlots,
+      holdUse = false, char = null, smeltOrePick = false,
+      selectedSlot = null, selectedType = null,
+    } = opts;
     let html = '';
     for (let idx = start; idx < end; idx++) {
       const slot = slots[idx];
@@ -128,9 +134,13 @@
         const holdAttr = canUse ? ` data-hold-use="${idx}"` : '';
         const canEquip = transferType === 'inv' && char && E.canEquipItem(char, slot.resourceId);
         const equipAttr = canEquip ? ` data-action="equip-item" data-inv="${idx}"` : '';
+        const isSelected = transferType && selectedType === transferType && selectedSlot === idx;
+        const tapHint = transferType
+          ? (storageQuickTap && activePage === 'storage' ? ' — tap: move 1 · shift+click: move all' : ' — click: select · double-click: move 1 · shift+click: move all')
+          : '';
         const holdHint = canUse ? ' · hold 2s to use' : (canLoad ? ' — click to load smelter' : (canEquip ? ' — click to equip' : ''));
         html += `
-          <div class="item-slot filled${transferType ? ' transferable' : ''}${canLoad ? ' smelt-ore-pick' : ''}${canUse ? ' hold-use-slot' : ''}${canEquip ? ' equip-item-slot' : ''}" title="${resName(slot.resourceId)}${transferType ? ' — double-click: move 1 · shift+click: move all' : ''}${holdHint}"${transferAttr}${smeltAttr}${holdAttr}${equipAttr}>
+          <div class="item-slot filled${transferType ? ' transferable' : ''}${canLoad ? ' smelt-ore-pick' : ''}${canUse ? ' hold-use-slot' : ''}${canEquip ? ' equip-item-slot' : ''}${isSelected ? ' slot-selected' : ''}" title="${resName(slot.resourceId)}${tapHint}${holdHint}"${transferAttr}${smeltAttr}${holdAttr}${equipAttr}>
             <span class="item-slot-icon">${resIcon(slot.resourceId, 'game-icon')}</span>
             <span class="item-slot-qty">${fmt(slot.amount)}</span>
             ${canUse ? '<span class="hold-use-ring"></span>' : ''}
@@ -157,6 +167,8 @@
       ${renderPageTabs(invPage, pages, 'inv-page')}
       ${renderSlotGrid(char.inventorySlots, total, {
         ...opts, start, end, holdUse: true, char,
+        selectedSlot: storageSelected?.type === opts.transferType ? storageSelected.idx : null,
+        selectedType: storageSelected?.type,
       })}`;
   }
 
@@ -168,7 +180,11 @@
     const end = Math.min(start + pageSize, total);
     return `
       ${renderPageTabs(storPage, pages, 'stor-page')}
-      ${renderSlotGrid(state.storageSlots, total, { ...opts, start, end })}`;
+      ${renderSlotGrid(state.storageSlots, total, {
+        ...opts, start, end,
+        selectedSlot: storageSelected?.type === opts.transferType ? storageSelected.idx : null,
+        selectedType: storageSelected?.type,
+      })}`;
   }
 
   function selectedIndex() {
@@ -211,6 +227,21 @@
     return needed ? Math.min(100, (skill.xp / needed) * 100) : 0;
   }
 
+  function renderSkillXpBar(skill, label) {
+    if (!skill) return '';
+    const needed = S.xpForLevel(skill.level);
+    const pct = xpProgress(skill);
+    return `
+      <div class="skill-xp-panel">
+        <div class="skill-xp-header">
+          <span class="skill-xp-label">${label}</span>
+          <span class="skill-xp-level">Lv ${skill.level}</span>
+        </div>
+        <div class="progress-bar skill-xp-bar"><div class="progress-bar-fill" style="width:${pct}%"></div></div>
+        <span class="skill-xp-text">${fmt(skill.xp)} / ${fmt(needed)} XP to next level</span>
+      </div>`;
+  }
+
   function addLog(text) {
     logBuffer.unshift(text);
     if (logBuffer.length > 20) logBuffer.length = 20;
@@ -228,6 +259,7 @@
   function switchPage(pageId) {
     const item = SIDEBAR_NAV.find((n) => n.id === pageId);
     if (item?.comingSoon) return;
+    if (pageId !== 'storage') storageSelected = null;
     activePage = pageId;
     renderSidebar();
     renderMainPanel();
@@ -510,12 +542,14 @@
         <span class="page-header-icon">📦</span>
         <div class="page-header-text">
           <h1>Storage</h1>
-          <p>Double-click to move 1 · shift+click to move all</p>
+          <p>${storageQuickTap ? 'Quick tap: click slot to move 1' : 'Click to select · double-click to move 1'} · shift+click: move all</p>
         </div>
       </header>
       ${pageCharBar()}
       <div class="storage-actions">
         <button type="button" class="btn-sm primary" data-action="deposit-all">Deposit all to storage</button>
+        <button type="button" class="btn-sm${storageQuickTap ? ' active' : ''}" data-action="toggle-quick-tap">Quick tap ${storageQuickTap ? 'ON' : 'OFF'}</button>
+        <button type="button" class="btn-sm ghost" data-action="split-stack">Split stack</button>
       </div>
       <div class="storage-dual">
         <section class="storage-half storage-panel slot-panel-fit">
@@ -595,12 +629,14 @@
         </article>`;
     }).join('');
 
+    const combatSkill = char?.skills?.combat;
     return `
       <header class="page-header">
         <span class="page-header-icon">${sk.icon}</span>
         <div class="page-header-text"><h1>${sk.name}</h1><p>Fight monsters — earn XP, gold, and loot on kills</p></div>
         <div class="page-header-stat"><span class="page-header-stat-label">Combat Lv</span><span class="page-header-stat-value">${best}</span></div>
       </header>
+      ${combatSkill ? renderSkillXpBar(combatSkill, 'Combat XP') : ''}
       ${pageCharBar()}
       ${arena}
       <div class="activity-grid">${cards}</div>`;
@@ -678,12 +714,14 @@
         </div>
       </div>` : '';
 
+    const gatherSkill = char?.skills?.[sk.id];
     return `
       <header class="page-header">
         <span class="page-header-icon">${sk.icon}</span>
         <div class="page-header-text"><h1>${sk.name}</h1><p>${sk.desc} · +${C.LEVEL_EFF_BONUS} eff & +${C.LEVEL_MULTI_BONUS * 100}% multi per level</p></div>
         <div class="page-header-stat"><span class="page-header-stat-label">${sk.name} Lv</span><span class="page-header-stat-value">${best}</span></div>
       </header>
+      ${gatherSkill ? renderSkillXpBar(gatherSkill, `${sk.name} XP`) : ''}
       ${pageCharBar()}
       ${summaryStats}
       <div class="activity-grid">${cards}</div>`;
@@ -735,6 +773,7 @@
         <div class="page-header-text"><h1>${sk.name}</h1><p>Click ore to load smelters — max ${batchCap} per slot · click bars to collect</p></div>
         <div class="page-header-stat"><span class="page-header-stat-label">Smelting Lv</span><span class="page-header-stat-value">${lv}</span></div>
       </header>
+      ${renderSkillXpBar(state.smelting.skill, 'Smelting XP')}
       ${pageCharBar()}
       <div class="skill-split-layout">
         <section class="skill-split-main">
@@ -799,6 +838,7 @@
         <div class="page-header-text"><h1>${sk.name}</h1><p>${charLabel(char)} — one recipe at a time · double-click ready items to collect</p></div>
         <div class="page-header-stat"><span class="page-header-stat-label">Producing Lv</span><span class="page-header-stat-value">${lv}</span></div>
       </header>
+      ${renderSkillXpBar(prod.skill, 'Producing XP')}
       ${pageCharBar()}
       <div class="skill-split-layout">
         <section class="skill-split-main">
@@ -819,7 +859,7 @@
       const item = char.equipment?.[def.id];
       const inner = item
         ? resIcon(item, 'game-icon')
-        : `<span class="equip-slot-placeholder">${iconHtml(def.placeholder, 'game-icon dim')}</span>`;
+        : `<span class="equip-slot-symbol">${def.symbol || '?'}</span>`;
       const unequip = item
         ? `<button type="button" class="btn-sm ghost equip-unequip-btn" data-action="unequip-gear" data-slot-type="equipment" data-slot-key="${def.id}">Remove</button>`
         : '';
@@ -833,7 +873,7 @@
       const item = char.tools?.[def.id];
       const inner = item
         ? resIcon(item, 'game-icon')
-        : `<span class="equip-slot-placeholder">${iconHtml(def.placeholder, 'game-icon dim')}</span>`;
+        : `<span class="equip-slot-symbol">${def.symbol || '?'}</span>`;
       const unequip = item
         ? `<button type="button" class="btn-sm ghost equip-unequip-btn" data-action="unequip-gear" data-slot-type="tool" data-slot-key="${def.id}">Remove</button>`
         : '';
@@ -849,14 +889,20 @@
         <div class="page-header-text"><h1>Equipment</h1><p>${charLabel(char)} — gear and tools</p></div>
       </header>
       ${pageCharBar()}
-      <div class="equipment-layout">
-        <section class="storage-panel slot-panel-fit">
-          <h3 class="storage-half-title">Equipment</h3>
-          <div class="equipment-grid">${eqSlots}</div>
+      <div class="skill-split-layout equipment-split">
+        <section class="skill-split-main">
+          <section class="storage-panel slot-panel-fit">
+            <h3 class="storage-half-title">Equipment</h3>
+            <div class="equipment-grid">${eqSlots}</div>
+          </section>
+          <section class="storage-panel slot-panel-fit">
+            <h3 class="storage-half-title">Tools</h3>
+            <div class="tools-grid">${toolSlots}</div>
+          </section>
         </section>
-        <section class="storage-panel slot-panel-fit">
-          <h3 class="storage-half-title">Tools</h3>
-          <div class="tools-grid">${toolSlots}</div>
+        <section class="skill-split-side storage-panel slot-panel-fit">
+          <h3 class="storage-half-title">${charLabel(char)}'s Inventory</h3>
+          ${renderPagedInventory(char, { transferType: 'inv', gridClass: 'grid-inv-4' })}
         </section>
       </div>`;
   }
@@ -869,11 +915,11 @@
     ).join('');
     const track = C.QUEST_TRACKS?.[questTrack];
     const cards = track ? track.quests.map((q) => {
-      const prog = E.questTrackProgress(state, q.track);
+      const prog = char ? E.questTrackProgress(char, q.track) : 0;
       const need = q.track.count;
       const pct = Math.min(100, (prog / need) * 100);
-      const done = E.questIsComplete(state, q);
-      const claimed = E.questIsClaimed(state, q.id);
+      const done = char ? E.questIsComplete(char, q) : false;
+      const claimed = char ? E.questIsClaimed(char, q.id) : false;
       const rewards = q.rewards.map((r) => {
         if (r.type === 'gold') return `${fmt(r.amount)} gold`;
         return resIcon(r.id, 'game-icon sm') + ` ${resName(r.id)}`;
@@ -894,7 +940,7 @@
     return `
       <header class="page-header">
         <span class="page-header-icon">📜</span>
-        <div class="page-header-text"><h1>Quests</h1><p>All characters contribute progress — claim on any hero</p></div>
+        <div class="page-header-text"><h1>Quests</h1><p>${char ? `${charLabel(char)} — per-character progress and rewards` : 'Select a character'}</p></div>
       </header>
       ${pageCharBar()}
       <div class="quest-track-tabs">${tabs}</div>
@@ -1146,6 +1192,26 @@
       render();
       return;
     }
+    if (action === 'toggle-quick-tap') {
+      storageQuickTap = !storageQuickTap;
+      render();
+      return;
+    }
+    if (action === 'split-stack') {
+      const char = selectedChar();
+      if (!storageSelected) {
+        addLog('Click a stack to select it, then Split.');
+        render();
+        return;
+      }
+      const ok = storageSelected.type === 'inv'
+        ? char && S.splitInventorySlot(state, char, storageSelected.idx)
+        : S.splitStorageSlot(state, storageSelected.idx);
+      if (ok) addLog('Stack split in half.');
+      else addLog('Cannot split — need 2+ items and an empty slot.');
+      render();
+      return;
+    }
     if (action === 'deposit-all') {
       const char = selectedChar();
       const n = char ? S.depositAllToStorage(state, char) : 0;
@@ -1361,6 +1427,27 @@
       e.stopPropagation();
       window.getSelection()?.removeAllRanges();
       handleSlotTransfer(slotEl, true);
+      return;
+    }
+
+    if (e.type === 'click' && activePage === 'storage') {
+      e.preventDefault();
+      e.stopPropagation();
+      const type = slotEl.dataset.transferType;
+      const idx = Number(slotEl.dataset.slot);
+      const char = selectedChar();
+      const slot = type === 'inv' ? char?.inventorySlots[idx] : state.storageSlots[idx];
+      if (!slot) {
+        storageSelected = null;
+        render();
+        return;
+      }
+      if (storageQuickTap) {
+        handleSlotTransfer(slotEl, false);
+      } else {
+        storageSelected = { type, idx };
+        render();
+      }
     }
   }
 

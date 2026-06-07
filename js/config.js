@@ -98,29 +98,29 @@ window.WorldrootConfig = {
   VEINS: {
     mining: [
       { id: 'copper_vein', name: 'Copper Vein', resource: 'copper', minLevel: 0, icon: 'copper_vein' },
-      { id: 'iron_vein', name: 'Iron Vein', resource: 'iron', minLevel: 5, icon: 'iron_vein' },
-      { id: 'gold_vein', name: 'Gold Vein', resource: 'gold', minLevel: 10, icon: 'gold_vein' },
-      { id: 'platinum_vein', name: 'Platinum Vein', resource: 'platinum', minLevel: 15, icon: 'platinum_vein' },
+      { id: 'iron_vein', name: 'Iron Vein', resource: 'iron', minLevel: 10, icon: 'iron_vein' },
+      { id: 'gold_vein', name: 'Gold Vein', resource: 'gold', minLevel: 20, icon: 'gold_vein' },
+      { id: 'platinum_vein', name: 'Platinum Vein', resource: 'platinum', minLevel: 30, icon: 'platinum_vein' },
     ],
     woodcutting: [
       { id: 'oak_grove', name: 'Oak Grove', resource: 'oak', minLevel: 0, icon: 'oak_grove' },
-      { id: 'spruce_grove', name: 'Spruce Grove', resource: 'spruce', minLevel: 5, icon: 'spruce_grove' },
-      { id: 'birch_grove', name: 'Birch Grove', resource: 'birch', minLevel: 10, icon: 'birch_grove' },
-      { id: 'jungle_grove', name: 'Jungle Grove', resource: 'jungle', minLevel: 15, icon: 'jungle_grove' },
+      { id: 'spruce_grove', name: 'Spruce Grove', resource: 'spruce', minLevel: 10, icon: 'spruce_grove' },
+      { id: 'birch_grove', name: 'Birch Grove', resource: 'birch', minLevel: 20, icon: 'birch_grove' },
+      { id: 'jungle_grove', name: 'Jungle Grove', resource: 'jungle', minLevel: 30, icon: 'jungle_grove' },
     ],
     fishing: [
       { id: 'shrimp_spot', name: 'Shrimp Spot', resource: 'shrimp', minLevel: 0, icon: 'shrimp' },
-      { id: 'trout_spot', name: 'Trout Spot', resource: 'trout', minLevel: 5, icon: 'trout' },
-      { id: 'salmon_spot', name: 'Salmon Spot', resource: 'salmon', minLevel: 10, icon: 'salmon' },
-      { id: 'lobster_spot', name: 'Lobster Spot', resource: 'lobster', minLevel: 15, icon: 'lobster' },
+      { id: 'trout_spot', name: 'Trout Spot', resource: 'trout', minLevel: 10, icon: 'trout' },
+      { id: 'salmon_spot', name: 'Salmon Spot', resource: 'salmon', minLevel: 20, icon: 'salmon' },
+      { id: 'lobster_spot', name: 'Lobster Spot', resource: 'lobster', minLevel: 30, icon: 'lobster' },
     ],
   },
 
   MONSTERS: [
-    { id: 'forest_slime', name: 'Forest Slime', level: 0, hp: 20, damage: 2, goldMin: 1, goldMax: 3, drop: { id: 'slime_gel', name: 'Ectoplasm', amount: 1 } },
-    { id: 'will_o_wisp', name: 'Will-O-Wisp', level: 5, hp: 45, damage: 4, goldMin: 3, goldMax: 6, drop: { id: 'wisp_essence', name: 'Wisp Essence', amount: 1 } },
-    { id: 'gloomcap', name: 'Gloomcap', level: 10, hp: 80, damage: 7, goldMin: 5, goldMax: 10, drop: { id: 'gloomspore', name: 'Gloomspore', amount: 1 } },
-    { id: 'spore_bat', name: 'Spore Bat', level: 15, hp: 120, damage: 10, goldMin: 8, goldMax: 15, drop: { id: 'bat_wing_membrane', name: 'Bat Wing Membrane', amount: 1 } },
+    { id: 'forest_slime', name: 'Forest Slime', level: 0, hp: 25, damage: 2, goldMin: 1, goldMax: 3, drop: { id: 'slime_gel', name: 'Ectoplasm', amount: 1 } },
+    { id: 'will_o_wisp', name: 'Will-O-Wisp', level: 5, hp: 100, damage: 5, goldMin: 3, goldMax: 6, drop: { id: 'wisp_essence', name: 'Wisp Essence', amount: 1 } },
+    { id: 'gloomcap', name: 'Gloomcap', level: 10, hp: 250, damage: 10, goldMin: 5, goldMax: 10, drop: { id: 'gloomspore', name: 'Gloomspore', amount: 1 } },
+    { id: 'spore_bat', name: 'Spore Bat', level: 15, hp: 450, damage: 20, goldMin: 8, goldMax: 15, drop: { id: 'bat_wing_membrane', name: 'Bat Wing Membrane', amount: 1 } },
   ],
 
   SMELT_RECIPES: [
@@ -201,6 +201,8 @@ window.WorldrootConfig = {
         { id: 'magic', name: '+ Magic', effect: 'magic', bonusType: 'flat', desc: 'Increases magic', costRes: 'platinum', baseCost: 25 },
         { id: 'carry_capacity', name: '+% Carrying Capacity', effect: 'carry_capacity', bonusType: 'percent', desc: 'More items per inventory slot', costRes: 'copper_bar', baseCost: 30 },
         { id: 'gold_gain', name: '+% Gold Gain', effect: 'gold_gain', bonusType: 'percent', desc: 'Earn more gold', costRes: 'resin', baseCost: 20 },
+        { id: 'multikill_rate', name: '+% Base Multikill Rate', effect: 'multikill_rate', bonusType: 'percent', desc: 'Chance for bonus drops across all skills', costRes: 'leech_sucker', baseCost: 25 },
+        { id: 'all_skill_eff', name: '+ All Skill Efficiency', effect: 'all_skill_eff', bonusType: 'flat', desc: 'Bonus efficiency for mining, woodcutting, and fishing', costRes: 'moth_pollen', baseCost: 25 },
       ],
     },
     {
