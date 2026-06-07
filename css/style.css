@@ -1750,3 +1750,24 @@ body {
     display: none;
   }
 }
+
+.page-char-bar {
+  margin: 0 0 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border, rgba(255, 255, 255, 0.08));
+}
+
+.gather-summary-stats {
+  margin: 0 0 16px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.vein-tier-stats {
+  margin-top: 8px;
+}
+
+.activity-assigned-card {
+  outline: 1px solid rgba(120, 200, 120, 0.35);
+}

@@ -11,10 +11,10 @@ window.WorldrootConfig = {
   RATE_WINDOW_TICKS: 30,
   BASE_INVENTORY_SLOTS: 16,
   BASE_STORAGE_SLOTS: 24,
-  BASE_STACK_SIZE: 50,
+  BASE_STACK_SIZE: 10,
   STORAGE_STACK_MAX: 999999999,
-  SMELT_TICKS_PER_ORE: 8,
-  SMELT_BASE_CAPACITY: 200,
+  SMELT_BASE_CAPACITY: 100,
+  PRODUCE_BASE_CAPACITY: 100,
   STAT_SCALE: 0.03,
   GATHER_INTERVAL_TICKS: 5,
   GATHER_RATE_PER_MIN: 12,
@@ -124,17 +124,17 @@ window.WorldrootConfig = {
   ],
 
   SMELT_RECIPES: [
-    { ore: 'copper', bar: 'copper_bar', name: 'Copper Bar' },
-    { ore: 'iron', bar: 'iron_bar', name: 'Iron Bar' },
-    { ore: 'gold', bar: 'gold_bar', name: 'Gold Bar' },
-    { ore: 'platinum', bar: 'platinum_bar', name: 'Platinum Bar' },
+    { ore: 'copper', bar: 'copper_bar', name: 'Copper Bar', orePerBar: 2, ticks: 15 },
+    { ore: 'iron', bar: 'iron_bar', name: 'Iron Bar', orePerBar: 4, ticks: 30 },
+    { ore: 'gold', bar: 'gold_bar', name: 'Gold Bar', orePerBar: 8, ticks: 60 },
+    { ore: 'platinum', bar: 'platinum_bar', name: 'Platinum Bar', orePerBar: 16, ticks: 120 },
   ],
 
-  PRODUCE_ITEMS: [
-    { id: 'twine', name: 'Twine', minLevel: 0, output: 1, ticks: 8, xp: 8 },
-    { id: 'wooden_pegs', name: 'Wooden Pegs', minLevel: 5, output: 1, ticks: 12, xp: 12 },
-    { id: 'iron_nails', name: 'Iron Nails', minLevel: 10, output: 1, ticks: 16, xp: 16 },
-    { id: 'resin', name: 'Resin', minLevel: 15, output: 1, ticks: 20, xp: 20 },
+  PRODUCE_SLOTS: [
+    { slot: 0, id: 'twine', name: 'Twine', minLevel: 0, ticks: 30, xp: 8 },
+    { slot: 1, id: 'wooden_pegs', name: 'Wooden Pegs', minLevel: 5, ticks: 60, xp: 12 },
+    { slot: 2, id: 'iron_nails', name: 'Iron Nails', minLevel: 10, ticks: 120, xp: 16 },
+    { slot: 3, id: 'resin', name: 'Resin', minLevel: 15, ticks: 240, xp: 20 },
   ],
 
   ACTIVITIES: [

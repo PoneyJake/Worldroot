@@ -60,9 +60,18 @@
   }
 
   function skillLevelForNav(skillId) {
-    if (skillId === 'producing') return state.producing.skill.level;
+    if (skillId === 'producing') {
+      return state.characters.length
+        ? Math.max(...state.characters.map((c) => c.producing?.skill?.level ?? 0))
+        : 0;
+    }
     if (skillId === 'smelting') return state.smelting.skill.level;
     return bestSkillLevel(skillId);
+  }
+
+  function pageCharBar() {
+    if (!state.characters.length) return '';
+    return `<div class="page-char-bar">${renderCharSwitcher()}</div>`;
   }
 
   function skillActivityBadges(skillId) {
@@ -399,6 +408,7 @@
         <span class="page-header-icon">👥</span>
         <div class="page-header-text"><h1>Characters</h1><p>Select a hero to control their activities</p></div>
       </header>
+      ${pageCharBar()}
       <div class="char-layout">
         <aside class="char-rail">${rail || '<p class="empty-msg">No heroes yet</p>'}</aside>
         <section class="char-detail">${detail}</section>
@@ -419,10 +429,10 @@
         <span class="page-header-icon">🎒</span>
         <div class="page-header-text">
           <h1>Inventory</h1>
-          <p>${filled} / ${slotCount} slots · overflow is lost</p>
+          <p>${filled} / ${slotCount} slots · ${C.BASE_STACK_SIZE} per stack · overflow is lost</p>
         </div>
       </header>
-      ${renderCharSwitcher()}
+      ${pageCharBar()}
       <p class="hint-bar">${charLabel(char)} — double-click to move 1 to storage · shift+click to move all</p>
       ${renderSlotGrid(char.inventorySlots, slotCount, { transferType: 'inv', gridClass: 'grid-inv-4' })}`;
   }
@@ -442,7 +452,7 @@
           <p>Double-click to move 1 · shift+click to move all</p>
         </div>
       </header>
-      ${renderCharSwitcher()}
+      ${pageCharBar()}
       <div class="storage-dual">
         <section class="storage-half">
           <h3 class="storage-half-title">${charLabel(char)}'s Inventory <span>${invFilled}/${invCount}</span></h3>
@@ -527,6 +537,7 @@
         <div class="page-header-text"><h1>${sk.name}</h1><p>Fight monsters — earn XP, gold, and loot on kills</p></div>
         <div class="page-header-stat"><span class="page-header-stat-label">Combat Lv</span><span class="page-header-stat-value">${best}</span></div>
       </header>
+      ${pageCharBar()}
       ${renderSkillStopHeader()}
       ${arena}
       <div class="activity-grid">${cards}</div>`;
@@ -547,15 +558,15 @@
     const labels = gatherStatLabels(sk.id);
     const eff = char ? E.gatherEfficiency(state, char, sk.id) : 0;
     const multiPct = char ? (E.gatherMultiChance(state, char, sk.id) * 100).toFixed(1) : '0';
+    const gatherSec = E.gatherIntervalTicks() * (C.TICK_MS / 1000);
+    const resLabel = sk.id === 'mining' ? 'ore' : sk.id === 'woodcutting' ? 'log' : 'fish';
 
     const cards = veins.map((vein) => {
       const locked = best < vein.minLevel;
       const on = char?.activity === sk.activity && char?.target === vein.id;
-      const pct = char ? xpProgress(char.skills[sk.id]) : 0;
-      const threshold = E.veinEffThreshold(vein);
-      const successRaw = char ? E.gatherSuccessChance(state, char, sk.id, vein) : 0;
-      const success = successRaw >= 100 ? successRaw.toFixed(0) : successRaw.toFixed(1);
-      const xpHr = char && on ? Math.floor(C.GATHER_RATE_PER_MIN * 60 * C.BASE_XP_PER_TICK * (1 + E.skillXpBonus(state, sk.id))) : 0;
+      const gatherPct = on ? Math.min(100, ((char.gatherCd || 0) / E.gatherIntervalTicks()) * 100) : 0;
+      const tier = char ? E.gatherYieldTierInfo(state, char, sk.id, vein) : null;
+      const tierChance = tier ? (tier.progressToNext >= 100 ? '100' : tier.progressToNext.toFixed(1)) : '0';
 
       return `
         <article class="activity-card ${locked ? 'locked' : ''}">
@@ -566,19 +577,23 @@
               <span>Lv ${vein.minLevel}</span>
             </div>
           </div>
-          <div class="activity-stats">
-            <div class="activity-stat"><span class="activity-stat-label">Speed</span><span class="activity-stat-value">${C.GATHER_RATE_PER_MIN}/min</span></div>
-            <div class="activity-stat"><span class="activity-stat-label">${labels.eff}</span><span class="activity-stat-value">${eff}</span></div>
-            <div class="activity-stat"><span class="activity-stat-label">${labels.chance}</span><span class="activity-stat-value">${success}%</span></div>
-            <div class="activity-stat"><span class="activity-stat-label">100% at</span><span class="activity-stat-value">${threshold} eff</span></div>
-            <div class="activity-stat"><span class="activity-stat-label">${labels.multi}</span><span class="activity-stat-value">${multiPct}%</span></div>
-            ${on ? `<div class="activity-stat"><span class="activity-stat-label">XP/hr</span><span class="activity-stat-value">${fmt(xpHr)}</span></div>` : ''}
-          </div>
-          <div class="progress-bar"><div class="progress-bar-fill" style="width:${pct}%"></div></div>
+          ${tier ? `
+          <div class="activity-stats vein-tier-stats">
+            <div class="activity-stat"><span class="activity-stat-label">+${tier.nextAmount} ${resLabel}</span><span class="activity-stat-value">${tierChance}%</span></div>
+            <div class="activity-stat"><span class="activity-stat-label">100% +${tier.nextAmount} at</span><span class="activity-stat-value">${fmt(tier.effFor100Next)} eff</span></div>
+          </div>` : ''}
+          ${on ? `<div class="progress-bar"><div class="progress-bar-fill" style="width:${gatherPct}%"></div></div>` : ''}
           ${locked ? `<p class="empty-msg">Requires ${sk.name} Lv ${vein.minLevel}</p>` : `<div class="activity-actions">${renderAssignBtn(sk.activity, vein.id, false)}</div>`}
           ${on ? '<p class="activity-assigned"><strong>Active on selected hero</strong></p>' : ''}
         </article>`;
     }).join('');
+
+    const summaryStats = char ? `
+      <div class="gather-summary-stats activity-stats">
+        <div class="activity-stat"><span class="activity-stat-label">Speed</span><span class="activity-stat-value">${gatherSec}s per ${resLabel}</span></div>
+        <div class="activity-stat"><span class="activity-stat-label">${labels.eff}</span><span class="activity-stat-value">${eff}</span></div>
+        <div class="activity-stat"><span class="activity-stat-label">${labels.multi}</span><span class="activity-stat-value">${multiPct}%</span></div>
+      </div>` : '';
 
     return `
       <header class="page-header">
@@ -586,7 +601,9 @@
         <div class="page-header-text"><h1>${sk.name}</h1><p>${sk.desc} · +${C.LEVEL_EFF_BONUS} eff & +${C.LEVEL_MULTI_BONUS * 100}% multi per level</p></div>
         <div class="page-header-stat"><span class="page-header-stat-label">${sk.name} Lv</span><span class="page-header-stat-value">${best}</span></div>
       </header>
+      ${pageCharBar()}
       ${renderSkillStopHeader()}
+      ${summaryStats}
       <div class="activity-grid">${cards}</div>`;
   }
 
@@ -633,7 +650,7 @@
       const locked = i >= slotsOpen;
       if (locked) return `<div class="activity-card locked"><strong>Slot ${i + 1}</strong><p class="empty-msg">Unlocks at Smelting Lv ${C.SMELT_SLOT_UNLOCKS[i]}</p></div>`;
       const recipe = C.SMELT_RECIPES.find((r) => r.ore === slot.ore);
-      const pct = slot.ore ? Math.min(100, (slot.progress / C.SMELT_TICKS_PER_ORE) * 100) : 0;
+      const pct = slot.ore && recipe ? Math.min(100, (slot.progress / recipe.ticks) * 100) : 0;
       const oreBtns = C.SMELT_RECIPES.map((r) =>
         `<button type="button" class="btn-xs picker-btn${slot.ore === r.ore ? ' active' : ''}"
           data-action="pick-smelt" data-slot="${i}" data-ore="${r.ore}">${r.name}</button>`
@@ -651,9 +668,9 @@
         <article class="activity-card smelt-drop-zone${selected}" data-action="select-smelt-slot" data-slot="${i}" data-smelt-slot="${i}">
           <strong>Smelter Slot ${i + 1}</strong>
           <div class="picker-row">${oreBtns}</div>
-          ${slot.ore ? `<p class="empty-msg">Ore loaded: ${fmt(slot.oreLoaded || 0)} / ${batchCap} — drag ore here</p>
+          ${slot.ore ? `<p class="empty-msg">${resIcon(slot.ore, 'game-icon')} ${fmt(slot.oreLoaded || 0)} / ${batchCap} ore · ${recipe?.orePerBar ?? '?'} ore/bar · ${recipe?.ticks ?? '?'}s</p>
             <div class="progress-bar"><div class="progress-bar-fill" style="width:${pct}%"></div></div>
-            <p class="empty-msg">Smelting ${recipe?.name ?? slot.ore}…</p>` : '<p class="empty-msg">Pick ore type, then drag from inventory</p>'}
+            <p class="empty-msg">Smelting ${resName(slot.ore)}…</p>` : '<p class="empty-msg">Pick ore type, then drag from inventory</p>'}
           ${readySlot}
           ${slot.ore ? `<button type="button" class="btn-xs ghost" data-action="clear-smelt" data-slot="${i}">Stop slot</button>` : ''}
         </article>`;
@@ -662,16 +679,16 @@
     const invSection = char
       ? `<section class="storage-half" style="margin-top:16px">
           <h3 class="storage-half-title">${charLabel(char)}'s Inventory <span>Load ore into Slot ${selectedSmeltSlot + 1}</span></h3>
-          ${renderCharSwitcher()}
           ${renderInventoryForSmelt(char)}
         </section>` : '<p class="empty-msg">Select a character to load ore.</p>';
 
     return `
       <header class="page-header">
         <span class="page-header-icon">${sk.icon}</span>
-        <div class="page-header-text"><h1>${sk.name}</h1><p>Load ore from inventory into smelters — double-click ready bars to collect</p></div>
+        <div class="page-header-text"><h1>${sk.name}</h1><p>Load ore from inventory — max ${batchCap} per slot · double-click bars to collect</p></div>
         <div class="page-header-stat"><span class="page-header-stat-label">Smelting Lv</span><span class="page-header-stat-value">${lv}</span></div>
       </header>
+      ${pageCharBar()}
       ${renderSkillStopHeader('stop-all-smelt')}
       <div class="activity-grid">${slotCards}</div>
       ${invSection}`;
@@ -680,56 +697,63 @@
   /* ── Producing ── */
 
   function renderProducingPage(sk) {
-    const lv = state.producing.skill.level;
-    const slotsOpen = E.produceSlotsUnlocked(state);
-    const slotCards = state.producing.slots.map((slot, i) => {
-      const locked = i >= slotsOpen;
-      if (locked) return `<div class="activity-card locked"><strong>Slot ${i + 1}</strong><p class="empty-msg">Unlocks at Producing Lv ${C.UNLOCK_LEVELS[i]}</p></div>`;
-      const def = C.PRODUCE_ITEMS.find((p) => p.id === slot.item);
-      const pct = slot.item && def ? Math.min(100, (slot.progress / def.ticks) * 100) : 0;
-      const itemBtns = C.PRODUCE_ITEMS.map((p) => {
-        const ok = lv >= p.minLevel;
-        const cls = slot.item === p.id ? ' active' : '';
-        const dis = ok ? '' : ' disabled';
-        return `<button type="button" class="btn-xs picker-btn${cls}" data-action="pick-produce"
-          data-slot="${i}" data-item="${p.id}"${dis}>${p.name}</button>`;
-      }).join('');
+    const char = selectedChar();
+    if (!char) return '<p class="empty-msg">Select a character to produce.</p>';
 
-      const readySlot = slot.ready > 0
-        ? `<div class="produce-ready-slot transferable" data-collect-type="produce" data-slot="${i}" title="Double-click to collect all into inventory">
-            <span class="item-slot-qty">${fmt(slot.ready)}</span>
-            <span class="item-slot-icon">${resIcon(slot.item)}</span>
-            <span class="item-slot-name">${def?.name ?? resName(slot.item)}</span>
-          </div>` : '';
+    const prod = char.producing;
+    const lv = prod.skill.level;
+    const slotsOpen = E.produceSlotsUnlocked(char);
+    const cap = E.produceBatchCapacity(state);
+
+    const slotCards = C.PRODUCE_SLOTS.map((def, i) => {
+      const locked = i >= slotsOpen || lv < def.minLevel;
+      if (locked) {
+        return `<div class="activity-card locked">
+          <strong>Slot ${i + 1} — ${def.name}</strong>
+          <p class="empty-msg">Unlocks at Producing Lv ${C.UNLOCK_LEVELS[i]}</p>
+        </div>`;
+      }
+      const active = prod.activeSlot === i;
+      const pct = active ? Math.min(100, (prod.progress / def.ticks) * 100) : 0;
+      const btnCls = active ? 'btn-sm active' : 'btn-sm primary';
 
       return `
-        <article class="activity-card">
-          <strong>Producer Slot ${i + 1}</strong>
-          <div class="picker-row">${itemBtns}</div>
-          ${slot.item ? `<div class="progress-bar"><div class="progress-bar-fill" style="width:${pct}%"></div></div>
-            <p class="empty-msg">Producing ${def?.name ?? slot.item}…</p>` : ''}
-          ${readySlot}
-          ${slot.item ? `<button type="button" class="btn-xs ghost" data-action="clear-produce" data-slot="${i}">Stop slot</button>` : ''}
+        <article class="activity-card${active ? ' activity-assigned-card' : ''}">
+          <div class="activity-card-head">
+            <span class="activity-card-icon">${resIcon(def.id, 'game-icon')}</span>
+            <div class="activity-card-title">
+              <strong>Slot ${i + 1} — ${def.name}</strong>
+              <span>${def.ticks}s · max ${cap}</span>
+            </div>
+          </div>
+          <div class="activity-actions">
+            <button type="button" class="${btnCls}" data-action="pick-produce" data-slot="${i}">
+              ${active ? 'Producing ✓' : `Produce ${def.name}`}
+            </button>
+            ${active ? `<button type="button" class="btn-sm ghost" data-action="clear-produce">Stop</button>` : ''}
+          </div>
+          ${active ? `<div class="progress-bar"><div class="progress-bar-fill" style="width:${pct}%"></div></div>` : ''}
         </article>`;
     }).join('');
 
-    const char = selectedChar();
-    const invSection = char
-      ? `<section class="storage-half" style="margin-top:16px">
-          <h3 class="storage-half-title">${charLabel(char)}'s Inventory</h3>
-          ${renderCharSwitcher()}
-          ${renderSlotGrid(char.inventorySlots, S.inventorySlotCount(char), { isInventory: true, gridClass: 'grid-inv-4' })}
-        </section>` : '';
+    const activeDef = prod.activeSlot != null ? C.PRODUCE_SLOTS[prod.activeSlot] : null;
+    const readySlot = prod.ready > 0 && prod.readyItem
+      ? `<div class="produce-ready-slot transferable" data-collect-type="produce" title="Double-click to collect all into inventory">
+          <span class="item-slot-qty">${fmt(prod.ready)} / ${cap}</span>
+          <span class="item-slot-icon">${resIcon(prod.readyItem)}</span>
+          <span class="item-slot-name">${activeDef?.name ?? resName(prod.readyItem)}</span>
+        </div>` : '';
 
     return `
       <header class="page-header">
         <span class="page-header-icon">${sk.icon}</span>
-        <div class="page-header-text"><h1>${sk.name}</h1><p>Passive production — double-click ready items to collect into inventory</p></div>
+        <div class="page-header-text"><h1>${sk.name}</h1><p>${charLabel(char)} — one recipe at a time · double-click ready items to collect</p></div>
         <div class="page-header-stat"><span class="page-header-stat-label">Producing Lv</span><span class="page-header-stat-value">${lv}</span></div>
       </header>
+      ${pageCharBar()}
       ${renderSkillStopHeader('stop-all-produce')}
       <div class="activity-grid">${slotCards}</div>
-      ${invSection}`;
+      ${readySlot ? `<section class="storage-half" style="margin-top:16px"><h3 class="storage-half-title">Ready to collect</h3>${readySlot}</section>` : ''}`;
   }
 
   function renderComingSoon(sk) {
@@ -768,7 +792,7 @@
           const unlock = E.upgradeUnlockCosts(node.id, tierIdx);
           const targetMax = E.upgradeUnlockTargetMax(tierIdx);
           if (unlock) {
-            const owned = S.countInventoryOwned(state, unlock.resource);
+            const owned = selectedChar() ? S.countInInventory(selectedChar(), unlock.resource) : 0;
             const resMet = owned >= unlock.resourceAmt ? 'met' : 'unmet';
             costLine = `<span class="upgrade-card-cost ${resMet}">${resIcon(unlock.resource, 'game-icon lg')} ${fmt(owned)}/${fmt(unlock.resourceAmt)}</span>`;
             actionLabel = `Unlock → Lv ${targetMax}`;
@@ -797,8 +821,9 @@
     return `
       <header class="page-header">
         <span class="page-header-icon">🌳</span>
-        <div class="page-header-text"><h1>World Tree</h1><p>Spend inventory resources to unlock each tier cap (5 levels), then gold to level up within it</p></div>
+        <div class="page-header-text"><h1>World Tree</h1><p>Uses selected hero's inventory · resources unlock tiers, gold levels up</p></div>
       </header>
+      ${pageCharBar()}
       <div class="branch-grid">${branches}</div>`;
   }
 
@@ -812,6 +837,7 @@
         <span class="page-header-icon">⚙</span>
         <div class="page-header-text"><h1>Settings</h1><p>Save data and account options</p></div>
       </header>
+      ${pageCharBar()}
       <div class="settings-grid">
         <section class="detail-box"><h3>Save</h3><p class="settings-line">${sessionText}</p>
           <div class="btn-row">
@@ -924,7 +950,19 @@
 
     if (action === 'pick-produce') {
       if (btn.disabled) return;
-      E.setProduceSlot(state, Number(btn.dataset.slot), btn.dataset.item);
+      E.setProduceSlot(state, selectedIndex(), Number(btn.dataset.slot));
+      render();
+      return;
+    }
+    if (action === 'clear-produce') {
+      E.clearProduceSlot(state, selectedIndex());
+      addLog('Stopped producing.');
+      render();
+      return;
+    }
+    if (action === 'clear-smelt') {
+      E.clearSmeltSlot(state, Number(btn.dataset.slot));
+      addLog(`Stopped smelter slot ${Number(btn.dataset.slot) + 1}.`);
       render();
       return;
     }
@@ -1009,7 +1047,7 @@
     const type = el.dataset.collectType;
     const slotIdx = Number(el.dataset.slot);
     if (type === 'produce') {
-      const result = E.collectProduce(state, slotIdx, selectedIndex());
+      const result = E.collectProduce(state, selectedIndex());
       if (result.collected > 0) {
         addLog(`Collected ${result.collected} items into inventory.`);
         if (result.lost > 0) addLog(`${result.lost} items lost — inventory full.`);

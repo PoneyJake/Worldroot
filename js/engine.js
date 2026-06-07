@@ -57,7 +57,8 @@
     if (!upgradeNeedsUnlock(state, nodeId)) return false;
     const costs = upgradeUnlockCosts(nodeId, upgradeUnlockIndex(state, nodeId));
     if (!costs) return false;
-    return S.inventoryResourceHas(state, costs.resource, costs.resourceAmt);
+    const char = S.getSelectedCharacter(state);
+    return char && S.charInventoryResourceHas(char, costs.resource, costs.resourceAmt);
   }
 
   function canLevelUpgrade(state, nodeId) {
@@ -165,6 +166,34 @@
   function veinEffThreshold(vein) {
     const bps = veinEffBreakpoints(vein);
     return bps[1]?.eff ?? bps[0].eff;
+  }
+
+  function effForSuccessPercent(targetPct, vein) {
+    const bps = veinEffBreakpoints(vein);
+    if (targetPct <= 0) return 0;
+    if (targetPct <= bps[0].pct) {
+      return (targetPct / bps[0].pct) * bps[0].eff;
+    }
+    for (let i = 0; i < bps.length - 1; i++) {
+      const a = bps[i];
+      const b = bps[i + 1];
+      if (targetPct <= b.pct) {
+        const t = (targetPct - a.pct) / (b.pct - a.pct);
+        return a.eff + t * (b.eff - a.eff);
+      }
+    }
+    const last = bps[bps.length - 1];
+    return last.eff * (targetPct / last.pct);
+  }
+
+  function gatherYieldTierInfo(state, char, skillId, vein) {
+    const eff = gatherEfficiency(state, char, skillId);
+    const successPct = gatherSuccessPercent(eff, vein);
+    const nextAmount = Math.floor(successPct / 100) + 1;
+    const progressToNext = successPct % 100;
+    const effFor100Next = Math.ceil(effForSuccessPercent(nextAmount * 100, vein));
+    const multiPct = (gatherMultiChance(state, char, skillId) * 100).toFixed(1);
+    return { eff, successPct, nextAmount, progressToNext, effFor100Next, multiPct };
   }
 
   function gatherSuccessPercent(eff, vein) {
@@ -298,12 +327,18 @@
     return Math.floor(C.SMELT_BASE_CAPACITY * (1 + bonus));
   }
 
+  function produceBatchCapacity(state) {
+    const bonus = effectBonus(state, 'produce_capacity');
+    return Math.floor(C.PRODUCE_BASE_CAPACITY * (1 + bonus));
+  }
+
   function smeltSlotsUnlocked(state) {
     return C.SMELT_SLOT_UNLOCKS.filter((req) => state.smelting.skill.level >= req).length;
   }
 
-  function produceSlotsUnlocked(state) {
-    return C.UNLOCK_LEVELS.filter((req) => state.producing.skill.level >= req).length;
+  function produceSlotsUnlocked(char) {
+    const lv = char?.producing?.skill?.level ?? 0;
+    return C.UNLOCK_LEVELS.filter((req) => lv >= req).length;
   }
 
   function tickSmelting(state) {
@@ -317,12 +352,13 @@
       if (!slot.ore || (slot.oreLoaded || 0) < 1) continue;
       const recipe = C.SMELT_RECIPES.find((r) => r.ore === slot.ore);
       if (!recipe) continue;
+      if ((slot.oreLoaded || 0) < recipe.orePerBar) continue;
 
-      const ticksNeeded = Math.max(3, Math.floor(C.SMELT_TICKS_PER_ORE / speedMult));
+      const ticksNeeded = Math.max(1, Math.floor(recipe.ticks / speedMult));
       slot.progress += 1;
       if (slot.progress < ticksNeeded) continue;
 
-      slot.oreLoaded -= 1;
+      slot.oreLoaded -= recipe.orePerBar;
       let bars = 1;
       if (Math.random() < multiMult * 0.1) bars += 1;
       slot.ready = (slot.ready || 0) + bars;
@@ -333,27 +369,29 @@
   }
 
   function tickProducing(state) {
-    const slotsOpen = produceSlotsUnlocked(state);
     const speedMult = 1 + effectBonus(state, 'produce_speed');
     const xpMult = 1 + effectBonus(state, 'produce_xp');
     const multiMult = effectBonus(state, 'produce_multi');
-    const capMult = 1 + effectBonus(state, 'produce_capacity');
+    const cap = produceBatchCapacity(state);
 
-    for (let i = 0; i < slotsOpen; i++) {
-      const slot = state.producing.slots[i];
-      if (!slot.item) continue;
-      const def = C.PRODUCE_ITEMS.find((p) => p.id === slot.item);
-      if (!def || state.producing.skill.level < def.minLevel) continue;
+    for (const char of state.characters) {
+      const prod = char.producing;
+      if (!prod || prod.activeSlot == null) continue;
+      const def = C.PRODUCE_SLOTS[prod.activeSlot];
+      if (!def || prod.skill.level < def.minLevel) continue;
+      if ((prod.ready || 0) >= cap) continue;
 
-      const ticksNeeded = Math.max(3, Math.floor(def.ticks / (speedMult * capMult)));
-      slot.progress += 1;
-      if (slot.progress < ticksNeeded) continue;
+      const ticksNeeded = Math.max(1, Math.floor(def.ticks / speedMult));
+      prod.progress += 1;
+      if (prod.progress < ticksNeeded) continue;
 
-      let output = def.output;
+      let output = 1;
       if (Math.random() < multiMult * 0.1) output += 1;
-      slot.ready = (slot.ready || 0) + output;
-      S.grantXp(state.producing.skill, Math.floor(def.xp * xpMult));
-      slot.progress = 0;
+      const space = cap - (prod.ready || 0);
+      prod.ready = (prod.ready || 0) + Math.min(output, space);
+      prod.readyItem = def.id;
+      S.grantXp(prod.skill, Math.floor(def.xp * xpMult));
+      prod.progress = 0;
     }
   }
 
@@ -486,8 +524,9 @@
     const tierIdx = upgradeUnlockIndex(state, nodeId);
     const costs = upgradeUnlockCosts(nodeId, tierIdx);
     if (!costs) return false;
-    if (!S.inventoryResourceHas(state, costs.resource, costs.resourceAmt)) return false;
-    S.removeFromInventoryOwned(state, costs.resource, costs.resourceAmt);
+    const char = S.getSelectedCharacter(state);
+    if (!char || !S.charInventoryResourceHas(char, costs.resource, costs.resourceAmt)) return false;
+    S.removeFromCharInventory(char, costs.resource, costs.resourceAmt);
     if (!state.upgradeTiers) state.upgradeTiers = {};
     state.upgradeTiers[nodeId] = tierIdx + 1;
     S.saveState(state);
@@ -534,12 +573,21 @@
     return true;
   }
 
-  function setProduceSlot(state, slotIndex, itemId) {
-    const slot = state.producing.slots[slotIndex];
-    if (!slot) return false;
-    slot.item = itemId;
-    slot.progress = 0;
-    slot.ready = 0;
+  function setProduceSlot(state, charIndex, slotIndex) {
+    const char = state.characters[charIndex];
+    if (!char?.producing) return false;
+    const prod = char.producing;
+    const def = C.PRODUCE_SLOTS[slotIndex];
+    if (!def || prod.skill.level < def.minLevel) return false;
+    if (slotIndex >= produceSlotsUnlocked(char)) return false;
+
+    if (prod.activeSlot === slotIndex) {
+      prod.activeSlot = null;
+      prod.progress = 0;
+    } else {
+      prod.activeSlot = slotIndex;
+      prod.progress = 0;
+    }
     S.saveState(state);
     return true;
   }
@@ -555,24 +603,25 @@
     S.saveState(state);
   }
 
-  function clearProduceSlot(state, slotIndex) {
-    const slot = state.producing.slots[slotIndex];
-    if (!slot) return;
-    slot.item = null;
-    slot.progress = 0;
-    slot.ready = 0;
+  function clearProduceSlot(state, charIndex) {
+    const char = state.characters[charIndex];
+    if (!char) return;
+    S.stopCharacterProducing(char);
     S.saveState(state);
   }
 
-  function collectProduce(state, slotIndex, charIndex) {
-    const slot = state.producing.slots[slotIndex];
+  function collectProduce(state, charIndex) {
     const char = state.characters[charIndex];
-    if (!slot?.ready || !char || !slot.item) return { collected: 0, lost: 0 };
+    const prod = char?.producing;
+    if (!prod?.ready || !prod.readyItem) return { collected: 0, lost: 0 };
 
-    const result = S.addToInventory(char, state, slot.item, slot.ready, 'producing');
+    const result = S.addToInventory(char, state, prod.readyItem, prod.ready, 'producing');
     const collected = result.added;
-    slot.ready -= collected;
-    if (slot.ready <= 0) slot.ready = 0;
+    prod.ready -= collected;
+    if (prod.ready <= 0) {
+      prod.ready = 0;
+      prod.readyItem = null;
+    }
     S.saveState(state);
     return { collected, lost: result.lost };
   }
@@ -597,9 +646,10 @@
     upgradeCosts, upgradeBonusDisplay, upgradeBonusPercent, effectBonus,
     skillXpBonus, skillYieldBonus, skillMultiBonus,
     gatherEfficiency, gatherStatBonus, gatherSuccessChance, gatherSuccessPercent, gatherMultiChance,
+    gatherYieldTierInfo, effForSuccessPercent,
     veinEffThreshold, veinEffBreakpoints,
     gatherRatePerMin, gatherIntervalTicks, charMaxHp, charMaxMp, charDamage, mobMaxHp, dropChance, dropBonus,
-    getTheoreticalCombatRates, smeltBatchCapacity,
+    getTheoreticalCombatRates, smeltBatchCapacity, produceBatchCapacity,
     charStat, gatherStatMult, combatDamageMult,
     tick, buyUpgrade, canAffordUpgrade, findVein, findMonster,
     getRatePerHour, findUpgradeNode, smeltSlotsUnlocked, produceSlotsUnlocked,

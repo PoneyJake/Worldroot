@@ -52,13 +52,8 @@
     ];
   }
 
-  function defaultProduceSlots() {
-    return [
-      { item: null, progress: 0, ready: 0 },
-      { item: null, progress: 0, ready: 0 },
-      { item: null, progress: 0, ready: 0 },
-      { item: null, progress: 0, ready: 0 },
-    ];
+  function defaultCharacterProducing() {
+    return { skill: defaultSkill(), activeSlot: null, progress: 0, ready: 0, readyItem: null };
   }
 
   function defaultRateStats() {
@@ -81,6 +76,7 @@
       gatherCd: 0,
       combatCd: 0,
       combatState: null,
+      producing: defaultCharacterProducing(),
     };
   }
 
@@ -94,7 +90,6 @@
       pendingSlot: 1,
       selectedCharIndex: 0,
       rateStats: defaultRateStats(),
-      producing: { skill: defaultSkill(), slots: defaultProduceSlots() },
       smelting: { skill: defaultSkill(), slots: defaultSmeltSlots() },
     };
   }
@@ -109,7 +104,6 @@
       pendingSlot: state.pendingSlot,
       selectedCharIndex: state.selectedCharIndex,
       rateStats: state.rateStats,
-      producing: state.producing,
       smelting: state.smelting,
     };
   }
@@ -219,6 +213,22 @@
       combatState = { ...combatState, mobId: migrateMonsterId(combatState.mobId) };
     }
 
+    let producing = c.producing;
+    if (!producing || typeof producing !== 'object') {
+      producing = defaultCharacterProducing();
+    } else {
+      const slotIdx = producing.activeSlot ?? (
+        producing.item ? C.PRODUCE_SLOTS?.findIndex((p) => p.id === producing.item) : null
+      );
+      producing = {
+        skill: { ...defaultSkill(), ...producing.skill },
+        activeSlot: slotIdx >= 0 ? slotIdx : null,
+        progress: producing.progress ?? 0,
+        ready: producing.ready ?? 0,
+        readyItem: producing.readyItem ?? producing.item ?? null,
+      };
+    }
+
     return {
       classId: c.classId,
       activity: c.activity ?? null,
@@ -229,6 +239,7 @@
       gatherCd: c.gatherCd ?? 0,
       combatCd: c.combatCd ?? 0,
       combatState,
+      producing,
     };
   }
 
@@ -262,16 +273,6 @@
     state.upgradeTiers = migrateUpgradeTiers(data.upgradeTiers, state.upgrades);
     state.pendingSlot = data.pendingSlot ?? (data.characters?.length ? null : 1);
     state.selectedCharIndex = data.selectedCharIndex ?? 0;
-    if (data.producing) {
-      state.producing = {
-        skill: { ...defaultSkill(), ...data.producing.skill },
-        slots: (data.producing.slots || defaultProduceSlots()).map((s) => ({
-          item: s.item ?? null,
-          progress: s.progress ?? 0,
-          ready: s.ready ?? 0,
-        })),
-      };
-    }
     if (data.smelting) {
       state.smelting = {
         skill: { ...defaultSkill(), ...data.smelting.skill },
@@ -286,6 +287,23 @@
     }
     if (Array.isArray(data.characters)) {
       state.characters = data.characters.map(hydrateCharacter);
+    }
+    if (data.producing && state.characters.length) {
+      const legacy = data.producing;
+      const char = state.characters[0];
+      if (char && char.producing.activeSlot == null && legacy.slots) {
+        for (let i = 0; i < legacy.slots.length; i++) {
+          const s = legacy.slots[i];
+          if (s?.item) {
+            char.producing.activeSlot = i;
+            char.producing.progress = s.progress ?? 0;
+            char.producing.ready = s.ready ?? 0;
+            char.producing.readyItem = s.item;
+            break;
+          }
+        }
+        char.producing.skill = { ...defaultSkill(), ...legacy.skill };
+      }
     }
     if (state.selectedCharIndex >= state.characters.length) {
       state.selectedCharIndex = Math.max(0, state.characters.length - 1);
@@ -464,29 +482,18 @@
     return countInSlots(state.storageSlots, resourceId) >= amount;
   }
 
-  function countInventoryOwned(state, resourceId) {
-    let total = 0;
-    for (const char of state.characters) {
-      total += countInSlots(char.inventorySlots, resourceId);
-    }
-    return total;
+  function charInventoryResourceHas(char, resourceId, amount) {
+    if (!char) return false;
+    return countInInventory(char, resourceId) >= amount;
   }
 
-  function inventoryResourceHas(state, resourceId, amount) {
-    return countInventoryOwned(state, resourceId) >= amount;
+  function removeFromCharInventory(char, resourceId, amount) {
+    if (!char) return 0;
+    return removeFromSlots(char.inventorySlots, resourceId, amount);
   }
 
   function removeFromStorage(state, resourceId, amount) {
     return removeFromSlots(state.storageSlots, resourceId, amount);
-  }
-
-  function removeFromInventoryOwned(state, resourceId, amount) {
-    let remaining = amount;
-    for (const char of state.characters) {
-      if (remaining <= 0) break;
-      remaining -= removeFromSlots(char.inventorySlots, resourceId, remaining);
-    }
-    return amount - remaining;
   }
 
   function countInInventory(char, resourceId) {
@@ -615,12 +622,23 @@
   }
 
   function stopAllProducing(state) {
-    for (const slot of state.producing.slots) {
-      slot.item = null;
-      slot.progress = 0;
-      slot.ready = 0;
+    for (const char of state.characters) {
+      const prod = char.producing;
+      if (!prod) continue;
+      prod.activeSlot = null;
+      prod.progress = 0;
+      prod.ready = 0;
+      prod.readyItem = null;
     }
     saveState(state);
+  }
+
+  function stopCharacterProducing(char) {
+    if (!char?.producing) return;
+    char.producing.activeSlot = null;
+    char.producing.progress = 0;
+    char.producing.ready = 0;
+    char.producing.readyItem = null;
   }
 
   function recordRateEvent(state, event) {
@@ -646,13 +664,13 @@
     characterTotalLevel, accountTotalLevel, maxUnlockedSlots, nextSlotUnlock,
     refreshPendingSlot, addCharacter, selectCharacter, getSelectedCharacter,
     setActivity, stopActivity, emptyUpgrades, recordRateEvent, migrateUpgrades,
-    defaultSmeltSlots, defaultProduceSlots, emptySlotArray,
+    defaultSmeltSlots, defaultCharacterProducing, emptySlotArray,
     stackCapacity, inventorySlotCount, countInSlots, countEmptySlots,
     addToInventory, addToStorage, removeFromStorage, storageHas,
-    countInventoryOwned, inventoryResourceHas, removeFromInventoryOwned,
+    charInventoryResourceHas, removeFromCharInventory,
     addToSlots, removeFromSlots, carryEffectForSkill, stackCapacityForResource,
     transferInvToStorage, transferStorageToInv,
     countInInventory, removeFromInventorySlot, loadOreToSmelt,
-    stopAllSmelting, stopAllProducing,
+    stopAllSmelting, stopAllProducing, stopCharacterProducing,
   };
 })();
