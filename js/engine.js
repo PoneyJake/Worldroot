@@ -436,11 +436,138 @@
       let output = 1;
       if (Math.random() < multiMult * 0.1) output += 1;
       const space = cap - (prod.ready || 0);
-      prod.ready = (prod.ready || 0) + Math.min(output, space);
+      const made = Math.min(output, space);
+      prod.ready = (prod.ready || 0) + made;
       prod.readyItem = def.id;
+      recordProduceProgress(state, def.id, made);
       S.grantXp(prod.skill, Math.floor(def.xp * xpMult));
       prod.progress = 0;
     }
+  }
+
+  function recordProduceProgress(state, resourceId, amount) {
+    if (!amount || !state.questProgress) return;
+    state.questProgress.produced[resourceId] = (state.questProgress.produced[resourceId] || 0) + amount;
+  }
+
+  function recordQuestFromEvent(state, event) {
+    if (!state.questProgress) state.questProgress = S.defaultQuestProgress();
+    const qp = state.questProgress;
+    if (event.kill && event.monster) {
+      qp.kills[event.monster] = (qp.kills[event.monster] || 0) + 1;
+    }
+    if (event.resource && event.resourceAmount > 0) {
+      qp.gathered[event.resource] = (qp.gathered[event.resource] || 0) + event.resourceAmount;
+    }
+  }
+
+  function questTrackProgress(state, track) {
+    const qp = state.questProgress || {};
+    if (track.type === 'kill') return qp.kills?.[track.monster] || 0;
+    if (track.type === 'gather') return qp.gathered?.[track.resource] || 0;
+    if (track.type === 'produce') return qp.produced?.[track.resource] || 0;
+    return 0;
+  }
+
+  function questIsComplete(state, quest) {
+    return questTrackProgress(state, quest.track) >= quest.track.count;
+  }
+
+  function questIsClaimed(state, questId) {
+    return !!state.questClaims?.[questId];
+  }
+
+  function findQuest(questId) {
+    for (const track of Object.values(C.QUEST_TRACKS || {})) {
+      const q = track.quests.find((x) => x.id === questId);
+      if (q) return { track, quest: q };
+    }
+    return null;
+  }
+
+  function claimQuest(state, questId, charIndex) {
+    const found = findQuest(questId);
+    if (!found || questIsClaimed(state, questId) || !questIsComplete(state, found.quest)) return false;
+    const char = state.characters[charIndex];
+    if (!char) return false;
+    for (const reward of found.quest.rewards) {
+      if (reward.type === 'gold') state.gold += reward.amount;
+      else if (reward.type === 'item') {
+        const result = S.addToInventory(char, state, reward.id, reward.amount, 'combat');
+        if (result.lost > 0) return false;
+      }
+    }
+    if (!state.questClaims) state.questClaims = {};
+    state.questClaims[questId] = true;
+    S.saveState(state);
+    return true;
+  }
+
+  function canUseConsumable(state, char, resourceId) {
+    const def = C.CONSUMABLE_ITEMS?.[resourceId];
+    if (!def || !char) return false;
+    if (def.type === 'bag') return !char.bagsUsed.includes(def.tier);
+    if (def.type === 'chest') return !state.storageChestsUsed.includes(def.tier);
+    if (def.type === 'pouch') {
+      const cur = char.pouchTiers?.[def.category] || 0;
+      return cur < def.tier && cur === def.tier - 1;
+    }
+    return false;
+  }
+
+  function useConsumableFromSlot(state, char, slotIdx) {
+    const slot = char.inventorySlots[slotIdx];
+    if (!slot?.amount) return false;
+    const def = C.CONSUMABLE_ITEMS?.[slot.resourceId];
+    if (!def || !canUseConsumable(state, char, slot.resourceId)) return false;
+
+    if (def.type === 'bag') {
+      char.bagsUsed.push(def.tier);
+      S.ensureInventorySize(char);
+    } else if (def.type === 'chest') {
+      if (!state.storageChestsUsed) state.storageChestsUsed = [];
+      state.storageChestsUsed.push(def.tier);
+      S.ensureStorageSize(state);
+    } else if (def.type === 'pouch') {
+      char.pouchTiers[def.category] = def.tier;
+    }
+
+    S.removeFromInventorySlot(char, slotIdx, 1);
+    S.saveState(state);
+    return true;
+  }
+
+  function shopItemAvailable(state, itemId) {
+    const def = C.CONSUMABLE_ITEMS?.[itemId];
+    if (def?.type === 'chest') return !state.storageChestsUsed?.includes(def.tier);
+    return true;
+  }
+
+  function buyShopItem(state, char, itemId) {
+    const shop = C.SHOP_ITEMS?.find((s) => s.id === itemId);
+    if (!shop || !char || !shopItemAvailable(state, itemId)) return false;
+    if (state.gold < shop.gold) return false;
+    const result = S.addToInventory(char, state, itemId, 1, 'combat');
+    if (result.added < 1) return false;
+    state.gold -= shop.gold;
+    S.saveState(state);
+    return true;
+  }
+
+  function canCraft(state, char, recipeId) {
+    const recipe = C.CRAFT_RECIPES?.find((r) => r.id === recipeId);
+    if (!recipe || !char) return false;
+    return recipe.costs.every((c) => S.charInventoryResourceHas(char, c.res, c.amt));
+  }
+
+  function craftItem(state, char, recipeId) {
+    const recipe = C.CRAFT_RECIPES?.find((r) => r.id === recipeId);
+    if (!recipe || !canCraft(state, char, recipeId)) return false;
+    for (const cost of recipe.costs) S.removeFromCharInventory(char, cost.res, cost.amt);
+    const result = S.addToInventory(char, state, recipe.output, 1, 'combat');
+    if (result.added < 1) return false;
+    S.saveState(state);
+    return true;
   }
 
   function tickCharacter(state, char) {
@@ -560,6 +687,7 @@
     for (const char of state.characters) {
       const ev = tickCharacter(state, char);
       if (ev) {
+        recordQuestFromEvent(state, ev);
         S.recordRateEvent(state, ev);
         events.push(ev);
       }
@@ -723,5 +851,8 @@
     loadOreStackFromInv, produceSlotsUnlocked,
     setSmeltSlot, setProduceSlot, clearSmeltSlot, clearProduceSlot,
     collectProduce, collectSmelt, unloadSmeltOre,
+    questTrackProgress, questIsComplete, questIsClaimed, claimQuest,
+    canUseConsumable, useConsumableFromSlot, shopItemAvailable, buyShopItem,
+    canCraft, craftItem,
   };
 })();

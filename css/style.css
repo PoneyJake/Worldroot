@@ -1999,6 +1999,153 @@ body {
   margin-top: 8px;
 }
 
+/* ── Equipment, quests, shop ── */
+
+.equipment-layout {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px;
+  align-items: flex-start;
+}
+
+.equipment-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 76px);
+  gap: 8px;
+}
+
+.tools-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 76px);
+  gap: 8px;
+}
+
+.equip-slot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.equip-slot-label {
+  font-size: 0.62rem;
+  color: #6a7a66;
+  text-align: center;
+}
+
+.equip-slot-box {
+  width: 76px;
+  height: 76px;
+  border-radius: 10px;
+  border: 2px dashed #3a5a38;
+  background: #121812;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.7;
+}
+
+.equip-slot-box .game-icon.dim {
+  opacity: 0.35;
+  width: 2.5rem;
+  height: 2.5rem;
+}
+
+.quest-track-tabs,
+.slot-page-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.quest-track-tab,
+.slot-page-tab {
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid #2a382a;
+  background: #121812;
+  color: #8ab086;
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+
+.quest-track-tab.active,
+.slot-page-tab.active {
+  border-color: #5a9a52;
+  background: #1a281a;
+}
+
+.quest-card .quest-progress-text {
+  font-size: 0.78rem;
+  color: #8ab886;
+  margin: 4px 0;
+}
+
+.quest-rewards {
+  font-size: 0.75rem;
+  color: #9aaa96;
+  margin: 6px 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.quest-claimed {
+  font-size: 0.78rem;
+  color: #5a9a52;
+  font-weight: 700;
+}
+
+.shop-grid,
+.craft-grid,
+.quest-grid {
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+}
+
+.shop-card,
+.craft-card {
+  text-align: center;
+}
+
+.shop-card-icon {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 6px;
+}
+
+.shop-card.locked {
+  opacity: 0.5;
+}
+
+.game-icon.sm {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+.hold-use-slot {
+  position: relative;
+}
+
+.hold-use-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 10px;
+  border: 2px solid transparent;
+  pointer-events: none;
+}
+
+.hold-use-slot.hold-charging .hold-use-ring {
+  border-color: #5a9a52;
+  animation: hold-charge 2s linear forwards;
+}
+
+@keyframes hold-charge {
+  from { box-shadow: inset 0 0 0 0 rgba(90, 154, 82, 0.4); }
+  to { box-shadow: inset 0 0 0 76px rgba(90, 154, 82, 0.35); }
+}
+
 .activity-assigned-card {
   outline: 1px solid rgba(120, 200, 120, 0.35);
 }

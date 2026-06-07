@@ -11,7 +11,12 @@
   let state = null;
   let activePage = 'characters';
   let selectedSmeltSlot = 0;
+  let invPage = 0;
+  let storPage = 0;
+  let questTrack = 'main';
   let logBuffer = [];
+  let holdTimer = null;
+  let holdEl = null;
 
   function $(id) { return document.getElementById(id); }
   function fmt(n) { return Math.floor(n).toLocaleString(); }
@@ -103,25 +108,64 @@
     return `<span class="sidebar-skill-chars">${chars.map((c) => C.CLASSES[c.classId].icon).join('')}</span>`;
   }
 
-  function renderSlotGrid(slots, maxSlots, opts = {}) {
-    const { transferType = null, gridClass = '' } = opts;
+  function renderSlotGrid(slots, totalSlots, opts = {}) {
+    const { transferType = null, gridClass = '', start = 0, end = totalSlots, holdUse = false, char = null, smeltOrePick = false } = opts;
     let html = '';
-    for (let i = 0; i < maxSlots; i++) {
-      const slot = slots[i];
+    for (let idx = start; idx < end; idx++) {
+      const slot = slots[idx];
       if (!slot) {
         html += `<div class="item-slot empty"><span class="item-slot-empty">+</span></div>`;
       } else {
         const transferAttr = transferType
-          ? ` data-transfer-type="${transferType}" data-slot="${i}"`
+          ? ` data-transfer-type="${transferType}" data-slot="${idx}"`
           : '';
+        const isOre = smeltOrePick && C.SMELT_RECIPES.some((r) => r.ore === slot.resourceId);
+        const canLoad = isOre && E.findFirstSmeltSlotForOre(state, slot.resourceId) >= 0;
+        const smeltAttr = canLoad ? ` data-action="load-smelt-ore" data-inv="${idx}"` : '';
+        const consumable = holdUse && C.CONSUMABLE_ITEMS?.[slot.resourceId];
+        const canUse = consumable && char && E.canUseConsumable(state, char, slot.resourceId);
+        const holdAttr = canUse ? ` data-hold-use="${idx}"` : '';
+        const holdHint = canUse ? ' · hold 2s to use' : (canLoad ? ' — click to load smelter' : '');
         html += `
-          <div class="item-slot filled${transferType ? ' transferable' : ''}" title="${resName(slot.resourceId)}${transferType ? ' — double-click: move 1 · shift+click: move all' : ''}"${transferAttr}>
+          <div class="item-slot filled${transferType ? ' transferable' : ''}${canLoad ? ' smelt-ore-pick' : ''}${canUse ? ' hold-use-slot' : ''}" title="${resName(slot.resourceId)}${transferType ? ' — double-click: move 1 · shift+click: move all' : ''}${holdHint}"${transferAttr}${smeltAttr}${holdAttr}>
             <span class="item-slot-icon">${resIcon(slot.resourceId, 'game-icon')}</span>
             <span class="item-slot-qty">${fmt(slot.amount)}</span>
+            ${canUse ? '<span class="hold-use-ring"></span>' : ''}
           </div>`;
       }
     }
     return `<div class="item-slot-grid ${gridClass}">${html}</div>`;
+  }
+
+  function renderPageTabs(page, pageCount, action) {
+    if (pageCount <= 1) return '';
+    return `<div class="slot-page-tabs">${Array.from({ length: pageCount }, (_, i) =>
+      `<button type="button" class="slot-page-tab${i === page ? ' active' : ''}" data-action="${action}" data-page="${i}">Page ${i + 1}</button>`,
+    ).join('')}</div>`;
+  }
+
+  function renderPagedInventory(char, opts = {}) {
+    const total = S.inventorySlotCount(char);
+    const pageSize = C.INVENTORY_PAGE_SIZE || 16;
+    const pages = S.inventoryPageCount(char);
+    const start = invPage * pageSize;
+    const end = Math.min(start + pageSize, total);
+    return `
+      ${renderPageTabs(invPage, pages, 'inv-page')}
+      ${renderSlotGrid(char.inventorySlots, total, {
+        ...opts, start, end, holdUse: true, char,
+      })}`;
+  }
+
+  function renderPagedStorage(opts = {}) {
+    const total = S.storageSlotCount(state);
+    const pageSize = C.STORAGE_PAGE_SIZE || 24;
+    const pages = S.storagePageCount(state);
+    const start = storPage * pageSize;
+    const end = Math.min(start + pageSize, total);
+    return `
+      ${renderPageTabs(storPage, pages, 'stor-page')}
+      ${renderSlotGrid(state.storageSlots, total, { ...opts, start, end })}`;
   }
 
   function selectedIndex() {
@@ -440,27 +484,24 @@
   function renderInventoryPanel() {
     const char = selectedChar();
     if (!char) return '<p class="empty-msg">Select a character from the Characters page.</p>';
-    const slotCount = S.inventorySlotCount(char);
     return `
       <header class="page-header">
         <span class="page-header-icon">🎒</span>
         <div class="page-header-text">
           <h1>Inventory</h1>
-          <p>${C.BASE_STACK_SIZE} per stack · overflow is lost</p>
+          <p>Hold-click bags & pouches for 2s to use · overflow is lost</p>
         </div>
       </header>
       ${pageCharBar()}
       <section class="storage-panel slot-panel-fit">
         <h3 class="storage-half-title">${charLabel(char)}'s Inventory</h3>
-        ${renderSlotGrid(char.inventorySlots, slotCount, { transferType: 'inv', gridClass: 'grid-inv-4' })}
+        ${renderPagedInventory(char, { transferType: 'inv', gridClass: 'grid-inv-4' })}
       </section>`;
   }
 
   function renderStoragePanel() {
     const char = selectedChar();
     if (!char) return '<p class="empty-msg">Create a character first.</p>';
-    const invCount = S.inventorySlotCount(char);
-
     return `
       <header class="page-header">
         <span class="page-header-icon">📦</span>
@@ -476,11 +517,11 @@
       <div class="storage-dual">
         <section class="storage-half storage-panel slot-panel-fit">
           <h3 class="storage-half-title">Storage</h3>
-          ${renderSlotGrid(state.storageSlots, state.storageSlots.length, { transferType: 'storage', gridClass: 'grid-storage-6' })}
+          ${renderPagedStorage({ transferType: 'storage', gridClass: 'grid-storage-6' })}
         </section>
         <section class="storage-half storage-panel slot-panel-fit">
           <h3 class="storage-half-title">${charLabel(char)}'s Inventory</h3>
-          ${renderSlotGrid(char.inventorySlots, invCount, { transferType: 'inv', gridClass: 'grid-inv-4' })}
+          ${renderPagedInventory(char, { transferType: 'inv', gridClass: 'grid-inv-4' })}
         </section>
       </div>`;
   }
@@ -647,29 +688,6 @@
 
   /* ── Smelting ── */
 
-  function renderInventoryForSmelt(char) {
-    if (!char) return '';
-    const slotCount = S.inventorySlotCount(char);
-    let html = '';
-    for (let i = 0; i < slotCount; i++) {
-      const slot = char.inventorySlots[i];
-      if (!slot) {
-        html += `<div class="item-slot empty"><span class="item-slot-empty">+</span></div>`;
-        continue;
-      }
-      const isOre = C.SMELT_RECIPES.some((r) => r.ore === slot.resourceId);
-      const canLoad = isOre && E.findFirstSmeltSlotForOre(state, slot.resourceId) >= 0;
-      html += `
-        <div class="item-slot filled${canLoad ? ' smelt-ore-pick' : ''}"
-          ${canLoad ? `data-action="load-smelt-ore" data-inv="${i}"` : ''}
-          title="${resName(slot.resourceId)}${canLoad ? ' — click to load into smelter' : ''}">
-          <span class="item-slot-icon">${resIcon(slot.resourceId, 'game-icon')}</span>
-          <span class="item-slot-qty">${fmt(slot.amount)}</span>
-        </div>`;
-    }
-    return `<div class="item-slot-grid grid-inv-4">${html}</div>`;
-  }
-
   function renderSmeltingPage(sk) {
     const lv = state.smelting.skill.level;
     const char = selectedChar();
@@ -704,7 +722,7 @@
     const invSection = char
       ? `<section class="skill-split-side storage-panel slot-panel-fit">
           <h3 class="storage-half-title">${charLabel(char)}'s Inventory</h3>
-          ${renderInventoryForSmelt(char)}
+          ${renderPagedInventory(char, { gridClass: 'grid-inv-4', holdUse: true, smeltOrePick: true })}
         </section>`
       : '<section class="skill-split-side storage-panel slot-panel-fit"><p class="empty-msg">Select a character to load ore.</p></section>';
 
@@ -786,9 +804,137 @@
         </section>
         <section class="skill-split-side storage-panel slot-panel-fit">
           <h3 class="storage-half-title">${charLabel(char)}'s Inventory</h3>
-          ${renderSlotGrid(char.inventorySlots, S.inventorySlotCount(char), { transferType: 'inv', gridClass: 'grid-inv-4' })}
+          ${renderPagedInventory(char, { transferType: 'inv', gridClass: 'grid-inv-4' })}
         </section>
       </div>`;
+  }
+
+  function renderEquipmentPanel() {
+    const char = selectedChar();
+    if (!char) return '<p class="empty-msg">Select a character from the Characters page.</p>';
+    const eqSlots = (C.EQUIPMENT_SLOTS || []).map((def) => {
+      const item = char.equipment?.[def.id];
+      const inner = item
+        ? resIcon(item, 'game-icon')
+        : `<span class="equip-slot-placeholder">${iconHtml(def.placeholder, 'game-icon dim')}</span>`;
+      return `<div class="equip-slot" title="${def.label}">
+        <span class="equip-slot-label">${def.label}</span>
+        <div class="equip-slot-box">${inner}</div>
+      </div>`;
+    }).join('');
+    const toolSlots = (C.TOOL_SLOTS || []).map((def) => {
+      const item = char.tools?.[def.id];
+      const inner = item
+        ? resIcon(item, 'game-icon')
+        : `<span class="equip-slot-placeholder">${iconHtml(def.placeholder, 'game-icon dim')}</span>`;
+      return `<div class="equip-slot tool-slot" title="${def.label}">
+        <span class="equip-slot-label">${def.label}</span>
+        <div class="equip-slot-box">${inner}</div>
+      </div>`;
+    }).join('');
+    return `
+      <header class="page-header">
+        <span class="page-header-icon">🛡</span>
+        <div class="page-header-text"><h1>Equipment</h1><p>${charLabel(char)} — gear and tools</p></div>
+      </header>
+      ${pageCharBar()}
+      <div class="equipment-layout">
+        <section class="storage-panel slot-panel-fit">
+          <h3 class="storage-half-title">Equipment</h3>
+          <div class="equipment-grid">${eqSlots}</div>
+        </section>
+        <section class="storage-panel slot-panel-fit">
+          <h3 class="storage-half-title">Tools</h3>
+          <div class="tools-grid">${toolSlots}</div>
+        </section>
+      </div>`;
+  }
+
+  function renderQuestsPanel() {
+    const char = selectedChar();
+    const tracks = Object.values(C.QUEST_TRACKS || {});
+    const tabs = tracks.map((t) =>
+      `<button type="button" class="quest-track-tab${questTrack === t.id ? ' active' : ''}" data-action="quest-track" data-track="${t.id}">${t.icon} ${t.label}</button>`,
+    ).join('');
+    const track = C.QUEST_TRACKS?.[questTrack];
+    const cards = track ? track.quests.map((q) => {
+      const prog = E.questTrackProgress(state, q.track);
+      const need = q.track.count;
+      const pct = Math.min(100, (prog / need) * 100);
+      const done = E.questIsComplete(state, q);
+      const claimed = E.questIsClaimed(state, q.id);
+      const rewards = q.rewards.map((r) => {
+        if (r.type === 'gold') return `${fmt(r.amount)} gold`;
+        return resIcon(r.id, 'game-icon sm') + ` ${resName(r.id)}`;
+      }).join(' · ');
+      const claimBtn = done && !claimed && char
+        ? `<button type="button" class="btn-sm primary" data-action="claim-quest" data-quest="${q.id}">Claim reward</button>`
+        : claimed ? '<span class="quest-claimed">Claimed ✓</span>' : '';
+      return `
+        <article class="activity-card quest-card">
+          <strong>${q.title}</strong>
+          <p class="empty-msg">${q.desc}</p>
+          <div class="progress-bar"><div class="progress-bar-fill" style="width:${pct}%"></div></div>
+          <p class="quest-progress-text">${fmt(prog)} / ${fmt(need)}</p>
+          <p class="quest-rewards">Reward: ${rewards}</p>
+          ${claimBtn}
+        </article>`;
+    }).join('') : '';
+    return `
+      <header class="page-header">
+        <span class="page-header-icon">📜</span>
+        <div class="page-header-text"><h1>Quests</h1><p>All characters contribute progress — claim on any hero</p></div>
+      </header>
+      ${pageCharBar()}
+      <div class="quest-track-tabs">${tabs}</div>
+      <div class="activity-grid quest-grid">${cards}</div>`;
+  }
+
+  function renderShopPanel() {
+    const char = selectedChar();
+    if (!char) return '<p class="empty-msg">Create a character first.</p>';
+    const items = (C.SHOP_ITEMS || []).map((shop) => {
+      const avail = E.shopItemAvailable(state, shop.id);
+      const canBuy = avail && state.gold >= shop.gold;
+      return `
+        <article class="activity-card shop-card${!avail ? ' locked' : ''}">
+          <div class="shop-card-icon">${resIcon(shop.id, 'game-icon')}</div>
+          <strong>${resName(shop.id)}</strong>
+          <p class="empty-msg">${avail ? `${fmt(shop.gold)} gold` : 'Already used — unavailable'}</p>
+          <button type="button" class="btn-sm primary" data-action="buy-shop" data-item="${shop.id}" ${!canBuy ? 'disabled' : ''}>Buy</button>
+        </article>`;
+    }).join('');
+    return `
+      <header class="page-header">
+        <span class="page-header-icon">🛒</span>
+        <div class="page-header-text"><h1>Shop</h1><p>${charLabel(char)} receives purchased items</p></div>
+        <div class="page-header-stat"><span class="page-header-stat-label">Gold</span><span class="page-header-stat-value">${fmt(state.gold)}</span></div>
+      </header>
+      ${pageCharBar()}
+      <div class="activity-grid shop-grid">${items}</div>`;
+  }
+
+  function renderCraftingPage(sk) {
+    const char = selectedChar();
+    if (!char) return '<p class="empty-msg">Select a character to craft.</p>';
+    const recipes = (C.CRAFT_RECIPES || []).map((recipe) => {
+      const costs = recipe.costs.map((c) => `${resIcon(c.res, 'game-icon sm')} ${fmt(c.amt)}`).join(' ');
+      const can = E.canCraft(state, char, recipe.id);
+      return `
+        <article class="activity-card craft-card">
+          <div class="shop-card-icon">${resIcon(recipe.output, 'game-icon')}</div>
+          <strong>${resName(recipe.output)}</strong>
+          <p class="empty-msg">Costs: ${costs}</p>
+          <button type="button" class="btn-sm primary" data-action="craft-item" data-recipe="${recipe.id}" ${!can ? 'disabled' : ''}>Craft</button>
+        </article>`;
+    }).join('');
+    return `
+      <header class="page-header">
+        <span class="page-header-icon">${sk.icon}</span>
+        <div class="page-header-text"><h1>${sk.name}</h1><p>Hold-click pouches in inventory for 2s to upgrade capacity</p></div>
+      </header>
+      ${pageCharBar()}
+      <div class="activity-grid craft-grid">${recipes}</div>`;
   }
 
   function renderComingSoon(sk) {
@@ -802,6 +948,7 @@
     if (skillId === 'combat') return renderCombatPage(sk);
     if (skillId === 'smelting') return renderSmeltingPage(sk);
     if (skillId === 'producing') return renderProducingPage(sk);
+    if (skillId === 'crafting') return renderCraftingPage(sk);
     return renderGatheringPage(sk);
   }
 
@@ -895,6 +1042,9 @@
     if (activePage === 'characters') el.innerHTML = renderCharactersPanel();
     else if (activePage === 'inventory') el.innerHTML = renderInventoryPanel();
     else if (activePage === 'storage') el.innerHTML = renderStoragePanel();
+    else if (activePage === 'equipment') el.innerHTML = renderEquipmentPanel();
+    else if (activePage === 'quests') el.innerHTML = renderQuestsPanel();
+    else if (activePage === 'shop') el.innerHTML = renderShopPanel();
     else if (activePage === 'worldtree') el.innerHTML = renderWorldTreePanel();
     else if (activePage === 'settings') { el.innerHTML = renderSettingsPanel(); renderLogEl(); }
     else if (skill && !skill.comingSoon) el.innerHTML = renderSkillPage(activePage);
@@ -928,6 +1078,32 @@
     }
     if (action === 'select-smelt-slot') {
       selectedSmeltSlot = Number(btn.dataset.slot);
+      render();
+      return;
+    }
+    if (action === 'inv-page') { invPage = Number(btn.dataset.page); render(); return; }
+    if (action === 'stor-page') { storPage = Number(btn.dataset.page); render(); return; }
+    if (action === 'quest-track') { questTrack = btn.dataset.track; render(); return; }
+    if (action === 'claim-quest') {
+      const ok = E.claimQuest(state, btn.dataset.quest, selectedIndex());
+      if (ok) addLog('Quest reward claimed.');
+      else addLog('Could not claim — complete quest and have inventory space.');
+      render();
+      return;
+    }
+    if (action === 'buy-shop') {
+      const char = selectedChar();
+      if (char && E.buyShopItem(state, char, btn.dataset.item)) {
+        addLog(`Bought ${resName(btn.dataset.item)}.`);
+      } else addLog('Cannot buy — not enough gold, inventory full, or item unavailable.');
+      render();
+      return;
+    }
+    if (action === 'craft-item') {
+      const char = selectedChar();
+      if (char && E.craftItem(state, char, btn.dataset.recipe)) {
+        addLog(`Crafted ${resName(btn.dataset.recipe)}.`);
+      } else addLog('Cannot craft — missing materials or inventory full.');
       render();
       return;
     }
@@ -1149,6 +1325,43 @@
     }
   }
 
+  function cancelHold() {
+    if (holdTimer) {
+      clearTimeout(holdTimer);
+      holdTimer = null;
+    }
+    if (holdEl) {
+      holdEl.classList.remove('hold-charging');
+      holdEl = null;
+    }
+  }
+
+  function initHoldUse() {
+    const ms = C.HOLD_USE_MS || 2000;
+    document.body.addEventListener('pointerdown', (e) => {
+      const el = e.target.closest('[data-hold-use]');
+      if (!el || e.button !== 0) return;
+      cancelHold();
+      holdEl = el;
+      el.classList.add('hold-charging');
+      const invIdx = Number(el.dataset.holdUse);
+      holdTimer = setTimeout(() => {
+        const char = selectedChar();
+        const resId = char?.inventorySlots[invIdx]?.resourceId;
+        if (char && E.useConsumableFromSlot(state, char, invIdx)) {
+          addLog(`Used ${resName(resId || 'item')}.`);
+          render();
+        } else addLog('Cannot use this item.');
+        cancelHold();
+      }, ms);
+    });
+    document.body.addEventListener('pointerup', cancelHold);
+    document.body.addEventListener('pointercancel', cancelHold);
+    document.body.addEventListener('pointerleave', (e) => {
+      if (holdEl && e.target === holdEl) cancelHold();
+    });
+  }
+
   function initResourceTooltips() {
     let tip = document.getElementById('res-tooltip');
     if (!tip) {
@@ -1183,6 +1396,7 @@
     document.body.addEventListener('dblclick', handlePointerSlot);
     document.body.addEventListener('click', handlePointerSlot, true);
     initDragDrop();
+    initHoldUse();
     initResourceTooltips();
     document.body.addEventListener('mousedown', (e) => {
       if (e.shiftKey && e.target.closest('[data-transfer-type]')) e.preventDefault();

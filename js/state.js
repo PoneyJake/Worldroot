@@ -60,6 +60,26 @@
     return { xp: {}, resources: {}, kills: {}, loot: {}, ticks: 0 };
   }
 
+  function defaultPouchTiers() {
+    return { material: 0, mining: 0, woodcutting: 0, fishing: 0 };
+  }
+
+  function defaultEquipment() {
+    const eq = {};
+    for (const s of C.EQUIPMENT_SLOTS || []) eq[s.id] = null;
+    return eq;
+  }
+
+  function defaultTools() {
+    const t = {};
+    for (const s of C.TOOL_SLOTS || []) t[s.id] = null;
+    return t;
+  }
+
+  function defaultQuestProgress() {
+    return { kills: {}, gathered: {}, produced: {} };
+  }
+
   function createCharacter(classId) {
     return {
       classId,
@@ -72,7 +92,10 @@
       activity: null,
       target: null,
       inventorySlots: emptySlotArray(C.BASE_INVENTORY_SLOTS),
-      extraBagSlots: 0,
+      bagsUsed: [],
+      pouchTiers: defaultPouchTiers(),
+      equipment: defaultEquipment(),
+      tools: defaultTools(),
       gatherCd: 0,
       combatCd: 0,
       combatState: null,
@@ -85,11 +108,14 @@
       characters: [],
       gold: 0,
       storageSlots: emptySlotArray(C.BASE_STORAGE_SLOTS),
+      storageChestsUsed: [],
       upgrades: emptyUpgrades(),
       upgradeTiers: emptyUpgradeTiers(),
       pendingSlot: 1,
       selectedCharIndex: 0,
       rateStats: defaultRateStats(),
+      questProgress: defaultQuestProgress(),
+      questClaims: {},
       smelting: { skill: defaultSkill(), slots: defaultSmeltSlots() },
       lastTickAt: Date.now(),
     };
@@ -100,11 +126,14 @@
       characters: state.characters,
       gold: state.gold,
       storageSlots: state.storageSlots,
+      storageChestsUsed: state.storageChestsUsed,
       upgrades: state.upgrades,
       upgradeTiers: state.upgradeTiers,
       pendingSlot: state.pendingSlot,
       selectedCharIndex: state.selectedCharIndex,
       rateStats: state.rateStats,
+      questProgress: state.questProgress,
+      questClaims: state.questClaims,
       smelting: state.smelting,
     };
   }
@@ -196,8 +225,13 @@
     if (!Array.isArray(inventorySlots)) {
       inventorySlots = migrateDictToSlots(c.inventory, C.BASE_INVENTORY_SLOTS);
     }
-    while (inventorySlots.length < C.BASE_INVENTORY_SLOTS) inventorySlots.push(null);
-    if (inventorySlots.length > C.BASE_INVENTORY_SLOTS) inventorySlots.length = C.BASE_INVENTORY_SLOTS;
+    const bagsUsed = Array.isArray(c.bagsUsed) ? [...c.bagsUsed] : [];
+    if (!bagsUsed.length && (c.extraBagSlots || 0) > 0) {
+      const n = Math.min(5, Math.floor(c.extraBagSlots / (C.BAG_SLOTS_ADD || 4)));
+      for (let i = 1; i <= n; i++) bagsUsed.push(i);
+    }
+    const invCount = C.BASE_INVENTORY_SLOTS + bagsUsed.length * (C.BAG_SLOTS_ADD || 4);
+    while (inventorySlots.length < invCount) inventorySlots.push(null);
 
     const skills = {
       combat: { ...defaultSkill(), ...c.skills?.combat },
@@ -236,7 +270,10 @@
       target,
       skills,
       inventorySlots: migrateSlotArray(inventorySlots),
-      extraBagSlots: c.extraBagSlots ?? 0,
+      bagsUsed,
+      pouchTiers: { ...defaultPouchTiers(), ...c.pouchTiers },
+      equipment: { ...defaultEquipment(), ...c.equipment },
+      tools: { ...defaultTools(), ...c.tools },
       gatherCd: c.gatherCd ?? 0,
       combatCd: c.combatCd ?? 0,
       combatState,
@@ -253,7 +290,12 @@
     } else {
       state.storageSlots = migrateDictToSlots(data.storage || data.resources, C.BASE_STORAGE_SLOTS);
     }
-    while (state.storageSlots.length < C.BASE_STORAGE_SLOTS) state.storageSlots.push(null);
+    state.storageChestsUsed = Array.isArray(data.storageChestsUsed) ? [...data.storageChestsUsed] : [];
+    const storCount = storageSlotCount(state);
+    while (state.storageSlots.length < storCount) state.storageSlots.push(null);
+
+    state.questProgress = { ...defaultQuestProgress(), ...data.questProgress };
+    state.questClaims = { ...(data.questClaims || {}) };
 
     if (data.rateStats) {
       const rs = { ...defaultRateStats(), ...data.rateStats };
@@ -288,6 +330,7 @@
     }
     if (Array.isArray(data.characters)) {
       state.characters = data.characters.map(hydrateCharacter);
+      for (const char of state.characters) ensureInventorySize(char);
     }
     if (data.producing && state.characters.length) {
       const legacy = data.producing;
@@ -373,6 +416,7 @@
     oak: 'woodcutting', spruce: 'woodcutting', birch: 'woodcutting', jungle: 'woodcutting',
     shrimp: 'fishing', trout: 'fishing', salmon: 'fishing', lobster: 'fishing',
     slime_gel: 'combat', wisp_essence: 'combat', gloomspore: 'combat', bat_wing_membrane: 'combat',
+    leech_sucker: 'combat', moth_pollen: 'combat',
     goblin_ear: 'combat', wolf_fur: 'combat', bandit_emblem: 'combat',
     twine: 'producing', wooden_pegs: 'producing', iron_nails: 'producing', resin: 'producing',
   };
@@ -383,13 +427,41 @@
     return Math.floor(C.BASE_STACK_SIZE * (1 + bonus));
   }
 
-  function stackCapacityForResource(state, resourceId) {
+  function stackCapacityForResource(state, resourceId, char) {
+    const cat = C.POUCH_CATEGORY_FOR_RESOURCE?.[resourceId];
+    if (cat && char?.pouchTiers?.[cat] > 0) {
+      return C.POUCH_CAPACITIES[char.pouchTiers[cat] - 1];
+    }
     const skillId = RESOURCE_SKILL_MAP[resourceId] || 'combat';
     return stackCapacity(state, skillId);
   }
 
   function inventorySlotCount(char) {
-    return C.BASE_INVENTORY_SLOTS + (char.extraBagSlots || 0);
+    const bags = char?.bagsUsed?.length || 0;
+    return C.BASE_INVENTORY_SLOTS + bags * (C.BAG_SLOTS_ADD || 4);
+  }
+
+  function storageSlotCount(state) {
+    const chests = state?.storageChestsUsed?.length || 0;
+    return C.BASE_STORAGE_SLOTS + chests * (C.CHEST_SLOTS_ADD || 3);
+  }
+
+  function ensureInventorySize(char) {
+    const need = inventorySlotCount(char);
+    while (char.inventorySlots.length < need) char.inventorySlots.push(null);
+  }
+
+  function ensureStorageSize(state) {
+    const need = storageSlotCount(state);
+    while (state.storageSlots.length < need) state.storageSlots.push(null);
+  }
+
+  function inventoryPageCount(char) {
+    return Math.ceil(inventorySlotCount(char) / (C.INVENTORY_PAGE_SIZE || 16));
+  }
+
+  function storagePageCount(state) {
+    return Math.ceil(storageSlotCount(state) / (C.STORAGE_PAGE_SIZE || 24));
   }
 
   function countInSlots(slots, resourceId) {
@@ -440,15 +512,17 @@
   }
 
   function addToInventory(char, state, resourceId, amount, skillId) {
-    const maxStack = stackCapacity(state, skillId || RESOURCE_SKILL_MAP[resourceId] || 'combat');
+    ensureInventorySize(char);
+    const maxStack = stackCapacityForResource(state, resourceId, char);
     const slots = char.inventorySlots;
     const maxSlots = inventorySlotCount(char);
     return addToSlots(slots, resourceId, amount, maxStack, maxSlots);
   }
 
   function addToStorage(state, resourceId, amount) {
+    ensureStorageSize(state);
     const maxStack = C.STORAGE_STACK_MAX ?? 999999999;
-    return addToSlots(state.storageSlots, resourceId, amount, maxStack, state.storageSlots.length);
+    return addToSlots(state.storageSlots, resourceId, amount, maxStack, storageSlotCount(state));
   }
 
   function depositAllToStorage(state, char) {
@@ -703,8 +777,9 @@
     characterTotalLevel, accountTotalLevel, maxUnlockedSlots, nextSlotUnlock,
     refreshPendingSlot, addCharacter, selectCharacter, getSelectedCharacter,
     setActivity, stopActivity, emptyUpgrades, recordRateEvent, migrateUpgrades,
-    defaultSmeltSlots, defaultCharacterProducing, emptySlotArray,
-    stackCapacity, inventorySlotCount, countInSlots, countEmptySlots,
+    defaultSmeltSlots, defaultCharacterProducing, defaultQuestProgress, emptySlotArray,
+    stackCapacity, inventorySlotCount, storageSlotCount, inventoryPageCount, storagePageCount,
+    ensureInventorySize, ensureStorageSize, countInSlots, countEmptySlots,
     addToInventory, addToStorage, removeFromStorage, storageHas,
     charInventoryResourceHas, maxCharInventoryResource, anyCharInventoryResourceHas,
     findCharForResource, removeFromCharInventory,
