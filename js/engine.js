@@ -570,6 +570,57 @@
     return true;
   }
 
+  function resolveEquipTarget(char, def) {
+    if (def.kind === 'tool') return { type: 'tool', key: def.slot };
+    if (def.slot === 'ring') {
+      if (!char.equipment.ring1) return { type: 'equipment', key: 'ring1' };
+      if (!char.equipment.ring2) return { type: 'equipment', key: 'ring2' };
+      return { type: 'equipment', key: 'ring1' };
+    }
+    return { type: 'equipment', key: def.slot };
+  }
+
+  function canEquipItem(char, itemId) {
+    const def = C.EQUIP_ITEM_SLOTS?.[itemId];
+    if (!def || !char) return false;
+    if (def.classId && def.classId !== char.classId) return false;
+    return true;
+  }
+
+  function equipFromInventory(state, char, invIdx) {
+    const slot = char.inventorySlots[invIdx];
+    if (!slot?.amount) return false;
+    const def = C.EQUIP_ITEM_SLOTS?.[slot.resourceId];
+    if (!def || !canEquipItem(char, slot.resourceId)) return false;
+
+    const target = resolveEquipTarget(char, def);
+    const store = target.type === 'tool' ? char.tools : char.equipment;
+    const prev = store[target.key];
+
+    store[target.key] = slot.resourceId;
+    S.removeFromInventorySlot(char, invIdx, 1);
+
+    if (prev) {
+      const back = S.addToInventory(char, state, prev, 1, 'combat');
+      if (back.lost > 0) store[target.key] = prev;
+    }
+
+    S.saveState(state);
+    return true;
+  }
+
+  function unequipSlot(state, char, slotType, slotKey) {
+    if (!char) return false;
+    const store = slotType === 'tool' ? char.tools : char.equipment;
+    const itemId = store[slotKey];
+    if (!itemId) return false;
+    const result = S.addToInventory(char, state, itemId, 1, 'combat');
+    if (result.added < 1) return false;
+    store[slotKey] = null;
+    S.saveState(state);
+    return true;
+  }
+
   function tickCharacter(state, char) {
     if (!char.activity) return null;
 
@@ -853,6 +904,6 @@
     collectProduce, collectSmelt, unloadSmeltOre,
     questTrackProgress, questIsComplete, questIsClaimed, claimQuest,
     canUseConsumable, useConsumableFromSlot, shopItemAvailable, buyShopItem,
-    canCraft, craftItem,
+    canCraft, craftItem, canEquipItem, equipFromInventory, unequipSlot,
   };
 })();

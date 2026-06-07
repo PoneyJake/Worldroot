@@ -2051,6 +2051,31 @@ body {
   height: 2.5rem;
 }
 
+.equip-slot-box.filled {
+  border-style: solid;
+  opacity: 1;
+}
+
+.equip-unequip-btn {
+  margin-top: 4px;
+  font-size: 0.58rem;
+  padding: 2px 6px;
+}
+
+.craft-class-note {
+  font-size: 0.68rem;
+  color: #8ab886;
+  margin: 2px 0;
+}
+
+.equip-item-slot {
+  cursor: pointer;
+}
+
+.equip-item-slot:hover {
+  border-color: #5a9a52;
+}
+
 .quest-track-tabs,
 .slot-page-tabs {
   display: flex;

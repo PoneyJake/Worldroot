@@ -7,6 +7,17 @@ const OUT = 'assets/icons';
 const MAX = 96;
 const PAD = 6;
 
+function buildMetalIcons(_folder, pieces) {
+  const metals = ['Copper', 'Iron', 'Gold', 'Platinum'];
+  const icons = {};
+  for (const metal of metals) {
+    for (const [id, label] of pieces) {
+      icons[`${metal.toLowerCase()}_${id}`] = `${metal} ${label}-jukebox-bg-removed.png`;
+    }
+  }
+  return icons;
+}
+
 const BATCHES = [
   {
     dir: path.join(ROOT, 'Mob and ressource'),
@@ -83,32 +94,35 @@ const BATCHES = [
   },
   {
     dir: path.join(ROOT, 'Armor'),
-    icons: {
-      copper_helmet: 'Copper Helmet-jukebox-bg-removed.png',
-      copper_chest: 'Copper Chest-jukebox-bg-removed.png',
-      copper_legs: 'Copper Legs-jukebox-bg-removed.png',
-      copper_boots: 'Copper Boots-jukebox-bg-removed.png',
-    },
+    icons: buildMetalIcons('Armor', [
+      ['helmet', 'Helmet'], ['chest', 'Chest'], ['legs', 'Legs'], ['boots', 'Boots'],
+    ]),
   },
   {
     dir: path.join(ROOT, 'Weapon'),
-    icons: {
-      copper_sword: 'Copper Sword-jukebox-bg-removed.png',
-    },
+    icons: buildMetalIcons('Weapon', [
+      ['sword', 'Sword'], ['bow', 'Bow'], ['staff', 'Staff'],
+    ]),
   },
   {
     dir: path.join(ROOT, 'Tools'),
-    icons: {
-      copper_pickaxe: 'Copper Pickaxe-jukebox-bg-removed.png',
-      copper_axe: 'Copper Axe-jukebox-bg-removed.png',
-      copper_rod: 'Copper Rod-jukebox-bg-removed.png',
-    },
+    icons: buildMetalIcons('Tools', [
+      ['pickaxe', 'Pickaxe'], ['axe', 'Axe'], ['rod', 'Rod'],
+    ]),
   },
   {
     dir: path.join(ROOT, 'Rings and Amulets'),
     icons: {
+      amulet_of_experience: 'Amulet of Experience-jukebox-bg-removed.png',
+      amulet_of_fishing: 'Amulet of Fishing-jukebox-bg-removed.png',
       amulet_of_mining: 'Amulet of Mining-jukebox-bg-removed.png',
+      amulet_of_woodcutting: 'Amulet of Woodcutting-jukebox-bg-removed.png',
+      ring_of_agility: 'Ring of Agility-jukebox-bg-removed.png',
+      ring_of_carrying: 'Ring of Carrying-jukebox-bg-removed.png',
+      ring_of_fortune: 'Ring of Fortune-jukebox-bg-removed.png',
+      ring_of_magic: 'Ring of Magic-jukebox-bg-removed.png',
       ring_of_strength: 'Ring of Strength-jukebox-bg-removed.png',
+      ring_of_wealth: 'Ring of Wealth-jukebox-bg-removed.png',
     },
   },
 ];

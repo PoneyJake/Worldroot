@@ -14,6 +14,7 @@
   let invPage = 0;
   let storPage = 0;
   let questTrack = 'main';
+  let craftCategory = 'armor';
   let logBuffer = [];
   let holdTimer = null;
   let holdEl = null;
@@ -125,9 +126,11 @@
         const consumable = holdUse && C.CONSUMABLE_ITEMS?.[slot.resourceId];
         const canUse = consumable && char && E.canUseConsumable(state, char, slot.resourceId);
         const holdAttr = canUse ? ` data-hold-use="${idx}"` : '';
-        const holdHint = canUse ? ' · hold 2s to use' : (canLoad ? ' — click to load smelter' : '');
+        const canEquip = transferType === 'inv' && char && E.canEquipItem(char, slot.resourceId);
+        const equipAttr = canEquip ? ` data-action="equip-item" data-inv="${idx}"` : '';
+        const holdHint = canUse ? ' · hold 2s to use' : (canLoad ? ' — click to load smelter' : (canEquip ? ' — click to equip' : ''));
         html += `
-          <div class="item-slot filled${transferType ? ' transferable' : ''}${canLoad ? ' smelt-ore-pick' : ''}${canUse ? ' hold-use-slot' : ''}" title="${resName(slot.resourceId)}${transferType ? ' — double-click: move 1 · shift+click: move all' : ''}${holdHint}"${transferAttr}${smeltAttr}${holdAttr}>
+          <div class="item-slot filled${transferType ? ' transferable' : ''}${canLoad ? ' smelt-ore-pick' : ''}${canUse ? ' hold-use-slot' : ''}${canEquip ? ' equip-item-slot' : ''}" title="${resName(slot.resourceId)}${transferType ? ' — double-click: move 1 · shift+click: move all' : ''}${holdHint}"${transferAttr}${smeltAttr}${holdAttr}${equipAttr}>
             <span class="item-slot-icon">${resIcon(slot.resourceId, 'game-icon')}</span>
             <span class="item-slot-qty">${fmt(slot.amount)}</span>
             ${canUse ? '<span class="hold-use-ring"></span>' : ''}
@@ -817,9 +820,13 @@
       const inner = item
         ? resIcon(item, 'game-icon')
         : `<span class="equip-slot-placeholder">${iconHtml(def.placeholder, 'game-icon dim')}</span>`;
+      const unequip = item
+        ? `<button type="button" class="btn-sm ghost equip-unequip-btn" data-action="unequip-gear" data-slot-type="equipment" data-slot-key="${def.id}">Remove</button>`
+        : '';
       return `<div class="equip-slot" title="${def.label}">
         <span class="equip-slot-label">${def.label}</span>
-        <div class="equip-slot-box">${inner}</div>
+        <div class="equip-slot-box${item ? ' filled' : ''}">${inner}</div>
+        ${unequip}
       </div>`;
     }).join('');
     const toolSlots = (C.TOOL_SLOTS || []).map((def) => {
@@ -827,9 +834,13 @@
       const inner = item
         ? resIcon(item, 'game-icon')
         : `<span class="equip-slot-placeholder">${iconHtml(def.placeholder, 'game-icon dim')}</span>`;
+      const unequip = item
+        ? `<button type="button" class="btn-sm ghost equip-unequip-btn" data-action="unequip-gear" data-slot-type="tool" data-slot-key="${def.id}">Remove</button>`
+        : '';
       return `<div class="equip-slot tool-slot" title="${def.label}">
         <span class="equip-slot-label">${def.label}</span>
-        <div class="equip-slot-box">${inner}</div>
+        <div class="equip-slot-box${item ? ' filled' : ''}">${inner}</div>
+        ${unequip}
       </div>`;
     }).join('');
     return `
@@ -917,13 +928,21 @@
   function renderCraftingPage(sk) {
     const char = selectedChar();
     if (!char) return '<p class="empty-msg">Select a character to craft.</p>';
-    const recipes = (C.CRAFT_RECIPES || []).map((recipe) => {
+    const cls = C.CLASSES[char.classId];
+    const tabs = (C.CRAFT_CATEGORIES || []).map((cat) =>
+      `<button type="button" class="quest-track-tab${craftCategory === cat.id ? ' active' : ''}" data-action="craft-category" data-category="${cat.id}">${cat.icon} ${cat.label}</button>`,
+    ).join('');
+    const filtered = (C.CRAFT_RECIPES || []).filter((r) => r.category === craftCategory);
+    const recipes = filtered.map((recipe) => {
       const costs = recipe.costs.map((c) => `${resIcon(c.res, 'game-icon sm')} ${fmt(c.amt)}`).join(' ');
       const can = E.canCraft(state, char, recipe.id);
+      const eqDef = C.EQUIP_ITEM_SLOTS?.[recipe.output];
+      const classNote = eqDef?.classId ? `<p class="craft-class-note">${C.CLASSES[eqDef.classId]?.name} only</p>` : '';
       return `
         <article class="activity-card craft-card">
           <div class="shop-card-icon">${resIcon(recipe.output, 'game-icon')}</div>
           <strong>${resName(recipe.output)}</strong>
+          ${classNote}
           <p class="empty-msg">Costs: ${costs}</p>
           <button type="button" class="btn-sm primary" data-action="craft-item" data-recipe="${recipe.id}" ${!can ? 'disabled' : ''}>Craft</button>
         </article>`;
@@ -931,10 +950,11 @@
     return `
       <header class="page-header">
         <span class="page-header-icon">${sk.icon}</span>
-        <div class="page-header-text"><h1>${sk.name}</h1><p>Hold-click pouches in inventory for 2s to upgrade capacity</p></div>
+        <div class="page-header-text"><h1>${sk.name}</h1><p>${cls.name} — craft gear then click items in inventory to equip</p></div>
       </header>
       ${pageCharBar()}
-      <div class="activity-grid craft-grid">${recipes}</div>`;
+      <div class="quest-track-tabs">${tabs}</div>
+      <div class="activity-grid craft-grid">${recipes || '<p class="empty-msg">No recipes in this category.</p>'}</div>`;
   }
 
   function renderComingSoon(sk) {
@@ -1060,6 +1080,16 @@
 
   function handleClick(e) {
     if (e.target.closest('[data-collect-type]')) return;
+    const equipBtn = e.target.closest('[data-action="equip-item"]');
+    if (equipBtn && !e.shiftKey) {
+      e.stopPropagation();
+      const char = selectedChar();
+      if (char && E.equipFromInventory(state, char, Number(equipBtn.dataset.inv))) {
+        addLog('Equipped item.');
+      } else addLog('Cannot equip — wrong class or inventory full.');
+      render();
+      return;
+    }
     const btn = e.target.closest('[data-action]');
     if (!btn) return;
     const action = btn.dataset.action;
@@ -1096,6 +1126,15 @@
       if (char && E.buyShopItem(state, char, btn.dataset.item)) {
         addLog(`Bought ${resName(btn.dataset.item)}.`);
       } else addLog('Cannot buy — not enough gold, inventory full, or item unavailable.');
+      render();
+      return;
+    }
+    if (action === 'craft-category') { craftCategory = btn.dataset.category; render(); return; }
+    if (action === 'unequip-gear') {
+      const char = selectedChar();
+      if (char && E.unequipSlot(state, char, btn.dataset.slotType, btn.dataset.slotKey)) {
+        addLog('Unequipped item.');
+      } else addLog('Cannot unequip — inventory full.');
       render();
       return;
     }

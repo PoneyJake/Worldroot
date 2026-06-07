@@ -428,6 +428,7 @@
   }
 
   function stackCapacityForResource(state, resourceId, char) {
+    if (C.GEAR_ITEM_IDS?.has(resourceId)) return 1;
     const cat = C.POUCH_CATEGORY_FOR_RESOURCE?.[resourceId];
     if (cat && char?.pouchTiers?.[cat] > 0) {
       return C.POUCH_CAPACITIES[char.pouchTiers[cat] - 1];
