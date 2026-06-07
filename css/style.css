@@ -866,12 +866,7 @@ body {
   gap: 12px;
 }
 
-.item-slot-grid.grid-inv-4 {
-  grid-template-columns: repeat(4, minmax(96px, 1fr));
-  max-width: 520px;
-}
-
-.item-slot-grid.grid-storage-6 {
+.item-slot-grid.grid-slots {
   grid-template-columns: repeat(6, minmax(96px, 1fr));
 }
 
@@ -1261,7 +1256,29 @@ body {
 .storage-dual {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 20px;
+  gap: 24px;
+}
+
+.storage-panel {
+  padding: 14px;
+  border-radius: 12px;
+  border: 2px solid #3a5a38;
+  background: #0c120c;
+}
+
+.inventory-panel {
+  padding: 14px;
+  border-radius: 12px;
+  border: 2px solid #3a4a5a;
+  background: #0c1014;
+}
+
+.storage-panel .storage-half-title {
+  color: #8ab086;
+}
+
+.inventory-panel .storage-half-title {
+  color: #8aa0b8;
 }
 
 .storage-half-title {

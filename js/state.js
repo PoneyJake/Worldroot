@@ -538,14 +538,13 @@
     if (!invSlot || !smeltSlot) return 0;
     const isOre = C.SMELT_RECIPES.some((r) => r.ore === invSlot.resourceId);
     if (!isOre) return 0;
-    if (!smeltSlot.ore) {
-      smeltSlot.ore = invSlot.resourceId;
-      smeltSlot.oreLoaded = 0;
-      smeltSlot.progress = 0;
-      smeltSlot.ready = 0;
-      smeltSlot.readyBar = null;
+    if ((smeltSlot.oreLoaded || 0) > 0 && invSlot.resourceId !== smeltSlot.ore) return 0;
+    if (!smeltSlot.ore || (smeltSlot.oreLoaded || 0) === 0) {
+      if (smeltSlot.ore !== invSlot.resourceId) {
+        smeltSlot.ore = invSlot.resourceId;
+        smeltSlot.progress = 0;
+      }
     }
-    if (invSlot.resourceId !== smeltSlot.ore) return 0;
     const space = Math.max(0, maxLoad - (smeltSlot.oreLoaded || 0));
     if (space <= 0) return 0;
     const take = Math.min(space, invSlot.amount);

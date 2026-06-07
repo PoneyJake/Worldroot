@@ -453,7 +453,7 @@
       </header>
       ${pageCharBar()}
       <p class="hint-bar">${charLabel(char)} — double-click to move 1 to storage · shift+click to move all</p>
-      ${renderSlotGrid(char.inventorySlots, slotCount, { transferType: 'inv', gridClass: 'grid-inv-4' })}`;
+      ${renderSlotGrid(char.inventorySlots, slotCount, { transferType: 'inv', gridClass: 'grid-slots' })}`;
   }
 
   function renderStoragePanel() {
@@ -473,13 +473,13 @@
       </header>
       ${pageCharBar()}
       <div class="storage-dual">
-        <section class="storage-half">
+        <section class="storage-half storage-panel">
           <h3 class="storage-half-title">Storage <span>${storFilled}/${state.storageSlots.length} · ∞ per resource</span></h3>
-          ${renderSlotGrid(state.storageSlots, state.storageSlots.length, { transferType: 'storage', gridClass: 'grid-storage-6' })}
+          ${renderSlotGrid(state.storageSlots, state.storageSlots.length, { transferType: 'storage', gridClass: 'grid-slots' })}
         </section>
-        <section class="storage-half">
+        <section class="storage-half inventory-panel">
           <h3 class="storage-half-title">${charLabel(char)}'s Inventory <span>${invFilled}/${invCount}</span></h3>
-          ${renderSlotGrid(char.inventorySlots, invCount, { transferType: 'inv', gridClass: 'grid-inv-4' })}
+          ${renderSlotGrid(char.inventorySlots, invCount, { transferType: 'inv', gridClass: 'grid-slots' })}
         </section>
       </div>`;
   }
@@ -557,7 +557,6 @@
         <div class="page-header-stat"><span class="page-header-stat-label">Combat Lv</span><span class="page-header-stat-value">${best}</span></div>
       </header>
       ${pageCharBar()}
-      ${renderSkillStopHeader()}
       ${arena}
       <div class="activity-grid">${cards}</div>`;
   }
@@ -641,7 +640,6 @@
         <div class="page-header-stat"><span class="page-header-stat-label">${sk.name} Lv</span><span class="page-header-stat-value">${best}</span></div>
       </header>
       ${pageCharBar()}
-      ${renderSkillStopHeader()}
       ${summaryStats}
       <div class="activity-grid">${cards}</div>`;
   }
@@ -661,11 +659,8 @@
         continue;
       }
       const isOre = C.SMELT_RECIPES.some((r) => r.ore === slot.resourceId);
-      const oreMatch = !smeltSlot?.ore || slot.resourceId === smeltSlot.ore;
-      const canLoad = isOre && oreMatch && (smeltSlot?.oreLoaded || 0) < cap;
-      const loadBtn = canLoad
-        ? `<button type="button" class="slot-action-btn" data-action="load-smelt" data-inv="${i}" data-smelt="${selectedSmeltSlot}">→ Smelter</button>`
-        : '';
+      const oreBusy = (smeltSlot?.oreLoaded || 0) > 0 && smeltSlot?.ore && slot.resourceId !== smeltSlot.ore;
+      const canLoad = isOre && !oreBusy && (smeltSlot?.oreLoaded || 0) < cap;
       const dragAttr = canLoad ? 'true' : 'false';
       html += `
         <div class="item-slot filled smelt-drag-source${canLoad ? ' can-drag' : ''}" draggable="${dragAttr}"
@@ -674,10 +669,9 @@
           <span class="item-slot-qty">${fmt(slot.amount)}</span>
           <span class="item-slot-icon">${resIcon(slot.resourceId, 'game-icon')}</span>
           <span class="item-slot-name">${resName(slot.resourceId)}</span>
-          ${loadBtn}
         </div>`;
     }
-    return `<div class="item-slot-grid grid-inv-4">${html}</div>`;
+    return `<div class="item-slot-grid grid-slots">${html}</div>`;
   }
 
   function renderSmeltingPage(sk) {
@@ -690,25 +684,11 @@
       if (locked) return `<div class="activity-card locked"><strong>Slot ${i + 1}</strong><p class="empty-msg">Unlocks at Smelting Lv ${C.SMELT_SLOT_UNLOCKS[i]}</p></div>`;
       const recipe = C.SMELT_RECIPES.find((r) => r.ore === slot.ore);
       const pct = slot.ore && recipe ? Math.min(100, (slot.progress / recipe.ticks) * 100) : 0;
-      const oreBtns = C.SMELT_RECIPES.map((r) =>
-        `<button type="button" class="btn-xs picker-btn${slot.ore === r.ore ? ' active' : ''}"
-          data-action="pick-smelt" data-slot="${i}" data-ore="${r.ore}">${r.name}</button>`
-      ).join('');
       const selected = i === selectedSmeltSlot ? ' smelt-slot-selected' : '';
-
-      const oreSlot = slot.ore && (slot.oreLoaded || 0) > 0
-        ? `<div class="smelt-item-wrap">
-            <div class="smelt-slot-pair-label">Loaded ore — double-click to return</div>
-            <div class="produce-ready-slot transferable smelt-ore-slot" data-collect-type="smelt-ore" data-slot="${i}" title="Double-click to return ore to inventory">
-              <span class="item-slot-qty">${fmt(slot.oreLoaded)}</span>
-              <span class="item-slot-icon">${resIcon(slot.ore)}</span>
-              <span class="item-slot-name">${resName(slot.ore)}</span>
-            </div>
-          </div>` : '';
 
       const readySlot = slot.ready > 0
         ? `<div class="smelt-item-wrap">
-            <div class="smelt-slot-pair-label">Ready bars — double-click to collect</div>
+            <div class="smelt-slot-pair-label">Double-click to collect</div>
             <div class="produce-ready-slot transferable" data-collect-type="smelt" data-slot="${i}" title="Double-click to collect bars into inventory">
               <span class="item-slot-qty">${fmt(slot.ready)}</span>
               <span class="item-slot-icon">${resIcon(slot.readyBar)}</span>
@@ -719,21 +699,19 @@
       return `
         <article class="activity-card smelt-drop-zone${selected}" data-smelt-slot="${i}">
           <strong class="smelt-slot-title" data-action="select-smelt-slot" data-slot="${i}">Smelter Slot ${i + 1}</strong>
-          <div class="picker-row">${oreBtns}</div>
-          <div class="smelt-slot-items">${oreSlot}${readySlot}</div>
-          ${slot.ore ? `<p class="empty-msg">${fmt(slot.oreLoaded || 0)} / ${batchCap} ore · ${recipe?.orePerBar ?? '?'} ore/bar · ${recipe?.ticks ?? '?'}s</p>
+          <div class="smelt-slot-items">${readySlot}</div>
+          ${slot.ore ? `<p class="empty-msg">${resIcon(slot.ore, 'game-icon')} ${fmt(slot.oreLoaded || 0)} / ${batchCap} · ${recipe?.orePerBar ?? '?'} ore/bar · ${recipe?.ticks ?? '?'}s</p>
             <div class="progress-bar"><div class="progress-bar-fill" style="width:${pct}%"></div></div>
-            <p class="empty-msg">Smelting ${resName(slot.ore)}…</p>` : '<p class="empty-msg">Pick ore type, then drag from inventory</p>'}
-          ${slot.ore ? `<button type="button" class="btn-xs ghost" data-action="clear-smelt" data-slot="${i}">Stop slot</button>` : ''}
+            <p class="empty-msg">Smelting ${resName(slot.ore)}…</p>` : '<p class="empty-msg">Drag ore from inventory</p>'}
         </article>`;
     }).join('');
 
     const invSection = char
-      ? `<section class="skill-split-side">
+      ? `<section class="skill-split-side inventory-panel">
           <h3 class="storage-half-title">${charLabel(char)}'s Inventory <span>Slot ${selectedSmeltSlot + 1}</span></h3>
           ${renderInventoryForSmelt(char)}
         </section>`
-      : '<section class="skill-split-side"><p class="empty-msg">Select a character to load ore.</p></section>';
+      : '<section class="skill-split-side inventory-panel"><p class="empty-msg">Select a character to load ore.</p></section>';
 
     return `
       <header class="page-header">
@@ -742,7 +720,6 @@
         <div class="page-header-stat"><span class="page-header-stat-label">Smelting Lv</span><span class="page-header-stat-value">${lv}</span></div>
       </header>
       ${pageCharBar()}
-      ${renderSkillStopHeader('stop-all-smelt')}
       <div class="skill-split-layout">
         <section class="skill-split-main">
           <div class="activity-grid smelt-slots-grid">${slotCards}</div>
@@ -808,15 +785,14 @@
         <div class="page-header-stat"><span class="page-header-stat-label">Producing Lv</span><span class="page-header-stat-value">${lv}</span></div>
       </header>
       ${pageCharBar()}
-      ${renderSkillStopHeader('stop-all-produce')}
       <div class="skill-split-layout">
         <section class="skill-split-main">
           <div class="activity-grid produce-slots-grid">${slotCards}</div>
           ${readySlot ? `<div class="produce-ready-wrap"><h3 class="storage-half-title">Ready to collect</h3>${readySlot}</div>` : ''}
         </section>
-        <section class="skill-split-side">
+        <section class="skill-split-side inventory-panel">
           <h3 class="storage-half-title">${charLabel(char)}'s Inventory</h3>
-          ${renderSlotGrid(char.inventorySlots, S.inventorySlotCount(char), { transferType: 'inv', gridClass: 'grid-inv-4' })}
+          ${renderSlotGrid(char.inventorySlots, S.inventorySlotCount(char), { transferType: 'inv', gridClass: 'grid-slots' })}
         </section>
       </div>`;
   }
