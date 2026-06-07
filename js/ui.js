@@ -474,12 +474,12 @@
       ${pageCharBar()}
       <div class="storage-dual">
         <section class="storage-half">
-          <h3 class="storage-half-title">${charLabel(char)}'s Inventory <span>${invFilled}/${invCount}</span></h3>
-          ${renderSlotGrid(char.inventorySlots, invCount, { transferType: 'inv', gridClass: 'grid-inv-4' })}
-        </section>
-        <section class="storage-half">
           <h3 class="storage-half-title">Storage <span>${storFilled}/${state.storageSlots.length} · ∞ per resource</span></h3>
           ${renderSlotGrid(state.storageSlots, state.storageSlots.length, { transferType: 'storage', gridClass: 'grid-storage-6' })}
+        </section>
+        <section class="storage-half">
+          <h3 class="storage-half-title">${charLabel(char)}'s Inventory <span>${invFilled}/${invCount}</span></h3>
+          ${renderSlotGrid(char.inventorySlots, invCount, { transferType: 'inv', gridClass: 'grid-inv-4' })}
         </section>
       </div>`;
   }
@@ -584,10 +584,9 @@
       const locked = best < vein.minLevel;
       const on = char?.activity === sk.activity && char?.target === vein.id;
       const gatherPct = on ? Math.min(100, ((char.gatherCd || 0) / E.gatherIntervalTicks()) * 100) : 0;
-      const tier = char ? E.gatherYieldTierInfo(state, char, sk.id, vein) : null;
-      const tierChance = tier ? (tier.progressToNext >= 100 ? '100' : tier.progressToNext.toFixed(1)) : '0';
       const catchRaw = char ? E.gatherCatchDisplayPercent(state, char, sk.id, vein) : 0;
       const catchPct = catchRaw >= 100 ? catchRaw.toFixed(0) : catchRaw.toFixed(1);
+      const thresholds = E.gatherPlusOneThresholds(vein);
 
       return `
         <article class="activity-card ${locked ? 'locked' : ''}">
@@ -598,18 +597,20 @@
               <span>Lv ${vein.minLevel}</span>
             </div>
           </div>
-          ${tier ? `
-          <div class="vein-yield-pair">
+          <div class="vein-stat-trio">
             <div class="vein-stat-box">
               <span class="vein-stat-label">${labels.chance}</span>
               <span class="vein-stat-value">${catchPct}%</span>
             </div>
             <div class="vein-stat-box">
-              <span class="vein-stat-label">+${tier.nextAmount} ${resLabel}</span>
-              <span class="vein-stat-value">${tierChance}%</span>
+              <span class="vein-stat-label">10% +1 ${resLabel}</span>
+              <span class="vein-stat-value">${fmt(thresholds.effFor10)} eff</span>
+            </div>
+            <div class="vein-stat-box">
+              <span class="vein-stat-label">100% +1 ${resLabel}</span>
+              <span class="vein-stat-value">${fmt(thresholds.effFor100)} eff</span>
             </div>
           </div>
-          <div class="activity-stat vein-eff-hint"><span class="activity-stat-label">100% +${tier.nextAmount} at</span><span class="activity-stat-value">${fmt(tier.effFor100Next)} eff</span></div>` : ''}
           ${on ? `<div class="progress-bar"><div class="progress-bar-fill" data-gather-progress data-gather-vein="${vein.id}" style="width:${gatherPct}%"></div></div>` : ''}
           ${locked ? `<p class="empty-msg">Requires ${sk.name} Lv ${vein.minLevel}</p>` : `<div class="activity-actions">${renderAssignBtn(sk.activity, vein.id, false)}</div>`}
           ${on ? '<p class="activity-assigned"><strong>Active on selected hero</strong></p>' : ''}
@@ -617,10 +618,20 @@
     }).join('');
 
     const summaryStats = char ? `
-      <div class="gather-summary-stats activity-stats">
-        <div class="activity-stat"><span class="activity-stat-label">Speed</span><span class="activity-stat-value">${gatherSec}s per ${resLabel}</span></div>
-        <div class="activity-stat"><span class="activity-stat-label">${labels.eff}</span><span class="activity-stat-value">${eff}</span></div>
-        <div class="activity-stat"><span class="activity-stat-label">${labels.multi}</span><span class="activity-stat-value">${multiPct}%</span></div>
+      <div class="gather-summary-stats">
+        <div class="gather-summary-stat">
+          <span class="gather-summary-label">Speed</span>
+          <span class="gather-summary-value">${gatherSec}s</span>
+          <span class="gather-summary-sub">per ${resLabel}</span>
+        </div>
+        <div class="gather-summary-stat">
+          <span class="gather-summary-label">${labels.eff}</span>
+          <span class="gather-summary-value">${eff}</span>
+        </div>
+        <div class="gather-summary-stat">
+          <span class="gather-summary-label">${labels.multi}</span>
+          <span class="gather-summary-value">${multiPct}%</span>
+        </div>
       </div>` : '';
 
     return `
@@ -718,10 +729,11 @@
     }).join('');
 
     const invSection = char
-      ? `<section class="storage-half" style="margin-top:16px">
-          <h3 class="storage-half-title">${charLabel(char)}'s Inventory <span>Load ore into Slot ${selectedSmeltSlot + 1}</span></h3>
+      ? `<section class="skill-split-side">
+          <h3 class="storage-half-title">${charLabel(char)}'s Inventory <span>Slot ${selectedSmeltSlot + 1}</span></h3>
           ${renderInventoryForSmelt(char)}
-        </section>` : '<p class="empty-msg">Select a character to load ore.</p>';
+        </section>`
+      : '<section class="skill-split-side"><p class="empty-msg">Select a character to load ore.</p></section>';
 
     return `
       <header class="page-header">
@@ -731,8 +743,12 @@
       </header>
       ${pageCharBar()}
       ${renderSkillStopHeader('stop-all-smelt')}
-      <div class="activity-grid">${slotCards}</div>
-      ${invSection}`;
+      <div class="skill-split-layout">
+        <section class="skill-split-main">
+          <div class="activity-grid smelt-slots-grid">${slotCards}</div>
+        </section>
+        ${invSection}
+      </div>`;
   }
 
   /* ── Producing ── */
@@ -793,12 +809,16 @@
       </header>
       ${pageCharBar()}
       ${renderSkillStopHeader('stop-all-produce')}
-      <div class="activity-grid">${slotCards}</div>
-      ${readySlot ? `<section class="storage-half" style="margin-top:16px"><h3 class="storage-half-title">Ready to collect</h3>${readySlot}</section>` : ''}
-      <section class="storage-half" style="margin-top:16px">
-        <h3 class="storage-half-title">${charLabel(char)}'s Inventory</h3>
-        ${renderSlotGrid(char.inventorySlots, S.inventorySlotCount(char), { transferType: 'inv', gridClass: 'grid-inv-4' })}
-      </section>`;
+      <div class="skill-split-layout">
+        <section class="skill-split-main">
+          <div class="activity-grid produce-slots-grid">${slotCards}</div>
+          ${readySlot ? `<div class="produce-ready-wrap"><h3 class="storage-half-title">Ready to collect</h3>${readySlot}</div>` : ''}
+        </section>
+        <section class="skill-split-side">
+          <h3 class="storage-half-title">${charLabel(char)}'s Inventory</h3>
+          ${renderSlotGrid(char.inventorySlots, S.inventorySlotCount(char), { transferType: 'inv', gridClass: 'grid-inv-4' })}
+        </section>
+      </div>`;
   }
 
   function renderComingSoon(sk) {
@@ -837,7 +857,7 @@
           const unlock = E.upgradeUnlockCosts(node.id, tierIdx);
           const targetMax = E.upgradeUnlockTargetMax(tierIdx);
           if (unlock) {
-            const owned = selectedChar() ? S.countInInventory(selectedChar(), unlock.resource) : 0;
+            const owned = S.maxCharInventoryResource(state, unlock.resource);
             const resMet = owned >= unlock.resourceAmt ? 'met' : 'unmet';
             costLine = `<span class="upgrade-card-cost ${resMet}">${resIcon(unlock.resource, 'game-icon lg')} ${fmt(owned)}/${fmt(unlock.resourceAmt)}</span>`;
             actionLabel = `Unlock → Lv ${targetMax}`;
@@ -866,7 +886,7 @@
     return `
       <header class="page-header">
         <span class="page-header-icon">🌳</span>
-        <div class="page-header-text"><h1>World Tree</h1><p>Uses selected hero's inventory · resources unlock tiers, gold levels up</p></div>
+        <div class="page-header-text"><h1>World Tree</h1><p>Uses one hero's inventory (best stack shown) · resources unlock tiers, gold levels up</p></div>
       </header>
       ${pageCharBar()}
       <div class="branch-grid">${branches}</div>`;

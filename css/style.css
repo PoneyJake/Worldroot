@@ -1066,11 +1066,6 @@ body {
   transition: width 0.08s linear;
 }
 
-.vein-yield-pair {
-  display: flex;
-  gap: 8px;
-  margin-top: 8px;
-}
 
 .vein-stat-box {
   flex: 1;
@@ -1823,8 +1818,18 @@ body {
     grid-template-columns: 1fr;
   }
 
-  .storage-dual {
+  .storage-dual,
+  .skill-split-layout {
     grid-template-columns: 1fr;
+  }
+
+  .gather-summary-stats,
+  .vein-stat-trio {
+    grid-template-columns: 1fr;
+  }
+
+  .gather-summary-value {
+    font-size: 1.4rem;
   }
 
   .combat-arena {
@@ -1848,10 +1853,71 @@ body {
 }
 
 .gather-summary-stats {
-  margin: 0 0 16px;
-  padding: 12px 14px;
-  border-radius: 10px;
-  background: rgba(0, 0, 0, 0.2);
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin: 0 0 20px;
+  padding: 16px 18px;
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.28);
+  border: 1px solid #2e4a2c;
+}
+
+.gather-summary-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  text-align: center;
+}
+
+.gather-summary-label {
+  font-size: 0.72rem;
+  color: #8ab086;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 600;
+}
+
+.gather-summary-value {
+  font-size: 1.75rem;
+  font-weight: 800;
+  color: #e2f5de;
+  line-height: 1.1;
+}
+
+.gather-summary-sub {
+  font-size: 0.7rem;
+  color: #6a8a66;
+}
+
+.skill-split-layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-top: 8px;
+  align-items: start;
+}
+
+.skill-split-main,
+.skill-split-side {
+  min-width: 0;
+}
+
+.smelt-slots-grid,
+.produce-slots-grid {
+  grid-template-columns: 1fr;
+}
+
+.produce-ready-wrap {
+  margin-top: 14px;
+}
+
+.vein-stat-trio {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-top: 8px;
 }
 
 .vein-tier-stats {

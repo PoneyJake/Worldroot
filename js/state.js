@@ -489,6 +489,27 @@
     return countInInventory(char, resourceId) >= amount;
   }
 
+  function maxCharInventoryResource(state, resourceId) {
+    let max = 0;
+    for (const char of state.characters) {
+      max = Math.max(max, countInInventory(char, resourceId));
+    }
+    return max;
+  }
+
+  function anyCharInventoryResourceHas(state, resourceId, amount) {
+    return state.characters.some((char) => charInventoryResourceHas(char, resourceId, amount));
+  }
+
+  function findCharForResource(state, resourceId, amount, preferIndex) {
+    const prefer = state.characters[preferIndex];
+    if (prefer && charInventoryResourceHas(prefer, resourceId, amount)) return prefer;
+    for (const char of state.characters) {
+      if (charInventoryResourceHas(char, resourceId, amount)) return char;
+    }
+    return null;
+  }
+
   function removeFromCharInventory(char, resourceId, amount) {
     if (!char) return 0;
     return removeFromSlots(char.inventorySlots, resourceId, amount);
@@ -669,7 +690,8 @@
     defaultSmeltSlots, defaultCharacterProducing, emptySlotArray,
     stackCapacity, inventorySlotCount, countInSlots, countEmptySlots,
     addToInventory, addToStorage, removeFromStorage, storageHas,
-    charInventoryResourceHas, removeFromCharInventory,
+    charInventoryResourceHas, maxCharInventoryResource, anyCharInventoryResourceHas,
+    findCharForResource, removeFromCharInventory,
     addToSlots, removeFromSlots, carryEffectForSkill, stackCapacityForResource,
     transferInvToStorage, transferStorageToInv,
     countInInventory, removeFromInventorySlot, loadOreToSmelt,

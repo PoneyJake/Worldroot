@@ -57,8 +57,7 @@
     if (!upgradeNeedsUnlock(state, nodeId)) return false;
     const costs = upgradeUnlockCosts(nodeId, upgradeUnlockIndex(state, nodeId));
     if (!costs) return false;
-    const char = S.getSelectedCharacter(state);
-    return char && S.charInventoryResourceHas(char, costs.resource, costs.resourceAmt);
+    return S.anyCharInventoryResourceHas(state, costs.resource, costs.resourceAmt);
   }
 
   function canLevelUpgrade(state, nodeId) {
@@ -198,6 +197,14 @@
 
   function gatherMinCatchPercent() {
     return C.VEIN_EFF_CURVE[0]?.[1] ?? 10;
+  }
+
+  function gatherPlusOneThresholds(vein) {
+    const minCatch = gatherMinCatchPercent();
+    return {
+      effFor10: Math.ceil(effForSuccessPercent(minCatch, vein)),
+      effFor100: Math.ceil(effForSuccessPercent(100, vein)),
+    };
   }
 
   function gatherCatchDisplayPercent(state, char, skillId, vein) {
@@ -539,8 +546,8 @@
     const tierIdx = upgradeUnlockIndex(state, nodeId);
     const costs = upgradeUnlockCosts(nodeId, tierIdx);
     if (!costs) return false;
-    const char = S.getSelectedCharacter(state);
-    if (!char || !S.charInventoryResourceHas(char, costs.resource, costs.resourceAmt)) return false;
+    const char = S.findCharForResource(state, costs.resource, costs.resourceAmt, state.selectedCharIndex);
+    if (!char) return false;
     S.removeFromCharInventory(char, costs.resource, costs.resourceAmt);
     if (!state.upgradeTiers) state.upgradeTiers = {};
     state.upgradeTiers[nodeId] = tierIdx + 1;
@@ -679,7 +686,7 @@
     upgradeCosts, upgradeBonusDisplay, upgradeBonusPercent, effectBonus,
     skillXpBonus, skillYieldBonus, skillMultiBonus,
     gatherEfficiency, gatherStatBonus, gatherSuccessChance, gatherSuccessPercent, gatherMultiChance,
-    gatherYieldTierInfo, gatherCatchDisplayPercent, effForSuccessPercent,
+    gatherYieldTierInfo, gatherCatchDisplayPercent, gatherPlusOneThresholds, effForSuccessPercent,
     veinEffThreshold, veinEffBreakpoints,
     gatherRatePerMin, gatherIntervalTicks, charMaxHp, charMaxMp, charDamage, mobMaxHp, dropChance, dropBonus,
     getTheoreticalCombatRates, smeltBatchCapacity, produceBatchCapacity,
