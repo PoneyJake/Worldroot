@@ -91,6 +91,7 @@
       selectedCharIndex: 0,
       rateStats: defaultRateStats(),
       smelting: { skill: defaultSkill(), slots: defaultSmeltSlots() },
+      lastTickAt: Date.now(),
     };
   }
 
@@ -308,6 +309,7 @@
     if (state.selectedCharIndex >= state.characters.length) {
       state.selectedCharIndex = Math.max(0, state.characters.length - 1);
     }
+    state.lastTickAt = data.lastTickAt ?? Date.now();
     refreshPendingSlot(state);
     return state;
   }

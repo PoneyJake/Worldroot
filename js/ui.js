@@ -53,7 +53,7 @@
           const cls = C.CLASSES[c.classId];
           return `<button type="button" class="char-switch-btn${i === sel ? ' active' : ''}"
             data-action="select-char" data-char="${i}" title="${cls.name}">
-            <span class="char-switch-icon">${cls.icon}</span>
+            ${classPortraitHtml(c.classId, 'char-switch-portrait')}
           </button>`;
         }).join('')}
       </div>`;
@@ -72,6 +72,27 @@
   function pageCharBar() {
     if (!state.characters.length) return '';
     return `<div class="page-char-bar">${renderCharSwitcher()}</div>`;
+  }
+
+  function smoothGatherPct(char) {
+    if (!char?.activity || !C.VEINS[char.activity]) return 0;
+    const ticks = E.gatherIntervalTicks();
+    const totalMs = ticks * C.TICK_MS;
+    const baseMs = (char.gatherCd || 0) * C.TICK_MS;
+    const sinceTick = Date.now() - (state.lastTickAt || Date.now());
+    const elapsed = Math.min(totalMs, baseMs + Math.max(0, sinceTick));
+    return Math.min(100, (elapsed / totalMs) * 100);
+  }
+
+  function updateSmoothGatherBars() {
+    const char = selectedChar();
+    if (!char) return;
+    document.querySelectorAll('[data-gather-progress]').forEach((bar) => {
+      const veinId = bar.dataset.gatherVein;
+      const on = char.activity === activePage && char.target === veinId;
+      bar.style.width = on ? `${smoothGatherPct(char)}%` : '0%';
+    });
+    requestAnimationFrame(updateSmoothGatherBars);
   }
 
   function skillActivityBadges(skillId) {
@@ -567,6 +588,8 @@
       const gatherPct = on ? Math.min(100, ((char.gatherCd || 0) / E.gatherIntervalTicks()) * 100) : 0;
       const tier = char ? E.gatherYieldTierInfo(state, char, sk.id, vein) : null;
       const tierChance = tier ? (tier.progressToNext >= 100 ? '100' : tier.progressToNext.toFixed(1)) : '0';
+      const catchRaw = char ? E.gatherSuccessChance(state, char, sk.id, vein) : 0;
+      const catchPct = catchRaw >= 100 ? catchRaw.toFixed(0) : catchRaw.toFixed(1);
 
       return `
         <article class="activity-card ${locked ? 'locked' : ''}">
@@ -579,10 +602,16 @@
           </div>
           ${tier ? `
           <div class="activity-stats vein-tier-stats">
-            <div class="activity-stat"><span class="activity-stat-label">+${tier.nextAmount} ${resLabel}</span><span class="activity-stat-value">${tierChance}%</span></div>
+            <div class="activity-stat vein-yield-row">
+              <span class="activity-stat-label">${labels.chance}</span>
+              <span class="activity-stat-value">${catchPct}%</span>
+              <span class="vein-yield-sep">·</span>
+              <span class="activity-stat-label">+${tier.nextAmount} ${resLabel}</span>
+              <span class="activity-stat-value">${tierChance}%</span>
+            </div>
             <div class="activity-stat"><span class="activity-stat-label">100% +${tier.nextAmount} at</span><span class="activity-stat-value">${fmt(tier.effFor100Next)} eff</span></div>
           </div>` : ''}
-          ${on ? `<div class="progress-bar"><div class="progress-bar-fill" style="width:${gatherPct}%"></div></div>` : ''}
+          ${on ? `<div class="progress-bar"><div class="progress-bar-fill" data-gather-progress data-gather-vein="${vein.id}" style="width:${gatherPct}%"></div></div>` : ''}
           ${locked ? `<p class="empty-msg">Requires ${sk.name} Lv ${vein.minLevel}</p>` : `<div class="activity-actions">${renderAssignBtn(sk.activity, vein.id, false)}</div>`}
           ${on ? '<p class="activity-assigned"><strong>Active on selected hero</strong></p>' : ''}
         </article>`;
@@ -657,21 +686,34 @@
       ).join('');
       const selected = i === selectedSmeltSlot ? ' smelt-slot-selected' : '';
 
+      const oreSlot = slot.ore && (slot.oreLoaded || 0) > 0
+        ? `<div class="smelt-item-wrap">
+            <div class="smelt-slot-pair-label">Loaded ore — double-click to return</div>
+            <div class="produce-ready-slot transferable smelt-ore-slot" data-collect-type="smelt-ore" data-slot="${i}" title="Double-click to return ore to inventory">
+              <span class="item-slot-qty">${fmt(slot.oreLoaded)}</span>
+              <span class="item-slot-icon">${resIcon(slot.ore)}</span>
+              <span class="item-slot-name">${resName(slot.ore)}</span>
+            </div>
+          </div>` : '';
+
       const readySlot = slot.ready > 0
-        ? `<div class="produce-ready-slot transferable" data-collect-type="smelt" data-slot="${i}" title="Double-click to collect all into storage">
-            <span class="item-slot-qty">${fmt(slot.ready)}</span>
-            <span class="item-slot-icon">${resIcon(slot.readyBar)}</span>
-            <span class="item-slot-name">${resName(slot.readyBar)}</span>
+        ? `<div class="smelt-item-wrap">
+            <div class="smelt-slot-pair-label">Ready bars — double-click to collect</div>
+            <div class="produce-ready-slot transferable" data-collect-type="smelt" data-slot="${i}" title="Double-click to collect bars into inventory">
+              <span class="item-slot-qty">${fmt(slot.ready)}</span>
+              <span class="item-slot-icon">${resIcon(slot.readyBar)}</span>
+              <span class="item-slot-name">${resName(slot.readyBar)}</span>
+            </div>
           </div>` : '';
 
       return `
         <article class="activity-card smelt-drop-zone${selected}" data-action="select-smelt-slot" data-slot="${i}" data-smelt-slot="${i}">
           <strong>Smelter Slot ${i + 1}</strong>
           <div class="picker-row">${oreBtns}</div>
-          ${slot.ore ? `<p class="empty-msg">${resIcon(slot.ore, 'game-icon')} ${fmt(slot.oreLoaded || 0)} / ${batchCap} ore · ${recipe?.orePerBar ?? '?'} ore/bar · ${recipe?.ticks ?? '?'}s</p>
+          <div class="smelt-slot-items">${oreSlot}${readySlot}</div>
+          ${slot.ore ? `<p class="empty-msg">${fmt(slot.oreLoaded || 0)} / ${batchCap} ore · ${recipe?.orePerBar ?? '?'} ore/bar · ${recipe?.ticks ?? '?'}s</p>
             <div class="progress-bar"><div class="progress-bar-fill" style="width:${pct}%"></div></div>
             <p class="empty-msg">Smelting ${resName(slot.ore)}…</p>` : '<p class="empty-msg">Pick ore type, then drag from inventory</p>'}
-          ${readySlot}
           ${slot.ore ? `<button type="button" class="btn-xs ghost" data-action="clear-smelt" data-slot="${i}">Stop slot</button>` : ''}
         </article>`;
     }).join('');
@@ -753,7 +795,11 @@
       ${pageCharBar()}
       ${renderSkillStopHeader('stop-all-produce')}
       <div class="activity-grid">${slotCards}</div>
-      ${readySlot ? `<section class="storage-half" style="margin-top:16px"><h3 class="storage-half-title">Ready to collect</h3>${readySlot}</section>` : ''}`;
+      ${readySlot ? `<section class="storage-half" style="margin-top:16px"><h3 class="storage-half-title">Ready to collect</h3>${readySlot}</section>` : ''}
+      <section class="storage-half" style="margin-top:16px">
+        <h3 class="storage-half-title">${charLabel(char)}'s Inventory</h3>
+        ${renderSlotGrid(char.inventorySlots, S.inventorySlotCount(char), { transferType: 'inv', gridClass: 'grid-inv-4' })}
+      </section>`;
   }
 
   function renderComingSoon(sk) {
@@ -1056,8 +1102,17 @@
       return;
     }
     if (type === 'smelt') {
-      const n = E.collectSmelt(state, slotIdx);
-      if (n > 0) addLog(`Collected ${n} bars into storage.`);
+      const result = E.collectSmelt(state, slotIdx, selectedIndex());
+      if (result.collected > 0) {
+        addLog(`Collected ${result.collected} bars into inventory.`);
+        if (result.lost > 0) addLog(`${result.lost} bars lost — inventory full.`);
+      }
+      render();
+      return;
+    }
+    if (type === 'smelt-ore') {
+      const n = E.unloadSmeltOre(state, slotIdx, selectedIndex());
+      if (n > 0) addLog(`Returned ${n} ore to inventory.`);
       render();
     }
   }
@@ -1081,6 +1136,8 @@
 
     if (e.type === 'click' && e.shiftKey) {
       e.preventDefault();
+      e.stopPropagation();
+      window.getSelection()?.removeAllRanges();
       handleSlotTransfer(slotEl, true);
     }
   }
@@ -1114,11 +1171,16 @@
 
   function init(initialState) {
     state = initialState;
+    state.lastTickAt = state.lastTickAt || Date.now();
     document.body.addEventListener('click', handleClick);
     document.body.addEventListener('dblclick', handlePointerSlot);
     document.body.addEventListener('click', handlePointerSlot, true);
     initDragDrop();
     initResourceTooltips();
+    document.body.addEventListener('mousedown', (e) => {
+      if (e.shiftKey && e.target.closest('[data-transfer-type]')) e.preventDefault();
+    });
+    requestAnimationFrame(updateSmoothGatherBars);
     renderSidebar();
     switchPage('characters');
   }

@@ -504,6 +504,7 @@
   }
 
   function tick(state) {
+    state.lastTickAt = Date.now();
     S.refreshPendingSlot(state);
     tickSmelting(state);
     tickProducing(state);
@@ -626,10 +627,11 @@
     return { collected, lost: result.lost };
   }
 
-  function collectSmelt(state, slotIndex) {
+  function collectSmelt(state, slotIndex, charIndex) {
     const slot = state.smelting.slots[slotIndex];
-    if (!slot?.ready || !slot.readyBar) return 0;
-    const result = S.addToStorage(state, slot.readyBar, slot.ready);
+    const char = state.characters[charIndex];
+    if (!slot?.ready || !slot.readyBar || !char) return { collected: 0, lost: 0 };
+    const result = S.addToInventory(char, state, slot.readyBar, slot.ready, 'mining');
     const collected = result.added;
     slot.ready -= collected;
     if (slot.ready <= 0) {
@@ -637,7 +639,24 @@
       slot.readyBar = null;
     }
     S.saveState(state);
-    return collected;
+    return { collected, lost: result.lost };
+  }
+
+  function unloadSmeltOre(state, slotIndex, charIndex) {
+    const char = state.characters[charIndex];
+    const slot = state.smelting.slots[slotIndex];
+    if (!char || !slot?.ore || !(slot.oreLoaded > 0)) return 0;
+    const result = S.addToInventory(char, state, slot.ore, slot.oreLoaded, 'mining');
+    const returned = result.added;
+    slot.oreLoaded -= returned;
+    if (slot.oreLoaded <= 0) {
+      slot.oreLoaded = 0;
+      slot.ore = null;
+      slot.progress = 0;
+      slot.readyBar = null;
+    }
+    S.saveState(state);
+    return returned;
   }
 
   window.WorldrootEngine = {
@@ -654,6 +673,6 @@
     tick, buyUpgrade, canAffordUpgrade, findVein, findMonster,
     getRatePerHour, findUpgradeNode, smeltSlotsUnlocked, produceSlotsUnlocked,
     setSmeltSlot, setProduceSlot, clearSmeltSlot, clearProduceSlot,
-    collectProduce, collectSmelt,
+    collectProduce, collectSmelt, unloadSmeltOre,
   };
 })();

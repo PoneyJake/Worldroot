@@ -1016,8 +1016,8 @@ body {
 }
 
 .char-switch-btn {
-  width: 44px;
-  height: 44px;
+  width: 52px;
+  height: 52px;
   border-radius: 10px;
   border: 2px solid #2a382a;
   background: #161e16;
@@ -1038,9 +1038,67 @@ body {
   box-shadow: 0 0 0 1px #3a6a38;
 }
 
-.char-switch-icon {
+.char-switch-portrait {
+  width: 44px;
+  height: 44px;
+  border-radius: 8px;
+  object-fit: cover;
+  display: block;
+}
+
+.char-switch-portrait.fallback {
   font-size: 1.4rem;
-  line-height: 1;
+  line-height: 44px;
+  text-align: center;
+}
+
+.item-slot,
+.item-slot-grid,
+.storage-dual,
+.produce-ready-slot,
+.char-switcher,
+.page-char-bar {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.progress-bar-fill {
+  transition: width 0.08s linear;
+}
+
+.vein-yield-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.vein-yield-sep {
+  color: #5a6a58;
+}
+
+.smelt-slot-items {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin: 8px 0;
+}
+
+.smelt-item-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.smelt-slot-pair-label {
+  width: 100%;
+  font-size: 0.72rem;
+  color: #7a9a76;
+  margin-top: 6px;
+}
+
+.smelt-ore-slot {
+  border-color: #4a5a48;
 }
 
 .sidebar-skill-lv {
