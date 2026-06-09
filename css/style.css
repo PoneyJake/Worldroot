@@ -970,10 +970,12 @@ body {
   box-shadow: 0 0 0 2px rgba(90, 154, 82, 0.25);
 }
 
-.equip-slot-symbol {
-  font-size: 1.75rem;
-  opacity: 0.45;
-  line-height: 1;
+.equip-slot-word {
+  font-size: 0.62rem;
+  color: #6a7a66;
+  text-align: center;
+  line-height: 1.15;
+  padding: 4px;
 }
 
 .equipment-split .skill-split-main {

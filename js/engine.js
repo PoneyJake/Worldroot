@@ -315,6 +315,12 @@
     return C.BASE_DROP_CHANCE + effectBonus(state, 'drop_rate');
   }
 
+  function combatXpPerKill(state, char) {
+    if (!char) return 0;
+    const xpMult = 1 + skillXpBonus(state, 'combat');
+    return Math.floor(C.BASE_XP_PER_TICK * 3 * xpMult);
+  }
+
   function getTheoreticalCombatRates(state, char, monster) {
     if (!char || (char.skills.combat?.level ?? 0) < monster.level) {
       return { xpHr: 0, killsHr: 0 };
@@ -323,8 +329,7 @@
     const dmg = charDamage(state, char);
     const hitsPerKill = Math.ceil(mobMaxHp(monster) / Math.max(1, dmg));
     const killsHr = Math.floor(attacksPerHr / hitsPerKill);
-    const xpMult = 1 + skillXpBonus(state, 'combat');
-    const xpPerKill = Math.floor(C.BASE_XP_PER_TICK * 3 * xpMult);
+    const xpPerKill = combatXpPerKill(state, char);
     return { xpHr: killsHr * xpPerKill, killsHr };
   }
 
@@ -344,7 +349,12 @@
   function ensureCombatState(state, char, monster) {
     const cs = char.combatState;
     if (!cs || cs.mobId !== monster.id) {
+      const keepRespawn = cs?.respawnSec > 0 ? cs.respawnSec : 0;
       initCombatState(state, char, monster);
+      if (keepRespawn > 0) {
+        char.combatState.respawnSec = keepRespawn;
+        char.combatState.charHp = 0;
+      }
     } else if (cs.respawnSec === undefined) {
       cs.respawnSec = 0;
     }
@@ -904,7 +914,7 @@
     gatherYieldTierInfo, gatherCatchDisplayPercent, gatherPlusOneThresholds, effForSuccessPercent,
     veinEffThreshold, veinEffBreakpoints,
     gatherRatePerMin, gatherIntervalTicks, charMaxHp, charMaxMp, charDamage, mobMaxHp, dropChance, dropBonus,
-    getTheoreticalCombatRates, smeltBatchCapacity, produceBatchCapacity,
+    getTheoreticalCombatRates, combatXpPerKill, smeltBatchCapacity, produceBatchCapacity,
     charStat, gatherStatMult, combatDamageMult,
     tick, buyUpgrade, canAffordUpgrade, findVein, findMonster,
     getRatePerHour, findUpgradeNode, smeltSlotsUnlocked, findFirstSmeltSlotForOre,

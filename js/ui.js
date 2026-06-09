@@ -136,7 +136,7 @@
         const equipAttr = canEquip ? ` data-action="equip-item" data-inv="${idx}"` : '';
         const isSelected = transferType && selectedType === transferType && selectedSlot === idx;
         const tapHint = transferType
-          ? (storageQuickTap && activePage === 'storage' ? ' — tap: move 1 · shift+click: move all' : ' — click: select · double-click: move 1 · shift+click: move all')
+          ? (storageQuickTap && activePage === 'storage' ? ' — tap: move stack · shift+click: move all' : ' — click: select · double-click: move 1 · shift+click: move all')
           : '';
         const holdHint = canUse ? ' · hold 2s to use' : (canLoad ? ' — click to load smelter' : (canEquip ? ' — click to equip' : ''));
         html += `
@@ -542,7 +542,7 @@
         <span class="page-header-icon">📦</span>
         <div class="page-header-text">
           <h1>Storage</h1>
-          <p>${storageQuickTap ? 'Quick tap: click slot to move 1' : 'Click to select · double-click to move 1'} · shift+click: move all</p>
+          <p>${storageQuickTap ? 'Quick tap: click slot to move full stack' : 'Click to select · double-click to move 1'} · shift+click: move all</p>
         </div>
       </header>
       ${pageCharBar()}
@@ -606,6 +606,7 @@
     const rateChar = char || state.characters[0];
     const cards = C.MONSTERS.map((mob) => {
       const rates = rateChar ? E.getTheoreticalCombatRates(state, rateChar, mob) : { xpHr: 0, killsHr: 0 };
+      const xpPerKill = rateChar ? E.combatXpPerKill(state, rateChar) : 0;
       const locked = best < mob.level;
       const on = char?.activity === 'combat' && char?.target === mob.id;
 
@@ -615,10 +616,11 @@
             <span class="activity-card-icon">${iconHtml(mob.id, 'game-icon xl')}</span>
             <div class="activity-card-title">
               <strong>${mob.name}</strong>
-              <span>Lv ${mob.level} · ${E.mobMaxHp(mob)} HP · ${mob.damage} dmg</span>
+              <span>Lv ${mob.level} · ${E.mobMaxHp(mob)} HP · ${mob.damage} dmg · ${fmt(xpPerKill)} XP/kill</span>
             </div>
           </div>
           <div class="activity-stats">
+            <div class="activity-stat"><span class="activity-stat-label">XP/kill</span><span class="activity-stat-value">${fmt(xpPerKill)}</span></div>
             <div class="activity-stat"><span class="activity-stat-label">XP/hr</span><span class="activity-stat-value">${fmt(rates.xpHr)}</span></div>
             <div class="activity-stat"><span class="activity-stat-label">Kills/hr</span><span class="activity-stat-value">${fmt(rates.killsHr)}</span></div>
             <div class="activity-stat"><span class="activity-stat-label">Attack speed</span><span class="activity-stat-value">${C.COMBAT_ATTACK_SEC}s</span></div>
@@ -859,12 +861,11 @@
       const item = char.equipment?.[def.id];
       const inner = item
         ? resIcon(item, 'game-icon')
-        : `<span class="equip-slot-symbol">${def.symbol || '?'}</span>`;
+        : `<span class="equip-slot-word">${def.label}</span>`;
       const unequip = item
         ? `<button type="button" class="btn-sm ghost equip-unequip-btn" data-action="unequip-gear" data-slot-type="equipment" data-slot-key="${def.id}">Remove</button>`
         : '';
       return `<div class="equip-slot" title="${def.label}">
-        <span class="equip-slot-label">${def.label}</span>
         <div class="equip-slot-box${item ? ' filled' : ''}">${inner}</div>
         ${unequip}
       </div>`;
@@ -873,12 +874,11 @@
       const item = char.tools?.[def.id];
       const inner = item
         ? resIcon(item, 'game-icon')
-        : `<span class="equip-slot-symbol">${def.symbol || '?'}</span>`;
+        : `<span class="equip-slot-word">${def.label}</span>`;
       const unequip = item
         ? `<button type="button" class="btn-sm ghost equip-unequip-btn" data-action="unequip-gear" data-slot-type="tool" data-slot-key="${def.id}">Remove</button>`
         : '';
       return `<div class="equip-slot tool-slot" title="${def.label}">
-        <span class="equip-slot-label">${def.label}</span>
         <div class="equip-slot-box${item ? ' filled' : ''}">${inner}</div>
         ${unequip}
       </div>`;
@@ -1442,10 +1442,10 @@
         render();
         return;
       }
+      storageSelected = { type, idx };
       if (storageQuickTap) {
-        handleSlotTransfer(slotEl, false);
+        handleSlotTransfer(slotEl, true);
       } else {
-        storageSelected = { type, idx };
         render();
       }
     }
