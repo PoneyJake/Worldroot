@@ -18,11 +18,22 @@
   let storageQuickTap = true;
   let storageSplitMode = false;
   let transferModal = null;
+  let leaderboardEntries = null;
+  let leaderboardError = null;
+  let leaderboardLoading = false;
   let logBuffer = [];
   let holdTimer = null;
   let holdEl = null;
 
   function $(id) { return document.getElementById(id); }
+
+  function escHtml(text) {
+    return String(text)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
   function fmt(n) { return Math.floor(n).toLocaleString(); }
   function resName(id) { return C.RESOURCE_NAMES?.[id] ?? id; }
   function iconSrc(key) {
@@ -256,6 +267,7 @@
     activePage = pageId;
     renderSidebar();
     renderMainPanel();
+    if (pageId === 'leaderboard') refreshLeaderboard();
   }
 
   function renderSidebar() {
@@ -941,6 +953,80 @@
       <div class="activity-grid quest-grid">${cards}</div>`;
   }
 
+  function renderLeaderboardPanel() {
+    const session = window.WorldrootSession || {};
+    const myLevel = S.accountTotalLevel(state);
+    const charCount = state.characters.length;
+
+    if (leaderboardLoading) {
+      return `
+        <header class="page-header">
+          <span class="page-header-icon">🏆</span>
+          <div class="page-header-text"><h1>Leaderboard</h1><p>Top accounts by total hero level</p></div>
+        </header>
+        <p class="empty-msg">Loading leaderboard…</p>`;
+    }
+
+    const rows = (leaderboardEntries || []).map((entry, i) => {
+      const isMe = session.userId && entry.user_id === session.userId;
+      const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `#${i + 1}`;
+      return `
+        <tr class="leaderboard-row${isMe ? ' leaderboard-row-self' : ''}">
+          <td class="leaderboard-rank">${medal}</td>
+          <td class="leaderboard-name">${escHtml(entry.username)}</td>
+          <td class="leaderboard-level">${fmt(entry.total_level)}</td>
+          <td class="leaderboard-chars">${entry.character_count}</td>
+        </tr>`;
+    }).join('');
+
+    const tableBody = rows || '<tr><td colspan="4" class="empty-msg">No ranked accounts yet. Cloud saves update the board automatically.</td></tr>';
+    const youLine = session.isCloud
+      ? `<p class="leaderboard-you">Your account · <strong>${session.displayName}</strong> · Level <strong>${fmt(myLevel)}</strong> · ${charCount} hero${charCount === 1 ? '' : 'es'}</p>`
+      : `<p class="leaderboard-you">Offline mode · your total level is <strong>${fmt(myLevel)}</strong>. Log in with a cloud account to rank.</p>`;
+    const errLine = leaderboardError ? `<p class="empty-msg" style="color:#e8a0a0">${leaderboardError}</p>` : '';
+
+    return `
+      <header class="page-header">
+        <span class="page-header-icon">🏆</span>
+        <div class="page-header-text">
+          <h1>Leaderboard</h1>
+          <p>Top 10 accounts — total level is the sum of every hero's skill levels</p>
+        </div>
+        <button type="button" class="btn-sm ghost" data-action="refresh-leaderboard">Refresh</button>
+      </header>
+      ${youLine}
+      ${errLine}
+      <div class="leaderboard-wrap">
+        <table class="leaderboard-table">
+          <thead>
+            <tr>
+              <th>Rank</th>
+              <th>Player</th>
+              <th>Total Level</th>
+              <th>Heroes</th>
+            </tr>
+          </thead>
+          <tbody>${tableBody}</tbody>
+        </table>
+      </div>`;
+  }
+
+  async function refreshLeaderboard() {
+    if (!window.WorldrootLeaderboard?.fetchTop) {
+      leaderboardError = 'Leaderboard is still loading. Try again in a moment.';
+      if (activePage === 'leaderboard') renderMainPanel();
+      return;
+    }
+    leaderboardLoading = true;
+    leaderboardError = null;
+    if (activePage === 'leaderboard') renderMainPanel();
+    const result = await window.WorldrootLeaderboard.fetchTop(10);
+    leaderboardEntries = result.entries;
+    leaderboardError = result.error ?? null;
+    leaderboardLoading = false;
+    if (activePage === 'leaderboard') renderMainPanel();
+  }
+
   function renderShopPanel() {
     const char = selectedChar();
     if (!char) return '<p class="empty-msg">Create a character first.</p>';
@@ -1109,6 +1195,7 @@
     else if (activePage === 'equipment') el.innerHTML = renderEquipmentPanel();
     else if (activePage === 'quests') el.innerHTML = renderQuestsPanel();
     else if (activePage === 'shop') el.innerHTML = renderShopPanel();
+    else if (activePage === 'leaderboard') el.innerHTML = renderLeaderboardPanel();
     else if (activePage === 'worldtree') el.innerHTML = renderWorldTreePanel();
     else if (activePage === 'settings') { el.innerHTML = renderSettingsPanel(); renderLogEl(); }
     else if (skill && !skill.comingSoon) el.innerHTML = renderSkillPage(activePage);
@@ -1206,6 +1293,10 @@
     if (action === 'toggle-split-mode') {
       storageSplitMode = !storageSplitMode;
       render();
+      return;
+    }
+    if (action === 'refresh-leaderboard') {
+      refreshLeaderboard();
       return;
     }
     if (action === 'close-transfer-modal') {

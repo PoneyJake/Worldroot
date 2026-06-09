@@ -229,6 +229,7 @@
     { type: 'page', id: 'equipment', label: 'Equipment', icon: '🛡' },
     { type: 'page', id: 'quests', label: 'Quests', icon: '📜' },
     { type: 'page', id: 'shop', label: 'Shop', icon: '🛒' },
+    { type: 'page', id: 'leaderboard', label: 'Leaderboard', icon: '🏆' },
   ];
   const storageIdx = C.SIDEBAR_NAV.findIndex((n) => n.id === 'storage');
   C.SIDEBAR_NAV.splice(storageIdx + 1, 0, ...navInsert);

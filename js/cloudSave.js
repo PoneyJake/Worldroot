@@ -1,5 +1,6 @@
 import { getSupabase, getCurrentUser } from './auth.js';
 import { isCloudEnabled } from './cloudConfig.js';
+import { syncLeaderboard } from './leaderboard.js';
 
 const CLOUD_SAVE_KEY = 'worldroot_save_v1';
 
@@ -75,7 +76,11 @@ export async function pushCloudSave() {
       { onConflict: 'user_id' }
     );
 
-    if (error) console.warn('Cloud save failed:', error.message);
+    if (error) {
+      console.warn('Cloud save failed:', error.message);
+    } else {
+      await syncLeaderboard();
+    }
   } finally {
     saving = false;
   }

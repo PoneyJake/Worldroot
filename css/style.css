@@ -2230,6 +2230,67 @@ body {
   margin-top: 8px;
 }
 
+.leaderboard-you {
+  margin: 0 0 12px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: rgba(40, 72, 38, 0.45);
+  border: 1px solid #3a5a38;
+  font-size: 0.9rem;
+  color: #c8d8c4;
+}
+
+.leaderboard-wrap {
+  overflow-x: auto;
+  border-radius: 12px;
+  border: 1px solid #3a5a38;
+  background: rgba(18, 28, 18, 0.6);
+}
+
+.leaderboard-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.92rem;
+}
+
+.leaderboard-table th,
+.leaderboard-table td {
+  padding: 12px 16px;
+  text-align: left;
+  border-bottom: 1px solid #2a4028;
+}
+
+.leaderboard-table th {
+  color: #9aaa96;
+  font-weight: 600;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.leaderboard-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.leaderboard-row-self {
+  background: rgba(72, 120, 68, 0.25);
+}
+
+.leaderboard-rank {
+  width: 72px;
+  font-weight: 700;
+  color: #dce6d8;
+}
+
+.leaderboard-level {
+  font-weight: 700;
+  color: #b8e0a8;
+}
+
+.leaderboard-chars {
+  color: #9aaa96;
+}
+
 .shop-card-icon {
   display: flex;
   justify-content: center;

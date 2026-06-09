@@ -1,5 +1,6 @@
 import { initAuth, getDisplayName, signOut } from './auth.js';
 import { loadCloudSave, scheduleCloudSave, flushCloudSave } from './cloudSave.js';
+import { fetchLeaderboardTop, syncLeaderboard } from './leaderboard.js';
 
 const PLAY_MODE_KEY = 'worldroot_play_mode';
 
@@ -29,6 +30,7 @@ async function boot() {
     window.WorldrootSession = {
       isCloud,
       isOffline: !isCloud,
+      userId: user?.id ?? null,
       displayName: isCloud ? getDisplayName() : 'Offline',
     };
     window.WorldrootState.setPlayMode(isCloud ? 'cloud' : 'offline');
@@ -36,6 +38,7 @@ async function boot() {
     if (isCloud) {
       await loadCloudSave();
       patchSaveForCloud();
+      await syncLeaderboard();
       window.WorldrootUI?.refresh();
       window.WorldrootUI?.setSessionBadge(window.WorldrootSession);
     }
@@ -44,6 +47,8 @@ async function boot() {
   } catch (err) {
     console.warn('Cloud sync unavailable:', err);
   }
+
+  window.WorldrootLeaderboard = { fetchTop: fetchLeaderboardTop, sync: syncLeaderboard };
 }
 
 window.WorldrootGoMenu = async () => {
