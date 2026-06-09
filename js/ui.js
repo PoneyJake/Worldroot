@@ -625,7 +625,6 @@
             </div>
           </div>
           <div class="activity-stats">
-            <div class="activity-stat"><span class="activity-stat-label">XP/kill</span><span class="activity-stat-value">${fmt(xpPerKill)}</span></div>
             <div class="activity-stat"><span class="activity-stat-label">XP/hr</span><span class="activity-stat-value">${fmt(rates.xpHr)}</span></div>
             <div class="activity-stat"><span class="activity-stat-label">Kills/hr</span><span class="activity-stat-value">${fmt(rates.killsHr)}</span></div>
             <div class="activity-stat"><span class="activity-stat-label">Attack speed</span><span class="activity-stat-value">${C.COMBAT_ATTACK_SEC}s</span></div>
