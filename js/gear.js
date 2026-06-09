@@ -4,116 +4,143 @@
   const C = window.WorldrootConfig;
   if (!C) return;
 
-  const METALS = [
-    { id: 'copper', bar: 'copper_bar', log: 'oak', logAmt: [5, 10, 8, 5] },
-    { id: 'iron', bar: 'iron_bar', log: 'spruce', logAmt: [10, 20, 14, 10] },
-    { id: 'gold', bar: 'gold_bar', log: 'birch', logAmt: [15, 30, 22, 15] },
-    { id: 'platinum', bar: 'platinum_bar', log: 'jungle', logAmt: [20, 40, 28, 20] },
-  ];
-  const ARMOR = [
-    { piece: 'helmet', label: 'Helmet', bars: [2, 5, 10, 20] },
-    { piece: 'chest', label: 'Chest', bars: [4, 10, 20, 40] },
-    { piece: 'legs', label: 'Legs', bars: [3, 7, 14, 28] },
-    { piece: 'boots', label: 'Boots', bars: [2, 5, 10, 20] },
-  ];
-  const WEAPONS = [
-    { id: 'sword', label: 'Sword', classId: 'warrior', bars: [3, 8, 15, 30] },
-    { id: 'bow', label: 'Bow', classId: 'archer', bars: [3, 8, 15, 30] },
-    { id: 'staff', label: 'Staff', classId: 'sorcerer', bars: [3, 8, 15, 30] },
-  ];
-  const TOOLS = [
-    { id: 'pickaxe', label: 'Pickaxe', bars: [2, 6, 12, 24] },
-    { id: 'axe', label: 'Axe', bars: [2, 6, 12, 24] },
-    { id: 'rod', label: 'Rod', bars: [2, 6, 12, 24] },
-  ];
+  const GEAR_DEFS = [
+    // Copper armor
+    { id: 'copper_helmet', name: 'Copper Helmet', category: 'armor', equip: { kind: 'equipment', slot: 'helmet' },
+      costs: [{ res: 'copper', amt: 10 }, { res: 'slime_gel', amt: 10 }] },
+    { id: 'copper_chest', name: 'Copper Chest', category: 'armor', equip: { kind: 'equipment', slot: 'chest' },
+      costs: [{ res: 'copper_bar', amt: 20 }, { res: 'twine', amt: 100 }] },
+    { id: 'copper_legs', name: 'Copper Legs', category: 'armor', equip: { kind: 'equipment', slot: 'legs' },
+      costs: [{ res: 'copper_bar', amt: 10 }, { res: 'oak', amt: 50 }] },
+    { id: 'copper_boots', name: 'Copper Boots', category: 'armor', equip: { kind: 'equipment', slot: 'boots' },
+      costs: [{ res: 'copper', amt: 10 }] },
+    // Copper weapons
+    { id: 'copper_sword', name: 'Copper Sword', category: 'weapon', equip: { kind: 'equipment', slot: 'weapon', classId: 'warrior' },
+      costs: [{ res: 'copper_bar', amt: 20 }, { res: 'slime_gel', amt: 25 }] },
+    { id: 'copper_bow', name: 'Copper Bow', category: 'weapon', equip: { kind: 'equipment', slot: 'weapon', classId: 'archer' },
+      costs: [{ res: 'oak', amt: 40 }, { res: 'slime_gel', amt: 25 }] },
+    { id: 'copper_staff', name: 'Copper Staff', category: 'weapon', equip: { kind: 'equipment', slot: 'weapon', classId: 'sorcerer' },
+      costs: [{ res: 'shrimp', amt: 40 }, { res: 'slime_gel', amt: 25 }] },
+    // Copper tools
+    { id: 'copper_pickaxe', name: 'Copper Pickaxe', category: 'tool', equip: { kind: 'tool', slot: 'pickaxe' },
+      costs: [{ res: 'copper', amt: 5 }] },
+    { id: 'copper_axe', name: 'Copper Axe', category: 'tool', equip: { kind: 'tool', slot: 'axe' },
+      costs: [{ res: 'oak', amt: 5 }] },
+    { id: 'copper_rod', name: 'Copper Rod', category: 'tool', equip: { kind: 'tool', slot: 'rod' },
+      costs: [{ res: 'shrimp', amt: 5 }] },
 
-  const RINGS = [
-    { id: 'ring_of_strength', costs: [{ res: 'copper_bar', amt: 5 }, { res: 'slime_gel', amt: 10 }] },
-    { id: 'ring_of_agility', costs: [{ res: 'copper_bar', amt: 5 }, { res: 'wisp_essence', amt: 10 }] },
-    { id: 'ring_of_magic', costs: [{ res: 'copper_bar', amt: 5 }, { res: 'gloomspore', amt: 10 }] },
-    { id: 'ring_of_fortune', costs: [{ res: 'iron_bar', amt: 8 }, { res: 'bat_wing_membrane', amt: 15 }] },
-    { id: 'ring_of_wealth', costs: [{ res: 'iron_bar', amt: 8 }, { res: 'gold_bar', amt: 10 }] },
-    { id: 'ring_of_carrying', costs: [{ res: 'iron_bar', amt: 10 }, { res: 'twine', amt: 20 }] },
-  ];
+    // Iron armor
+    { id: 'iron_helmet', name: 'Iron Helmet', category: 'armor', equip: { kind: 'equipment', slot: 'helmet' },
+      costs: [{ res: 'copper_helmet', amt: 1 }, { res: 'iron_bar', amt: 20 }, { res: 'wisp_essence', amt: 50 }] },
+    { id: 'iron_chest', name: 'Iron Chest', category: 'armor', equip: { kind: 'equipment', slot: 'chest' },
+      costs: [{ res: 'copper_chest', amt: 1 }, { res: 'iron_bar', amt: 25 }, { res: 'spruce', amt: 75 }] },
+    { id: 'iron_legs', name: 'Iron Legs', category: 'armor', equip: { kind: 'equipment', slot: 'legs' },
+      costs: [{ res: 'copper_legs', amt: 1 }, { res: 'iron_bar', amt: 20 }, { res: 'wooden_pegs', amt: 50 }] },
+    { id: 'iron_boots', name: 'Iron Boots', category: 'armor', equip: { kind: 'equipment', slot: 'boots' },
+      costs: [{ res: 'copper_boots', amt: 1 }, { res: 'iron_bar', amt: 50 }] },
+    // Iron weapons
+    { id: 'iron_sword', name: 'Iron Sword', category: 'weapon', equip: { kind: 'equipment', slot: 'weapon', classId: 'warrior' },
+      costs: [{ res: 'copper_sword', amt: 1 }, { res: 'iron_bar', amt: 125 }] },
+    { id: 'iron_bow', name: 'Iron Bow', category: 'weapon', equip: { kind: 'equipment', slot: 'weapon', classId: 'archer' },
+      costs: [{ res: 'copper_bow', amt: 1 }, { res: 'birch', amt: 500 }] },
+    { id: 'iron_staff', name: 'Iron Staff', category: 'weapon', equip: { kind: 'equipment', slot: 'weapon', classId: 'sorcerer' },
+      costs: [{ res: 'copper_staff', amt: 1 }, { res: 'trout', amt: 500 }] },
+    // Iron tools
+    { id: 'iron_pickaxe', name: 'Iron Pickaxe', category: 'tool', equip: { kind: 'tool', slot: 'pickaxe' },
+      costs: [{ res: 'iron', amt: 100 }] },
+    { id: 'iron_axe', name: 'Iron Axe', category: 'tool', equip: { kind: 'tool', slot: 'axe' },
+      costs: [{ res: 'spruce', amt: 200 }] },
+    { id: 'iron_rod', name: 'Iron Rod', category: 'tool', equip: { kind: 'tool', slot: 'rod' },
+      costs: [{ res: 'trout', amt: 200 }] },
 
-  const AMULETS = [
-    { id: 'amulet_of_mining', costs: [{ res: 'copper_bar', amt: 5 }, { res: 'copper', amt: 20 }] },
-    { id: 'amulet_of_woodcutting', costs: [{ res: 'copper_bar', amt: 5 }, { res: 'oak', amt: 20 }] },
-    { id: 'amulet_of_fishing', costs: [{ res: 'copper_bar', amt: 5 }, { res: 'shrimp', amt: 20 }] },
-    { id: 'amulet_of_experience', costs: [{ res: 'gold_bar', amt: 10 }, { res: 'wisp_essence', amt: 5 }, { res: 'resin', amt: 5 }] },
-  ];
+    // Gold armor
+    { id: 'gold_helmet', name: 'Gold Helmet', category: 'armor', equip: { kind: 'equipment', slot: 'helmet' },
+      costs: [{ res: 'iron_helmet', amt: 1 }, { res: 'gold_bar', amt: 200 }, { res: 'gloomspore', amt: 1000 }] },
+    { id: 'gold_chest', name: 'Gold Chest', category: 'armor', equip: { kind: 'equipment', slot: 'chest' },
+      costs: [{ res: 'iron_chest', amt: 1 }, { res: 'bat_wing_membrane', amt: 750 }, { res: 'gold_bar', amt: 250 }] },
+    { id: 'gold_legs', name: 'Gold Legs', category: 'armor', equip: { kind: 'equipment', slot: 'legs' },
+      costs: [{ res: 'iron_legs', amt: 1 }, { res: 'salmon', amt: 500 }, { res: 'gold_bar', amt: 250 }] },
+    { id: 'gold_boots', name: 'Gold Boots', category: 'armor', equip: { kind: 'equipment', slot: 'boots' },
+      costs: [{ res: 'iron_boots', amt: 1 }, { res: 'gold_bar', amt: 500 }] },
+    // Gold weapons
+    { id: 'gold_sword', name: 'Gold Sword', category: 'weapon', equip: { kind: 'equipment', slot: 'weapon', classId: 'warrior' },
+      costs: [{ res: 'iron_sword', amt: 1 }, { res: 'gold_bar', amt: 250 }] },
+    { id: 'gold_bow', name: 'Gold Bow', category: 'weapon', equip: { kind: 'equipment', slot: 'weapon', classId: 'archer' },
+      costs: [{ res: 'iron_bow', amt: 1 }, { res: 'birch', amt: 1500 }] },
+    { id: 'gold_staff', name: 'Gold Staff', category: 'weapon', equip: { kind: 'equipment', slot: 'weapon', classId: 'sorcerer' },
+      costs: [{ res: 'iron_staff', amt: 1 }, { res: 'salmon', amt: 1500 }] },
+    // Gold tools
+    { id: 'gold_pickaxe', name: 'Gold Pickaxe', category: 'tool', equip: { kind: 'tool', slot: 'pickaxe' },
+      costs: [{ res: 'iron_pickaxe', amt: 1 }, { res: 'gold_bar', amt: 250 }, { res: 'gloomspore', amt: 1000 }] },
+    { id: 'gold_axe', name: 'Gold Axe', category: 'tool', equip: { kind: 'tool', slot: 'axe' },
+      costs: [{ res: 'iron_axe', amt: 1 }, { res: 'birch', amt: 1000 }, { res: 'iron_nails', amt: 500 }] },
+    { id: 'gold_rod', name: 'Gold Rod', category: 'tool', equip: { kind: 'tool', slot: 'rod' },
+      costs: [{ res: 'iron_rod', amt: 1 }, { res: 'salmon', amt: 1000 }, { res: 'gloomspore', amt: 500 }, { res: 'iron_nails', amt: 250 }] },
 
-  const GEAR_NAMES = {
-    ring_of_strength: 'Ring of Strength', ring_of_agility: 'Ring of Agility',
-    ring_of_magic: 'Ring of Magic', ring_of_fortune: 'Ring of Fortune',
-    ring_of_wealth: 'Ring of Wealth', ring_of_carrying: 'Ring of Carrying',
-    amulet_of_mining: 'Amulet of Mining', amulet_of_woodcutting: 'Amulet of Woodcutting',
-    amulet_of_fishing: 'Amulet of Fishing', amulet_of_experience: 'Amulet of Experience',
-  };
+    // Platinum armor
+    { id: 'platinum_helmet', name: 'Platinum Helmet', category: 'armor', equip: { kind: 'equipment', slot: 'helmet' },
+      costs: [{ res: 'gold_helmet', amt: 1 }, { res: 'platinum_bar', amt: 750 }, { res: 'leech_sucker', amt: 2500 }] },
+    { id: 'platinum_chest', name: 'Platinum Chest', category: 'armor', equip: { kind: 'equipment', slot: 'chest' },
+      costs: [{ res: 'gold_chest', amt: 1 }, { res: 'platinum_bar', amt: 1000 }, { res: 'moth_pollen', amt: 2000 }] },
+    { id: 'platinum_legs', name: 'Platinum Legs', category: 'armor', equip: { kind: 'equipment', slot: 'legs' },
+      costs: [{ res: 'gold_legs', amt: 1 }, { res: 'lobster', amt: 2500 }, { res: 'platinum_bar', amt: 1000 }] },
+    { id: 'platinum_boots', name: 'Platinum Boots', category: 'armor', equip: { kind: 'equipment', slot: 'boots' },
+      costs: [{ res: 'gold_boots', amt: 1 }, { res: 'platinum_bar', amt: 1000 }, { res: 'jungle', amt: 5000 }] },
+    // Platinum weapons
+    { id: 'platinum_sword', name: 'Platinum Sword', category: 'weapon', equip: { kind: 'equipment', slot: 'weapon', classId: 'warrior' },
+      costs: [{ res: 'gold_sword', amt: 1 }, { res: 'platinum_bar', amt: 750 }] },
+    { id: 'platinum_bow', name: 'Platinum Bow', category: 'weapon', equip: { kind: 'equipment', slot: 'weapon', classId: 'archer' },
+      costs: [{ res: 'gold_bow', amt: 1 }, { res: 'jungle', amt: 7500 }] },
+    { id: 'platinum_staff', name: 'Platinum Staff', category: 'weapon', equip: { kind: 'equipment', slot: 'weapon', classId: 'sorcerer' },
+      costs: [{ res: 'gold_staff', amt: 1 }, { res: 'lobster', amt: 7500 }] },
+    // Platinum tools
+    { id: 'platinum_pickaxe', name: 'Platinum Pickaxe', category: 'tool', equip: { kind: 'tool', slot: 'pickaxe' },
+      costs: [{ res: 'gold_pickaxe', amt: 1 }, { res: 'platinum_bar', amt: 750 }, { res: 'leech_sucker', amt: 2500 }] },
+    { id: 'platinum_axe', name: 'Platinum Axe', category: 'tool', equip: { kind: 'tool', slot: 'axe' },
+      costs: [{ res: 'gold_axe', amt: 1 }, { res: 'jungle', amt: 7500 }, { res: 'resin', amt: 2500 }] },
+    { id: 'platinum_rod', name: 'Platinum Rod', category: 'tool', equip: { kind: 'tool', slot: 'rod' },
+      costs: [{ res: 'gold_rod', amt: 1 }, { res: 'lobster', amt: 7500 }, { res: 'leech_sucker', amt: 1250 }, { res: 'resin', amt: 1250 }] },
+
+    // Rings
+    { id: 'ring_of_strength', name: 'Ring of Strength', category: 'ring', equip: { kind: 'equipment', slot: 'ring' },
+      costs: [{ res: 'iron_bar', amt: 50 }, { res: 'wisp_essence', amt: 200 }] },
+    { id: 'ring_of_agility', name: 'Ring of Agility', category: 'ring', equip: { kind: 'equipment', slot: 'ring' },
+      costs: [{ res: 'spruce', amt: 200 }, { res: 'wisp_essence', amt: 200 }] },
+    { id: 'ring_of_magic', name: 'Ring of Magic', category: 'ring', equip: { kind: 'equipment', slot: 'ring' },
+      costs: [{ res: 'trout', amt: 200 }, { res: 'wisp_essence', amt: 200 }] },
+    { id: 'ring_of_carrying', name: 'Ring of Carrying', category: 'ring', equip: { kind: 'equipment', slot: 'ring' },
+      costs: [{ res: 'iron_bar', amt: 25 }, { res: 'spruce', amt: 50 }, { res: 'trout', amt: 50 }, { res: 'wooden_pegs', amt: 50 }] },
+    { id: 'ring_of_wealth', name: 'Ring of Wealth', category: 'ring', equip: { kind: 'equipment', slot: 'ring' },
+      costs: [{ res: 'copper_bar', amt: 500 }, { res: 'iron_bar', amt: 250 }, { res: 'gold_bar', amt: 100 }] },
+    { id: 'ring_of_fortune', name: 'Ring of Fortune', category: 'ring', equip: { kind: 'equipment', slot: 'ring' },
+      costs: [{ res: 'platinum_bar', amt: 1000 }, { res: 'jungle', amt: 10000 }, { res: 'lobster', amt: 10000 }] },
+
+    // Amulets
+    { id: 'amulet_of_mining', name: 'Amulet of Mining', category: 'amulet', equip: { kind: 'equipment', slot: 'amulet' },
+      costs: [{ res: 'copper_bar', amt: 200 }, { res: 'twine', amt: 200 }] },
+    { id: 'amulet_of_woodcutting', name: 'Amulet of Woodcutting', category: 'amulet', equip: { kind: 'equipment', slot: 'amulet' },
+      costs: [{ res: 'oak', amt: 500 }, { res: 'twine', amt: 200 }] },
+    { id: 'amulet_of_fishing', name: 'Amulet of Fishing', category: 'amulet', equip: { kind: 'equipment', slot: 'amulet' },
+      costs: [{ res: 'shrimp', amt: 500 }, { res: 'twine', amt: 200 }] },
+    { id: 'amulet_of_experience', name: 'Amulet of Experience', category: 'amulet', equip: { kind: 'equipment', slot: 'amulet' },
+      costs: [{ res: 'iron_bar', amt: 250 }, { res: 'wooden_pegs', amt: 500 }] },
+  ];
 
   const EQUIP_ITEM_SLOTS = {};
   const GEAR_ITEM_IDS = new Set();
+  const GEAR_NAMES = {};
   const gearRecipes = [];
 
-  function titleCase(s) {
-    return s.charAt(0).toUpperCase() + s.slice(1);
-  }
-
-  function addGear(id, name, icon, equipDef, recipe) {
-    GEAR_NAMES[id] = name;
-    GEAR_ITEM_IDS.add(id);
-    C.GAME_ICONS[id] = icon;
-    if (equipDef) EQUIP_ITEM_SLOTS[id] = equipDef;
-    if (recipe) gearRecipes.push({ ...recipe, id, output: id });
-  }
-
-  for (const metal of METALS) {
-    const mi = METALS.indexOf(metal);
-    for (const a of ARMOR) {
-      const id = `${metal.id}_${a.piece}`;
-      const name = `${titleCase(metal.id)} ${a.label}`;
-      addGear(id, name, id, { kind: 'equipment', slot: a.piece }, {
-        category: 'armor',
-        costs: [
-          { res: metal.bar, amt: a.bars[mi] },
-          { res: metal.log, amt: metal.logAmt[ARMOR.indexOf(a)] },
-          { res: 'twine', amt: 2 + mi * 2 },
-        ],
-      });
-    }
-    for (const w of WEAPONS) {
-      const id = `${metal.id}_${w.id}`;
-      const name = `${titleCase(metal.id)} ${w.label}`;
-      addGear(id, name, id, { kind: 'equipment', slot: 'weapon', classId: w.classId }, {
-        category: 'weapon',
-        costs: [
-          { res: metal.bar, amt: w.bars[mi] },
-          { res: metal.log, amt: 5 + mi * 5 },
-          { res: 'wooden_pegs', amt: 3 + mi * 3 },
-        ],
-      });
-    }
-    for (const t of TOOLS) {
-      const id = `${metal.id}_${t.id}`;
-      const name = `${titleCase(metal.id)} ${t.label}`;
-      addGear(id, name, id, { kind: 'tool', slot: t.id }, {
-        category: 'tool',
-        costs: [
-          { res: metal.bar, amt: t.bars[mi] },
-          { res: metal.log, amt: 3 + mi * 4 },
-        ],
-      });
-    }
-  }
-
-  for (const r of RINGS) {
-    addGear(r.id, GEAR_NAMES[r.id] || r.id, r.id, { kind: 'equipment', slot: 'ring' }, {
-      category: 'ring', costs: r.costs,
-    });
-  }
-  for (const a of AMULETS) {
-    addGear(a.id, GEAR_NAMES[a.id] || a.id, a.id, { kind: 'equipment', slot: 'amulet' }, {
-      category: 'amulet', costs: a.costs,
+  for (const def of GEAR_DEFS) {
+    GEAR_NAMES[def.id] = def.name;
+    GEAR_ITEM_IDS.add(def.id);
+    C.GAME_ICONS[def.id] = def.id;
+    if (def.equip) EQUIP_ITEM_SLOTS[def.id] = def.equip;
+    gearRecipes.push({
+      id: def.id,
+      output: def.id,
+      category: def.category,
+      costs: def.costs,
     });
   }
 
@@ -131,8 +158,7 @@
   const pouchRecipes = (C.CRAFT_RECIPES || []).map((r) => ({ ...r, category: 'pouch' }));
   C.CRAFT_RECIPES = [...gearRecipes, ...pouchRecipes];
 
-  const gearIds = [...GEAR_ITEM_IDS];
-  C.RESOURCE_IDS.push(...gearIds);
+  C.RESOURCE_IDS.push(...GEAR_ITEM_IDS);
   Object.assign(C.RESOURCE_NAMES, GEAR_NAMES);
 
   C.SKILLS.crafting.desc = 'Craft armor, weapons, tools, rings, amulets, and pouches';

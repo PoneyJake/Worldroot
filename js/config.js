@@ -154,7 +154,7 @@ window.WorldrootConfig = {
   ],
 
   RESOURCE_NAMES: {
-    copper: 'Copper', iron: 'Iron', gold: 'Gold', platinum: 'Platinum',
+    copper: 'Copper Ore', iron: 'Iron Ore', gold: 'Gold Ore', platinum: 'Platinum Ore',
     copper_bar: 'Copper Bar', iron_bar: 'Iron Bar', gold_bar: 'Gold Bar', platinum_bar: 'Platinum Bar',
     oak: 'Oak Log', spruce: 'Spruce Log', birch: 'Birch Log', jungle: 'Jungle Log',
     shrimp: 'Shrimp', trout: 'Trout', salmon: 'Salmon', lobster: 'Lobster',
