@@ -599,7 +599,7 @@
     const rateChar = char || state.characters[0];
     const cards = C.MONSTERS.map((mob) => {
       const rates = rateChar ? E.getTheoreticalCombatRates(state, rateChar, mob) : { xpHr: 0, killsHr: 0 };
-      const xpPerKill = rateChar ? E.combatXpPerKill(state, rateChar) : 0;
+      const xpPerKill = rateChar ? E.combatXpPerKill(state, rateChar, mob) : 0;
       const locked = best < mob.level;
       const on = char?.activity === 'combat' && char?.target === mob.id;
 
@@ -655,9 +655,8 @@
     const gatherSec = E.gatherIntervalTicks() * (C.TICK_MS / 1000);
     const resLabel = sk.id === 'mining' ? 'ore' : sk.id === 'woodcutting' ? 'log' : 'fish';
 
-    const xpPerAction = char ? E.gatherXpPerAction(state, char, sk.id) : 0;
-
     const cards = veins.map((vein) => {
+      const xpPerAction = char ? E.gatherXpPerAction(state, char, sk.id, vein) : (vein.xp ?? 5);
       const locked = best < vein.minLevel;
       const on = char?.activity === sk.activity && char?.target === vein.id;
       const gatherPct = on ? Math.min(100, ((char.gatherCd || 0) / E.gatherIntervalTicks()) * 100) : 0;
@@ -751,7 +750,7 @@
         <article class="activity-card smelt-drop-zone${selected}" data-smelt-slot="${i}">
           <strong class="smelt-slot-title" data-action="select-smelt-slot" data-slot="${i}">Smelter Slot ${i + 1}</strong>
           <div class="smelt-slot-items">${readySlot}</div>
-          ${slot.ore ? `<p class="empty-msg">${resIcon(slot.ore, 'game-icon')} ${fmt(slot.oreLoaded || 0)} / ${batchCap} · ${recipe?.orePerBar ?? '?'} ore/bar · ${recipe?.ticks ?? '?'}s</p>
+          ${slot.ore ? `<p class="empty-msg">${resIcon(slot.ore, 'game-icon')} ${fmt(slot.oreLoaded || 0)} / ${batchCap} · ${recipe?.orePerBar ?? '?'} ore/bar · ${recipe?.ticks ?? '?'}s · ${fmt(recipe?.xp ?? 5)} XP/bar</p>
             <div class="progress-bar"><div class="progress-bar-fill" style="width:${pct}%"></div></div>
             <p class="empty-msg">Smelting ${resName(slot.ore)}…</p>` : '<p class="empty-msg">Click ore in inventory to load</p>'}
         </article>`;
@@ -977,6 +976,7 @@
     const recipes = filtered.map((recipe) => {
       const costs = recipe.costs.map((c) => `${resIcon(c.res, 'game-icon sm')} ${fmt(c.amt)}`).join(' ');
       const can = E.canCraft(state, char, recipe.id);
+      const canStorage = E.canCraftFromStorage(state, char, recipe.id);
       const eqDef = C.EQUIP_ITEM_SLOTS?.[recipe.output];
       const classNote = eqDef?.classId ? `<p class="craft-class-note">${C.CLASSES[eqDef.classId]?.name} only</p>` : '';
       return `
@@ -985,7 +985,10 @@
           <strong>${resName(recipe.output)}</strong>
           ${classNote}
           <p class="empty-msg">Costs: ${costs}</p>
-          <button type="button" class="btn-sm primary" data-action="craft-item" data-recipe="${recipe.id}" ${!can ? 'disabled' : ''}>Craft</button>
+          <div class="craft-card-actions">
+            <button type="button" class="btn-sm primary" data-action="craft-item" data-recipe="${recipe.id}" ${!can ? 'disabled' : ''}>Craft (inventory)</button>
+            <button type="button" class="btn-sm ghost" data-action="craft-item-storage" data-recipe="${recipe.id}" ${!canStorage ? 'disabled' : ''}>Craft (storage)</button>
+          </div>
         </article>`;
     }).join('');
     return `
@@ -1182,8 +1185,16 @@
     if (action === 'craft-item') {
       const char = selectedChar();
       if (char && E.craftItem(state, char, btn.dataset.recipe)) {
-        addLog(`Crafted ${resName(btn.dataset.recipe)}.`);
-      } else addLog('Cannot craft — missing materials or inventory full.');
+        addLog(`Crafted ${resName(btn.dataset.recipe)} from inventory.`);
+      } else addLog('Cannot craft — missing materials in inventory or inventory full.');
+      render();
+      return;
+    }
+    if (action === 'craft-item-storage') {
+      const char = selectedChar();
+      if (char && E.craftItemFromStorage(state, char, btn.dataset.recipe)) {
+        addLog(`Crafted ${resName(btn.dataset.recipe)} from storage.`);
+      } else addLog('Cannot craft — missing materials in storage or inventory full.');
       render();
       return;
     }

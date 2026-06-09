@@ -2223,6 +2223,13 @@ body {
   text-align: center;
 }
 
+.craft-card-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+}
+
 .shop-card-icon {
   display: flex;
   justify-content: center;

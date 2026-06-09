@@ -97,44 +97,44 @@ window.WorldrootConfig = {
 
   VEINS: {
     mining: [
-      { id: 'copper_vein', name: 'Copper Vein', resource: 'copper', minLevel: 0, icon: 'copper_vein' },
-      { id: 'iron_vein', name: 'Iron Vein', resource: 'iron', minLevel: 10, icon: 'iron_vein' },
-      { id: 'gold_vein', name: 'Gold Vein', resource: 'gold', minLevel: 20, icon: 'gold_vein' },
-      { id: 'platinum_vein', name: 'Platinum Vein', resource: 'platinum', minLevel: 30, icon: 'platinum_vein' },
+      { id: 'copper_vein', name: 'Copper Vein', resource: 'copper', minLevel: 0, icon: 'copper_vein', xp: 5 },
+      { id: 'iron_vein', name: 'Iron Vein', resource: 'iron', minLevel: 10, icon: 'iron_vein', xp: 15 },
+      { id: 'gold_vein', name: 'Gold Vein', resource: 'gold', minLevel: 20, icon: 'gold_vein', xp: 25 },
+      { id: 'platinum_vein', name: 'Platinum Vein', resource: 'platinum', minLevel: 30, icon: 'platinum_vein', xp: 50 },
     ],
     woodcutting: [
-      { id: 'oak_grove', name: 'Oak Grove', resource: 'oak', minLevel: 0, icon: 'oak_grove' },
-      { id: 'spruce_grove', name: 'Spruce Grove', resource: 'spruce', minLevel: 10, icon: 'spruce_grove' },
-      { id: 'birch_grove', name: 'Birch Grove', resource: 'birch', minLevel: 20, icon: 'birch_grove' },
-      { id: 'jungle_grove', name: 'Jungle Grove', resource: 'jungle', minLevel: 30, icon: 'jungle_grove' },
+      { id: 'oak_grove', name: 'Oak Grove', resource: 'oak', minLevel: 0, icon: 'oak_grove', xp: 5 },
+      { id: 'spruce_grove', name: 'Spruce Grove', resource: 'spruce', minLevel: 10, icon: 'spruce_grove', xp: 15 },
+      { id: 'birch_grove', name: 'Birch Grove', resource: 'birch', minLevel: 20, icon: 'birch_grove', xp: 25 },
+      { id: 'jungle_grove', name: 'Jungle Grove', resource: 'jungle', minLevel: 30, icon: 'jungle_grove', xp: 50 },
     ],
     fishing: [
-      { id: 'shrimp_spot', name: 'Shrimp Spot', resource: 'shrimp', minLevel: 0, icon: 'shrimp' },
-      { id: 'trout_spot', name: 'Trout Spot', resource: 'trout', minLevel: 10, icon: 'trout' },
-      { id: 'salmon_spot', name: 'Salmon Spot', resource: 'salmon', minLevel: 20, icon: 'salmon' },
-      { id: 'lobster_spot', name: 'Lobster Spot', resource: 'lobster', minLevel: 30, icon: 'lobster' },
+      { id: 'shrimp_spot', name: 'Shrimp Spot', resource: 'shrimp', minLevel: 0, icon: 'shrimp', xp: 5 },
+      { id: 'trout_spot', name: 'Trout Spot', resource: 'trout', minLevel: 10, icon: 'trout', xp: 15 },
+      { id: 'salmon_spot', name: 'Salmon Spot', resource: 'salmon', minLevel: 20, icon: 'salmon', xp: 25 },
+      { id: 'lobster_spot', name: 'Lobster Spot', resource: 'lobster', minLevel: 30, icon: 'lobster', xp: 50 },
     ],
   },
 
   MONSTERS: [
-    { id: 'forest_slime', name: 'Forest Slime', level: 0, hp: 25, damage: 2, goldMin: 1, goldMax: 3, drop: { id: 'slime_gel', name: 'Ectoplasm', amount: 1 } },
-    { id: 'will_o_wisp', name: 'Will-O-Wisp', level: 10, hp: 100, damage: 5, goldMin: 3, goldMax: 6, drop: { id: 'wisp_essence', name: 'Wisp Essence', amount: 1 } },
-    { id: 'gloomcap', name: 'Gloomcap', level: 20, hp: 250, damage: 10, goldMin: 5, goldMax: 10, drop: { id: 'gloomspore', name: 'Gloomspore', amount: 1 } },
-    { id: 'spore_bat', name: 'Spore Bat', level: 30, hp: 450, damage: 20, goldMin: 8, goldMax: 15, drop: { id: 'bat_wing_membrane', name: 'Bat Wing Membrane', amount: 1 } },
+    { id: 'forest_slime', name: 'Forest Slime', level: 0, hp: 25, damage: 2, xp: 5, goldMin: 1, goldMax: 3, drop: { id: 'slime_gel', name: 'Ectoplasm', amount: 1 } },
+    { id: 'will_o_wisp', name: 'Will-O-Wisp', level: 10, hp: 100, damage: 5, xp: 15, goldMin: 3, goldMax: 6, drop: { id: 'wisp_essence', name: 'Wisp Essence', amount: 1 } },
+    { id: 'gloomcap', name: 'Gloomcap', level: 20, hp: 250, damage: 10, xp: 25, goldMin: 5, goldMax: 10, drop: { id: 'gloomspore', name: 'Gloomspore', amount: 1 } },
+    { id: 'spore_bat', name: 'Spore Bat', level: 30, hp: 450, damage: 20, xp: 50, goldMin: 8, goldMax: 15, drop: { id: 'bat_wing_membrane', name: 'Bat Wing Membrane', amount: 1 } },
   ],
 
   SMELT_RECIPES: [
-    { ore: 'copper', bar: 'copper_bar', name: 'Copper Bar', orePerBar: 2, ticks: 15 },
-    { ore: 'iron', bar: 'iron_bar', name: 'Iron Bar', orePerBar: 4, ticks: 30 },
-    { ore: 'gold', bar: 'gold_bar', name: 'Gold Bar', orePerBar: 8, ticks: 60 },
-    { ore: 'platinum', bar: 'platinum_bar', name: 'Platinum Bar', orePerBar: 16, ticks: 120 },
+    { ore: 'copper', bar: 'copper_bar', name: 'Copper Bar', orePerBar: 2, ticks: 15, xp: 5 },
+    { ore: 'iron', bar: 'iron_bar', name: 'Iron Bar', orePerBar: 4, ticks: 30, xp: 15 },
+    { ore: 'gold', bar: 'gold_bar', name: 'Gold Bar', orePerBar: 8, ticks: 60, xp: 25 },
+    { ore: 'platinum', bar: 'platinum_bar', name: 'Platinum Bar', orePerBar: 16, ticks: 120, xp: 50 },
   ],
 
   PRODUCE_SLOTS: [
-    { slot: 0, id: 'twine', name: 'Twine', minLevel: 0, ticks: 30, xp: 8 },
-    { slot: 1, id: 'wooden_pegs', name: 'Wooden Pegs', minLevel: 5, ticks: 60, xp: 12 },
-    { slot: 2, id: 'iron_nails', name: 'Iron Nails', minLevel: 10, ticks: 120, xp: 16 },
-    { slot: 3, id: 'resin', name: 'Resin', minLevel: 15, ticks: 240, xp: 20 },
+    { slot: 0, id: 'twine', name: 'Twine', minLevel: 0, ticks: 30, xp: 5 },
+    { slot: 1, id: 'wooden_pegs', name: 'Wooden Pegs', minLevel: 5, ticks: 60, xp: 15 },
+    { slot: 2, id: 'iron_nails', name: 'Iron Nails', minLevel: 10, ticks: 120, xp: 25 },
+    { slot: 3, id: 'resin', name: 'Resin', minLevel: 15, ticks: 240, xp: 50 },
   ],
 
   ACTIVITIES: [

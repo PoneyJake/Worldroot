@@ -315,16 +315,18 @@
     return C.BASE_DROP_CHANCE + effectBonus(state, 'drop_rate');
   }
 
-  function combatXpPerKill(state, char) {
+  function combatXpPerKill(state, char, monster) {
     if (!char) return 0;
+    const base = monster?.xp ?? 5;
     const xpMult = 1 + skillXpBonus(state, 'combat');
-    return Math.floor(C.BASE_XP_PER_TICK * 3 * xpMult);
+    return Math.floor(base * xpMult);
   }
 
-  function gatherXpPerAction(state, char, skillId) {
+  function gatherXpPerAction(state, char, skillId, vein) {
     if (!char) return 0;
+    const base = vein?.xp ?? 5;
     const xpMult = 1 + skillXpBonus(state, skillId);
-    return Math.floor(C.BASE_XP_PER_TICK * xpMult);
+    return Math.floor(base * xpMult);
   }
 
   function getTheoreticalCombatRates(state, char, monster) {
@@ -335,7 +337,7 @@
     const dmg = charDamage(state, char);
     const hitsPerKill = Math.ceil(mobMaxHp(monster) / Math.max(1, dmg));
     const killsHr = Math.floor(attacksPerHr / hitsPerKill);
-    const xpPerKill = combatXpPerKill(state, char);
+    const xpPerKill = combatXpPerKill(state, char, monster);
     return { xpHr: killsHr * xpPerKill, killsHr };
   }
 
@@ -435,7 +437,7 @@
       if (Math.random() < multiMult * 0.1) bars += 1;
       slot.ready = (slot.ready || 0) + bars;
       slot.readyBar = recipe.bar;
-      S.grantXp(state.smelting.skill, Math.floor(C.BASE_XP_PER_TICK * xpMult));
+      S.grantXp(state.smelting.skill, Math.floor((recipe.xp ?? 5) * xpMult));
       slot.progress = 0;
     }
   }
@@ -595,6 +597,22 @@
     return true;
   }
 
+  function canCraftFromStorage(state, char, recipeId) {
+    const recipe = C.CRAFT_RECIPES?.find((r) => r.id === recipeId);
+    if (!recipe || !char) return false;
+    return recipe.costs.every((c) => S.storageHas(state, c.res, c.amt));
+  }
+
+  function craftItemFromStorage(state, char, recipeId) {
+    const recipe = C.CRAFT_RECIPES?.find((r) => r.id === recipeId);
+    if (!recipe || !canCraftFromStorage(state, char, recipeId)) return false;
+    for (const cost of recipe.costs) S.removeFromStorage(state, cost.res, cost.amt);
+    const result = S.addToInventory(char, state, recipe.output, 1, 'combat');
+    if (result.added < 1) return false;
+    S.saveState(state);
+    return true;
+  }
+
   function resolveEquipTarget(char, def) {
     if (def.kind === 'tool') return { type: 'tool', key: def.slot };
     if (def.slot === 'ring') {
@@ -693,7 +711,7 @@
 
       if (cs.mobHp <= 0) {
         const xpMult = 1 + skillXpBonus(state, 'combat');
-        const xpGain = Math.floor(C.BASE_XP_PER_TICK * 3 * xpMult);
+        const xpGain = Math.floor((monster.xp ?? 5) * xpMult);
         S.grantXp(skill, xpGain);
         event.xpGain = xpGain;
         event.kill = true;
@@ -742,7 +760,7 @@
     const amount = rollGatherAmount(state, char, skillId, vein);
     if (amount > 0) {
       const xpMult = 1 + skillXpBonus(state, skillId);
-      const xpGain = Math.floor(C.BASE_XP_PER_TICK * xpMult);
+      const xpGain = Math.floor((vein.xp ?? 5) * xpMult);
       S.grantXp(skill, xpGain);
       event.xpGain = xpGain;
 
@@ -929,6 +947,7 @@
     collectProduce, collectSmelt, unloadSmeltOre,
     questTrackProgress, questIsComplete, questIsClaimed, claimQuest,
     canUseConsumable, useConsumableFromSlot, shopItemAvailable, buyShopItem,
-    canCraft, craftItem, canEquipItem, equipFromInventory, unequipSlot,
+    canCraft, craftItem, canCraftFromStorage, craftItemFromStorage,
+    canEquipItem, equipFromInventory, unequipSlot,
   };
 })();
