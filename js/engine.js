@@ -321,6 +321,12 @@
     return Math.floor(C.BASE_XP_PER_TICK * 3 * xpMult);
   }
 
+  function gatherXpPerAction(state, char, skillId) {
+    if (!char) return 0;
+    const xpMult = 1 + skillXpBonus(state, skillId);
+    return Math.floor(C.BASE_XP_PER_TICK * xpMult);
+  }
+
   function getTheoreticalCombatRates(state, char, monster) {
     if (!char || (char.skills.combat?.level ?? 0) < monster.level) {
       return { xpHr: 0, killsHr: 0 };
@@ -914,7 +920,7 @@
     gatherYieldTierInfo, gatherCatchDisplayPercent, gatherPlusOneThresholds, effForSuccessPercent,
     veinEffThreshold, veinEffBreakpoints,
     gatherRatePerMin, gatherIntervalTicks, charMaxHp, charMaxMp, charDamage, mobMaxHp, dropChance, dropBonus,
-    getTheoreticalCombatRates, combatXpPerKill, smeltBatchCapacity, produceBatchCapacity,
+    getTheoreticalCombatRates, combatXpPerKill, gatherXpPerAction, smeltBatchCapacity, produceBatchCapacity,
     charStat, gatherStatMult, combatDamageMult,
     tick, buyUpgrade, canAffordUpgrade, findVein, findMonster,
     getRatePerHour, findUpgradeNode, smeltSlotsUnlocked, findFirstSmeltSlotForOre,

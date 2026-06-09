@@ -985,6 +985,34 @@ body {
   align-items: flex-start;
 }
 
+.transfer-modal-card {
+  max-width: 320px;
+}
+
+.transfer-modal-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 12px 0;
+  font-size: 0.82rem;
+  color: #9aaa96;
+}
+
+.transfer-modal-field input {
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid #3a5a38;
+  background: #121812;
+  color: #dce6d8;
+  font-size: 1rem;
+}
+
+.transfer-modal-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
 .item-slot.can-drag {
   cursor: grab;
 }

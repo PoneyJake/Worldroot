@@ -16,7 +16,8 @@
   let questTrack = 'main';
   let craftCategory = 'armor';
   let storageQuickTap = true;
-  let storageSelected = null;
+  let storageSplitMode = false;
+  let transferModal = null;
   let logBuffer = [];
   let holdTimer = null;
   let holdEl = null;
@@ -115,7 +116,6 @@
     const {
       transferType = null, gridClass = '', start = 0, end = totalSlots,
       holdUse = false, char = null, smeltOrePick = false,
-      selectedSlot = null, selectedType = null,
     } = opts;
     let html = '';
     for (let idx = start; idx < end; idx++) {
@@ -134,13 +134,12 @@
         const holdAttr = canUse ? ` data-hold-use="${idx}"` : '';
         const canEquip = transferType === 'inv' && char && E.canEquipItem(char, slot.resourceId);
         const equipAttr = canEquip ? ` data-action="equip-item" data-inv="${idx}"` : '';
-        const isSelected = transferType && selectedType === transferType && selectedSlot === idx;
-        const tapHint = transferType
-          ? (storageQuickTap && activePage === 'storage' ? ' — tap: move stack · shift+click: move all' : ' — click: select · double-click: move 1 · shift+click: move all')
+        const tapHint = transferType && activePage === 'storage'
+          ? (storageSplitMode ? ' — click: custom amount' : storageQuickTap ? ' — inv→all storage · storage→1 stack' : ' — double-click: move 1 · shift+click: move all')
           : '';
         const holdHint = canUse ? ' · hold 2s to use' : (canLoad ? ' — click to load smelter' : (canEquip ? ' — click to equip' : ''));
         html += `
-          <div class="item-slot filled${transferType ? ' transferable' : ''}${canLoad ? ' smelt-ore-pick' : ''}${canUse ? ' hold-use-slot' : ''}${canEquip ? ' equip-item-slot' : ''}${isSelected ? ' slot-selected' : ''}" title="${resName(slot.resourceId)}${tapHint}${holdHint}"${transferAttr}${smeltAttr}${holdAttr}${equipAttr}>
+          <div class="item-slot filled${transferType ? ' transferable' : ''}${canLoad ? ' smelt-ore-pick' : ''}${canUse ? ' hold-use-slot' : ''}${canEquip ? ' equip-item-slot' : ''}" title="${resName(slot.resourceId)}${tapHint}${holdHint}"${transferAttr}${smeltAttr}${holdAttr}${equipAttr}>
             <span class="item-slot-icon">${resIcon(slot.resourceId, 'game-icon')}</span>
             <span class="item-slot-qty">${fmt(slot.amount)}</span>
             ${canUse ? '<span class="hold-use-ring"></span>' : ''}
@@ -167,8 +166,6 @@
       ${renderPageTabs(invPage, pages, 'inv-page')}
       ${renderSlotGrid(char.inventorySlots, total, {
         ...opts, start, end, holdUse: true, char,
-        selectedSlot: storageSelected?.type === opts.transferType ? storageSelected.idx : null,
-        selectedType: storageSelected?.type,
       })}`;
   }
 
@@ -180,11 +177,7 @@
     const end = Math.min(start + pageSize, total);
     return `
       ${renderPageTabs(storPage, pages, 'stor-page')}
-      ${renderSlotGrid(state.storageSlots, total, {
-        ...opts, start, end,
-        selectedSlot: storageSelected?.type === opts.transferType ? storageSelected.idx : null,
-        selectedType: storageSelected?.type,
-      })}`;
+      ${renderSlotGrid(state.storageSlots, total, { ...opts, start, end })}`;
   }
 
   function selectedIndex() {
@@ -259,7 +252,7 @@
   function switchPage(pageId) {
     const item = SIDEBAR_NAV.find((n) => n.id === pageId);
     if (item?.comingSoon) return;
-    if (pageId !== 'storage') storageSelected = null;
+    if (pageId !== 'storage') closeTransferModal();
     activePage = pageId;
     renderSidebar();
     renderMainPanel();
@@ -542,14 +535,14 @@
         <span class="page-header-icon">📦</span>
         <div class="page-header-text">
           <h1>Storage</h1>
-          <p>${storageQuickTap ? 'Quick tap: click slot to move full stack' : 'Click to select · double-click to move 1'} · shift+click: move all</p>
+          <p>${storageSplitMode ? 'Custom transfer: click a stack to choose amount' : storageQuickTap ? 'Quick tap: inventory→all to storage · storage→one stack to inventory' : 'Double-click: move 1 · shift+click: move all'}</p>
         </div>
       </header>
       ${pageCharBar()}
       <div class="storage-actions">
         <button type="button" class="btn-sm primary" data-action="deposit-all">Deposit all to storage</button>
         <button type="button" class="btn-sm${storageQuickTap ? ' active' : ''}" data-action="toggle-quick-tap">Quick tap ${storageQuickTap ? 'ON' : 'OFF'}</button>
-        <button type="button" class="btn-sm ghost" data-action="split-stack">Split stack</button>
+        <button type="button" class="btn-sm${storageSplitMode ? ' active' : ''}" data-action="toggle-split-mode">Custom amount ${storageSplitMode ? 'ON' : 'OFF'}</button>
       </div>
       <div class="storage-dual">
         <section class="storage-half storage-panel slot-panel-fit">
@@ -662,6 +655,8 @@
     const gatherSec = E.gatherIntervalTicks() * (C.TICK_MS / 1000);
     const resLabel = sk.id === 'mining' ? 'ore' : sk.id === 'woodcutting' ? 'log' : 'fish';
 
+    const xpPerAction = char ? E.gatherXpPerAction(state, char, sk.id) : 0;
+
     const cards = veins.map((vein) => {
       const locked = best < vein.minLevel;
       const on = char?.activity === sk.activity && char?.target === vein.id;
@@ -676,7 +671,7 @@
             <span class="activity-card-icon">${iconHtml(vein.icon, 'game-icon gather')}</span>
             <div class="activity-card-title">
               <strong>${vein.name}</strong>
-              <span>Lv ${vein.minLevel}</span>
+              <span>Lv ${vein.minLevel} · ${resName(vein.resource)} · ${fmt(xpPerAction)} XP/gather</span>
             </div>
           </div>
           <div class="vein-stat-trio">
@@ -814,7 +809,7 @@
             <span class="activity-card-icon">${resIcon(def.id, 'game-icon')}</span>
             <div class="activity-card-title">
               <strong>Slot ${i + 1} — ${def.name}</strong>
-              <span>${def.ticks}s · max ${cap}</span>
+              <span>${def.ticks}s · max ${cap} · ${fmt(def.xp)} XP/batch</span>
             </div>
           </div>
           <div class="activity-actions">
@@ -1197,19 +1192,17 @@
       render();
       return;
     }
-    if (action === 'split-stack') {
-      const char = selectedChar();
-      if (!storageSelected) {
-        addLog('Click a stack to select it, then Split.');
-        render();
-        return;
-      }
-      const ok = storageSelected.type === 'inv'
-        ? char && S.splitInventorySlot(state, char, storageSelected.idx)
-        : S.splitStorageSlot(state, storageSelected.idx);
-      if (ok) addLog('Stack split in half.');
-      else addLog('Cannot split — need 2+ items and an empty slot.');
+    if (action === 'toggle-split-mode') {
+      storageSplitMode = !storageSplitMode;
       render();
+      return;
+    }
+    if (action === 'close-transfer-modal') {
+      closeTransferModal();
+      return;
+    }
+    if (action === 'confirm-transfer') {
+      confirmTransferAmount();
       return;
     }
     if (action === 'deposit-all') {
@@ -1353,27 +1346,96 @@
     });
   }
 
-  function handleSlotTransfer(el, all) {
+  function handleSlotTransfer(el, all, amount = null) {
     const type = el.dataset.transferType;
     const slotIdx = Number(el.dataset.slot);
     if (type === 'inv') {
       const char = selectedChar();
-      if (char && S.transferInvToStorage(state, char, slotIdx, all ? null : 1)) {
-        addLog(all ? 'Moved stack to storage.' : 'Moved 1 to storage.');
+      const transferAmt = amount ?? (all ? null : 1);
+      if (char && S.transferInvToStorage(state, char, slotIdx, transferAmt)) {
+        addLog(transferAmt == null ? 'Moved stack to storage.' : `Moved ${transferAmt} to storage.`);
         render();
       }
       return;
     }
     if (type === 'storage') {
       const char = selectedChar();
-      if (char && S.transferStorageToInv(state, char, slotIdx, all ? null : 1)) {
-        addLog(all ? 'Moved stack to inventory.' : 'Moved 1 to inventory.');
-        render();
+      const slot = state.storageSlots[slotIdx];
+      const transferAmt = amount ?? (all ? null : 1);
+      if (char && slot && S.transferStorageToInv(state, char, slotIdx, transferAmt)) {
+        addLog(transferAmt == null ? 'Moved stack to inventory.' : `Moved ${transferAmt} to inventory.`);
       } else {
         addLog('Inventory full — could not take item.');
       }
       render();
     }
+  }
+
+  function handleQuickTapTransfer(el) {
+    const type = el.dataset.transferType;
+    const slotIdx = Number(el.dataset.slot);
+    const char = selectedChar();
+    if (type === 'inv') {
+      if (char && S.transferInvToStorage(state, char, slotIdx, null)) {
+        addLog('Moved full stack to storage.');
+        render();
+      }
+      return;
+    }
+    if (type === 'storage') {
+      const slot = state.storageSlots[slotIdx];
+      if (!slot || !char) return;
+      const stackCap = S.stackCapacityForResource(state, slot.resourceId, char);
+      const transferAmt = Math.min(slot.amount, stackCap);
+      if (S.transferStorageToInv(state, char, slotIdx, transferAmt)) {
+        addLog(`Moved ${transferAmt} to inventory.`);
+      } else {
+        addLog('Inventory full — could not take items.');
+      }
+      render();
+    }
+  }
+
+  function openTransferModal(type, idx) {
+    const char = selectedChar();
+    const slot = type === 'inv' ? char?.inventorySlots[idx] : state.storageSlots[idx];
+    if (!slot?.amount) return;
+    transferModal = { type, idx, max: slot.amount };
+    const modal = $('transfer-modal');
+    const input = $('transfer-amount-input');
+    const label = $('transfer-modal-label');
+    const dir = type === 'inv' ? 'to storage' : 'to inventory';
+    if (label) label.textContent = `${resName(slot.resourceId)} — transfer ${dir} (max ${fmt(slot.amount)})`;
+    if (input) {
+      input.value = String(slot.amount);
+      input.max = String(slot.amount);
+      input.min = '1';
+    }
+    if (modal) modal.hidden = false;
+  }
+
+  function closeTransferModal() {
+    transferModal = null;
+    const modal = $('transfer-modal');
+    if (modal) modal.hidden = true;
+  }
+
+  function confirmTransferAmount() {
+    if (!transferModal) return;
+    const input = $('transfer-amount-input');
+    const amt = Math.min(transferModal.max, Math.max(1, Math.floor(Number(input?.value) || 0)));
+    const char = selectedChar();
+    const { type, idx } = transferModal;
+    let ok = false;
+    if (type === 'inv') {
+      ok = char && S.transferInvToStorage(state, char, idx, amt);
+    } else {
+      ok = char && S.transferStorageToInv(state, char, idx, amt);
+    }
+    closeTransferModal();
+    if (ok) addLog(`Transferred ${amt} items.`);
+    else addLog('Transfer failed — not enough items or inventory full.');
+    render();
   }
 
   function handleCollect(el) {
@@ -1437,16 +1499,13 @@
       const idx = Number(slotEl.dataset.slot);
       const char = selectedChar();
       const slot = type === 'inv' ? char?.inventorySlots[idx] : state.storageSlots[idx];
-      if (!slot) {
-        storageSelected = null;
-        render();
-        return;
-      }
-      storageSelected = { type, idx };
-      if (storageQuickTap) {
-        handleSlotTransfer(slotEl, true);
+      if (!slot) return;
+      if (storageSplitMode) {
+        openTransferModal(type, idx);
+      } else if (storageQuickTap) {
+        handleQuickTapTransfer(slotEl);
       } else {
-        render();
+        handleSlotTransfer(slotEl, false);
       }
     }
   }
