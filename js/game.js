@@ -437,8 +437,28 @@ window.WorldrootConfig = {
     localStorage.setItem(getSaveKey(), JSON.stringify(data));
   }
 
+  const XP_BASE = 50;
+  const XP_TIER_MULT = [
+    { until: 10, mult: 1.35 },
+    { until: 20, mult: 1.25 },
+    { until: 30, mult: 1.20 },
+    { until: 40, mult: 1.15 },
+    { until: Infinity, mult: 1.10 },
+  ];
+
+  function xpMultiplierForLevel(level) {
+    for (const tier of XP_TIER_MULT) {
+      if (level < tier.until) return tier.mult;
+    }
+    return 1.10;
+  }
+
   function xpForLevel(level) {
-    return 100 * (level + 1);
+    let xp = XP_BASE;
+    for (let l = 0; l < level; l++) {
+      xp *= xpMultiplierForLevel(l);
+    }
+    return Math.floor(xp);
   }
 
   function grantXp(skill, amount) {
