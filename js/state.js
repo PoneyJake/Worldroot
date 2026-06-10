@@ -59,6 +59,8 @@
   function spendTalentPoint(skill, talentId) {
     ensureSkillTalents(skill);
     if ((skill.talentPoints || 0) < 1) return false;
+    const max = C.TALENT_MAX_LEVEL ?? 50;
+    if ((skill.talents[talentId] || 0) >= max) return false;
     skill.talentPoints -= 1;
     skill.talents[talentId] = (skill.talents[talentId] || 0) + 1;
     return true;

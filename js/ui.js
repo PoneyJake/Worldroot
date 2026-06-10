@@ -646,25 +646,28 @@
     const points = skill.talentPoints ?? 0;
     const skillLabel = C.SKILLS[skillId]?.name ?? skillId;
 
+    const maxLv = C.TALENT_MAX_LEVEL ?? 50;
+
     const cards = defs.map((def) => {
       const lv = skill.talents?.[def.id] ?? 0;
       const total = E.formatTalentTotal(def, lv);
-      const canBuy = points > 0;
+      const atMax = lv >= maxLv;
+      const canBuy = points > 0 && !atMax;
       return `
-        <article class="activity-card talent-card">
+        <article class="activity-card talent-card${atMax ? ' talent-maxed' : ''}">
           <strong>${def.label}</strong>
           <span class="talent-per">${def.perLabel ?? ''}</span>
           <div class="talent-level-row">
-            <span>Rank <strong>${lv}</strong></span>
+            <span>Rank <strong>${lv}</strong> / ${maxLv}</span>
             <span class="talent-total">${total}</span>
           </div>
-          <button type="button" class="btn-sm primary" data-action="buy-talent" data-skill="${skillId}" data-talent="${def.id}" ${canBuy ? '' : 'disabled'}>+1</button>
+          <button type="button" class="btn-sm primary" data-action="buy-talent" data-skill="${skillId}" data-talent="${def.id}" ${canBuy ? '' : 'disabled'}>${atMax ? 'Max' : '+1'}</button>
         </article>`;
     }).join('');
 
     return `
       <div class="talents-panel">
-        <p class="talents-points-line"><strong>${fmt(points)}</strong> unspent talent points · ${skillLabel} Lv ${skill.level} · +${C.TALENT_POINTS_PER_LEVEL} pts per level</p>
+        <p class="talents-points-line"><strong>${fmt(points)}</strong> unspent talent points · ${skillLabel} Lv ${skill.level} · +${C.TALENT_POINTS_PER_LEVEL} pts per level · max rank ${maxLv}</p>
         <div class="activity-grid talent-grid">${cards}</div>
       </div>`;
   }
@@ -1472,7 +1475,7 @@
       const char = skillId === 'smelting' ? selectedChar() : selectedChar();
       if (E.buyTalent(state, char, skillId, btn.dataset.talent)) {
         addLog('Talent upgraded.');
-      } else addLog('No talent points available.');
+      } else addLog('Cannot upgrade — no points or talent at max rank.');
       render();
       return;
     }

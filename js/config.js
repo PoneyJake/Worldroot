@@ -35,6 +35,7 @@ window.WorldrootConfig = {
   LEVEL_EFF_BONUS: 1,
   LEVEL_MULTI_BONUS: 0.005,
   TALENT_POINTS_PER_LEVEL: 2,
+  TALENT_MAX_LEVEL: 50,
 
   TALENT_SKILL_MAP: {
     mining: 'gather',
