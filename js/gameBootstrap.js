@@ -56,6 +56,7 @@ async function boot() {
         flushOnExit: flushCloudSaveOnExit,
         upload: uploadCloudSave,
         download: downloadCloudSave,
+        refresh: loadCloudSave,
       };
       try {
         await loadCloudSave();

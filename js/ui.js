@@ -2415,6 +2415,9 @@
       if (window.__worldrootBootGate) await window.__worldrootBootGate;
       if (window.__worldrootBooted) return;
       window.__worldrootBooted = true;
+      if (window.WorldrootSession?.isCloud && window.WorldrootCloud?.refresh) {
+        await window.WorldrootCloud.refresh();
+      }
       const loaded = window.WorldrootState.loadState();
       init(loaded);
       const offline = window.WorldrootEngine.catchUpOffline(window.WorldrootUI.getState());
@@ -2428,7 +2431,7 @@
       window.addEventListener('beforeunload', () => {
         const s = window.WorldrootUI.getState();
         s.lastTickAt = Date.now();
-        window.WorldrootState.saveState(s);
+        window.WorldrootState.saveState(s, { touchCloud: false });
         if (window.WorldrootCloud?.flushOnExit) window.WorldrootCloud.flushOnExit();
         else if (window.WorldrootCloud?.flush) window.WorldrootCloud.flush();
       });

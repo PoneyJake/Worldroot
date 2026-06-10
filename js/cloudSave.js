@@ -102,17 +102,21 @@ function pickNewerSave(localPayload, cloudRow) {
   const cloudPayload = cloudRow?.save_data;
   const cloudTime = cloudSavedAt(cloudRow);
   const localTime = localSavedAt(localPayload);
+  const cloudScore = saveProgressScore(cloudPayload);
+  const localScore = saveProgressScore(localPayload);
 
   if (cloudPayload && localPayload) {
+    if (cloudScore !== localScore) {
+      return cloudScore > localScore
+        ? { payload: cloudPayload, source: 'cloud' }
+        : { payload: localPayload, source: 'local' };
+    }
     if (cloudTime !== localTime) {
       return cloudTime > localTime
         ? { payload: cloudPayload, source: 'cloud' }
         : { payload: localPayload, source: 'local' };
     }
-    const cloudScore = saveProgressScore(cloudPayload);
-    const localScore = saveProgressScore(localPayload);
-    if (cloudScore >= localScore) return { payload: cloudPayload, source: 'cloud' };
-    return { payload: localPayload, source: 'local' };
+    return { payload: cloudPayload, source: 'cloud' };
   }
 
   if (cloudPayload) return { payload: cloudPayload, source: 'cloud' };
@@ -166,25 +170,16 @@ export async function loadCloudSave() {
   }
 
   const picked = pickNewerSave(localPayload, data);
-
-  // Don't push a stale empty local cache over cloud progress (e.g. phone played, PC still on reset).
-  if (picked.source === 'local' && data.save_data) {
-    const cloudScore = saveProgressScore(data.save_data);
-    const localScore = saveProgressScore(localPayload);
-    if (cloudScore > localScore) {
-      importSaveData(data.save_data);
-      reloadUiFromStorage();
-      cloudDirty = false;
-      notifySyncStatus('saved', 'Loaded from cloud');
-      return { source: 'cloud' };
-    }
-  }
-
   if (picked.payload) {
     importSaveData(picked.payload);
     reloadUiFromStorage();
-    if (picked.source === 'local') await pushCloudSave(true);
-    else cloudDirty = false;
+    const cloudScore = saveProgressScore(data.save_data);
+    const localScore = saveProgressScore(localPayload);
+    if (picked.source === 'local' && localScore >= cloudScore) {
+      await pushCloudSave(true);
+    } else {
+      cloudDirty = false;
+    }
     notifySyncStatus('saved', picked.source === 'cloud' ? 'Loaded from cloud' : 'Saved to cloud');
     return { source: picked.source };
   }
@@ -220,6 +215,7 @@ export async function uploadCloudSave() {
 /** Merge cloud/local saves before opening the game from the home page. */
 export async function prepareCloudPlay() {
   if (!isCloudEnabled() || !getCurrentUser()) return;
+  window.WorldrootState?.setPlayMode?.('cloud');
   await loadCloudSave();
 }
 
@@ -265,15 +261,11 @@ export async function pushCloudSave(force = false) {
     const remote = await fetchCloudRow();
     const picked = pickNewerSave(payload, remote);
     if (picked.source === 'cloud' && picked.payload) {
-      const localTime = localSavedAt(payload);
-      const cloudTime = cloudSavedAt(remote);
-      if (cloudTime > localTime) {
-        importSaveData(picked.payload);
-        reloadUiFromStorage();
-        cloudDirty = false;
-        notifySyncStatus('saved', 'Loaded from cloud');
-        return true;
-      }
+      importSaveData(picked.payload);
+      reloadUiFromStorage();
+      cloudDirty = false;
+      notifySyncStatus('saved', 'Loaded from cloud');
+      return true;
     }
   }
 
@@ -371,6 +363,16 @@ export async function flushCloudSaveOnExit() {
   persistGameSave();
   const payload = exportSaveData();
   if (!payload) return;
+
+  const remote = await fetchCloudRow();
+  if (remote?.save_data) {
+    const localScore = saveProgressScore(payload);
+    const cloudScore = saveProgressScore(remote.save_data);
+    if (cloudScore > localScore) {
+      cloudDirty = false;
+      return;
+    }
+  }
 
   payload.savedAt = Date.now();
   if (window.WorldrootUI?.getState) {
