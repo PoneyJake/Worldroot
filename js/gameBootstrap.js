@@ -1,5 +1,5 @@
 import { initAuth, getDisplayName, signOut } from './auth.js';
-import { loadCloudSave, scheduleCloudSave, flushCloudSave } from './cloudSave.js';
+import { loadCloudSave, scheduleCloudSave, flushCloudSave, initCloudSyncListeners, flushCloudSaveOnExit } from './cloudSave.js';
 import { fetchLeaderboardTop, syncLeaderboard } from './leaderboard.js';
 import { registerServiceWorker } from './pwa.js';
 import { initMobileGameLayout } from './mobile.js';
@@ -44,6 +44,7 @@ async function boot() {
     if (isCloud) {
       await loadCloudSave();
       patchSaveForCloud();
+      initCloudSyncListeners();
       await syncLeaderboard();
     }
 
@@ -51,6 +52,7 @@ async function boot() {
       scheduleCloudSave,
       flushCloudSave,
       flush: flushCloudSave,
+      flushOnExit: flushCloudSaveOnExit,
       sync: async () => {
         await loadCloudSave();
         await flushCloudSave();

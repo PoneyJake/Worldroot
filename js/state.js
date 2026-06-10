@@ -162,6 +162,7 @@
       rateStats: state.rateStats,
       smelting: state.smelting,
       lastTickAt: state.lastTickAt ?? Date.now(),
+      savedAt: state.savedAt ?? Date.now(),
     };
   }
 
@@ -399,6 +400,9 @@
   }
 
   function exportSaveData() {
+    if (window.WorldrootUI?.getState) {
+      return serializeState(window.WorldrootUI.getState());
+    }
     const raw = localStorage.getItem(getSaveKey());
     if (raw) {
       try { return JSON.parse(raw); } catch { /* fall through */ }
@@ -880,6 +884,7 @@
   }
 
   function saveState(state) {
+    state.savedAt = Date.now();
     localStorage.setItem(getSaveKey(), JSON.stringify(serializeState(state)));
   }
 

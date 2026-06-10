@@ -2244,7 +2244,8 @@
         const s = window.WorldrootUI.getState();
         s.lastTickAt = Date.now();
         window.WorldrootState.saveState(s);
-        if (window.WorldrootCloud?.flush) window.WorldrootCloud.flush();
+        if (window.WorldrootCloud?.flushOnExit) window.WorldrootCloud.flushOnExit();
+        else if (window.WorldrootCloud?.flush) window.WorldrootCloud.flush();
       });
     } catch (err) {
       console.error('[Worldroot] boot failed:', err);

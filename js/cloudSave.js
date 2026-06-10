@@ -1,5 +1,5 @@
 import { getSupabase, getCurrentUser } from './auth.js';
-import { isCloudEnabled } from './cloudConfig.js';
+import { isCloudEnabled, SUPABASE_URL, SUPABASE_ANON_KEY } from './cloudConfig.js';
 import { syncLeaderboard } from './leaderboard.js';
 
 const LOCAL_SAVE_KEYS = [
@@ -10,8 +10,16 @@ const LOCAL_SAVE_KEYS = [
   'worldroot_save_v1',
 ];
 
+const DEBOUNCE_MS = 1500;
+const MAX_WAIT_MS = 12000;
+const PERIODIC_PUSH_MS = 20000;
+
 let saveTimer = null;
+let maxWaitTimer = null;
+let periodicTimer = null;
 let saving = false;
+let lastPushAt = 0;
+let listenersBound = false;
 
 function readRawLocalSave() {
   for (const key of LOCAL_SAVE_KEYS) {
@@ -25,7 +33,15 @@ function readRawLocalSave() {
   return null;
 }
 
+export function persistGameSave() {
+  const state = window.WorldrootUI?.getState?.();
+  if (state && window.WorldrootState?.saveState) {
+    window.WorldrootState.saveState(state);
+  }
+}
+
 function exportSaveData() {
+  persistGameSave();
   if (window.WorldrootState?.exportSaveData) {
     return window.WorldrootState.exportSaveData();
   }
@@ -61,10 +77,41 @@ function saveHasProgress(save) {
   return saveProgressScore(save) > 0;
 }
 
+function localSavedAt(save) {
+  return save?.savedAt ?? save?.lastTickAt ?? 0;
+}
+
+function cloudSavedAt(row) {
+  if (row?.updated_at) return new Date(row.updated_at).getTime();
+  return localSavedAt(row?.save_data);
+}
+
 function reloadUiFromStorage() {
   if (!window.WorldrootState?.loadState || !window.WorldrootUI?.setState) return;
   window.WorldrootUI.setState(window.WorldrootState.loadState());
   window.WorldrootUI.refresh?.();
+}
+
+function pickNewerSave(localPayload, cloudRow) {
+  const cloudPayload = cloudRow?.save_data;
+  const cloudHas = saveHasProgress(cloudPayload);
+  const localHas = saveHasProgress(localPayload);
+  const cloudTime = cloudSavedAt(cloudRow);
+  const localTime = localSavedAt(localPayload);
+
+  if (cloudHas && !localHas) return { payload: cloudPayload, source: 'cloud' };
+  if (localHas && !cloudHas) return { payload: localPayload, source: 'local' };
+
+  if (cloudHas && localHas) {
+    if (cloudTime > localTime) return { payload: cloudPayload, source: 'cloud' };
+    if (localTime > cloudTime) return { payload: localPayload, source: 'local' };
+    const cloudScore = saveProgressScore(cloudPayload);
+    const localScore = saveProgressScore(localPayload);
+    if (cloudScore >= localScore) return { payload: cloudPayload, source: 'cloud' };
+    return { payload: localPayload, source: 'local' };
+  }
+
+  return { payload: null, source: 'none' };
 }
 
 export async function loadCloudSave() {
@@ -75,7 +122,6 @@ export async function loadCloudSave() {
   if (!sb || !user) return { source: 'local' };
 
   const localPayload = exportSaveData();
-  const localScore = saveProgressScore(localPayload);
 
   const { data, error } = await sb
     .from('worldroot_saves')
@@ -88,27 +134,12 @@ export async function loadCloudSave() {
     return { source: 'local', error: error.message };
   }
 
-  const cloudPayload = data?.save_data;
-  const cloudScore = saveProgressScore(cloudPayload);
-  const cloudHasProgress = saveHasProgress(cloudPayload);
-
-  if (cloudHasProgress && cloudScore >= localScore) {
-    importSaveData(cloudPayload);
+  const picked = pickNewerSave(localPayload, data);
+  if (picked.payload) {
+    importSaveData(picked.payload);
     reloadUiFromStorage();
-    return { source: 'cloud' };
-  }
-
-  if (localScore > cloudScore && saveHasProgress(localPayload)) {
-    importSaveData(localPayload);
-    await pushCloudSave(true);
-    reloadUiFromStorage();
-    return { source: 'local' };
-  }
-
-  if (cloudHasProgress) {
-    importSaveData(cloudPayload);
-    reloadUiFromStorage();
-    return { source: 'cloud' };
+    if (picked.source === 'local') await pushCloudSave(true);
+    return { source: picked.source };
   }
 
   return { source: 'none' };
@@ -118,6 +149,30 @@ export async function loadCloudSave() {
 export async function prepareCloudPlay() {
   if (!isCloudEnabled() || !getCurrentUser()) return;
   await loadCloudSave();
+}
+
+async function pushCloudSaveKeepalive(payload, userId, accessToken) {
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY || !accessToken) return false;
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/worldroot_saves`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        apikey: SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${accessToken}`,
+        Prefer: 'resolution=merge-duplicates',
+      },
+      body: JSON.stringify({
+        user_id: userId,
+        save_data: payload,
+        updated_at: new Date().toISOString(),
+      }),
+      keepalive: true,
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
 }
 
 export async function pushCloudSave(force = false) {
@@ -133,19 +188,19 @@ export async function pushCloudSave(force = false) {
   if (!force) {
     const { data: remote } = await sb
       .from('worldroot_saves')
-      .select('save_data')
+      .select('save_data, updated_at')
       .eq('user_id', user.id)
       .maybeSingle();
-    const remoteScore = saveProgressScore(remote?.save_data);
-    const localScore = saveProgressScore(payload);
-    if (remoteScore > localScore && saveHasProgress(remote?.save_data)) {
-      importSaveData(remote.save_data);
+    const picked = pickNewerSave(payload, remote);
+    if (picked.source === 'cloud' && picked.payload && saveHasProgress(picked.payload)) {
+      importSaveData(picked.payload);
       reloadUiFromStorage();
       return;
     }
   }
 
   saving = true;
+  payload.savedAt = Date.now();
 
   try {
     const { error } = await sb.from('worldroot_saves').upsert(
@@ -160,6 +215,7 @@ export async function pushCloudSave(force = false) {
     if (error) {
       console.warn('Cloud save failed:', error.message);
     } else {
+      lastPushAt = Date.now();
       await syncLeaderboard();
     }
   } finally {
@@ -167,19 +223,99 @@ export async function pushCloudSave(force = false) {
   }
 }
 
-export function scheduleCloudSave() {
-  if (!isCloudEnabled() || !getCurrentUser()) return;
-  if (saveTimer) clearTimeout(saveTimer);
-  saveTimer = setTimeout(() => {
-    saveTimer = null;
-    pushCloudSave();
-  }, 2000);
-}
-
-export function flushCloudSave() {
+function clearSaveTimers() {
   if (saveTimer) {
     clearTimeout(saveTimer);
     saveTimer = null;
   }
-  return pushCloudSave();
+  if (maxWaitTimer) {
+    clearTimeout(maxWaitTimer);
+    maxWaitTimer = null;
+  }
+}
+
+export function scheduleCloudSave() {
+  if (!isCloudEnabled() || !getCurrentUser()) return;
+
+  const now = Date.now();
+  if (now - lastPushAt >= MAX_WAIT_MS) {
+    clearSaveTimers();
+    pushCloudSave();
+    return;
+  }
+
+  if (!maxWaitTimer) {
+    maxWaitTimer = setTimeout(() => {
+      maxWaitTimer = null;
+      if (saveTimer) {
+        clearTimeout(saveTimer);
+        saveTimer = null;
+      }
+      pushCloudSave();
+    }, Math.max(0, MAX_WAIT_MS - (now - lastPushAt)));
+  }
+
+  if (saveTimer) clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => {
+    saveTimer = null;
+    if (maxWaitTimer) {
+      clearTimeout(maxWaitTimer);
+      maxWaitTimer = null;
+    }
+    pushCloudSave();
+  }, DEBOUNCE_MS);
+}
+
+export function flushCloudSave() {
+  clearSaveTimers();
+  persistGameSave();
+  return pushCloudSave(true);
+}
+
+export async function flushCloudSaveOnExit() {
+  if (!isCloudEnabled() || !getCurrentUser()) return;
+  persistGameSave();
+  const payload = exportSaveData();
+  if (!payload) return;
+
+  payload.savedAt = Date.now();
+  const sb = getSupabase();
+  const user = getCurrentUser();
+  if (!sb || !user) return;
+
+  if (document.visibilityState === 'visible') {
+    await pushCloudSave(true);
+    return;
+  }
+
+  const { data: sessionData } = await sb.auth.getSession();
+  const token = sessionData.session?.access_token;
+  const ok = await pushCloudSaveKeepalive(payload, user.id, token);
+  if (!ok) await pushCloudSave(true);
+}
+
+export function initCloudSyncListeners() {
+  if (listenersBound || !window.WorldrootSession?.isCloud) return;
+  listenersBound = true;
+
+  const onHide = () => {
+    if (document.visibilityState !== 'hidden') return;
+    flushCloudSaveOnExit();
+  };
+
+  document.addEventListener('visibilitychange', onHide);
+  window.addEventListener('pagehide', onHide);
+
+  periodicTimer = setInterval(() => {
+    if (document.visibilityState === 'visible') pushCloudSave();
+  }, PERIODIC_PUSH_MS);
+}
+
+export function stopCloudSyncListeners() {
+  listenersBound = false;
+  if (periodicTimer) {
+    clearInterval(periodicTimer);
+    periodicTimer = null;
+  }
+  clearSaveTimers();
 }
