@@ -1376,6 +1376,7 @@
       <div class="settings-grid">
         <section class="detail-box"><h3>Save</h3><p class="settings-line">${sessionText}</p>
           <div class="btn-row">
+            ${session?.isCloud ? '<button type="button" class="btn-sm primary" data-action="sync-cloud-save">Sync account save</button>' : ''}
             <button type="button" class="btn-sm ghost" data-action="go-menu">Main menu</button>
             <button type="button" class="btn-sm danger" data-action="reset-save">Reset save</button>
           </div>
@@ -1646,6 +1647,16 @@
       E.clearSmeltSlot(state, Number(btn.dataset.slot));
       addLog(`Stopped smelter slot ${Number(btn.dataset.slot) + 1}.`);
       render();
+      return;
+    }
+    if (action === 'sync-cloud-save') {
+      if (window.WorldrootCloud?.sync) {
+        window.WorldrootCloud.sync().then(() => {
+          state = S.loadState();
+          addLog('Account save synced from cloud.');
+          render();
+        }).catch(() => addLog('Could not sync account save.'));
+      }
       return;
     }
     if (action === 'reset-save') {
@@ -2210,14 +2221,13 @@
   }
 
   function autoBoot() {
+    const run = async () => {
     try {
       if (!window.WorldrootState || !window.WorldrootEngine) {
         showBootError('Game failed to load. Hard refresh or Play offline from home.');
         return;
       }
-      const mode = sessionStorage.getItem('worldroot_play_mode');
-      window.WorldrootState.setPlayMode(mode === 'cloud' ? 'cloud' : 'offline');
-      window.WorldrootSession = window.WorldrootSession || { isCloud: mode === 'cloud', isOffline: mode !== 'cloud', displayName: 'Offline' };
+      if (window.__worldrootBootGate) await window.__worldrootBootGate;
       if (window.__worldrootBooted) return;
       window.__worldrootBooted = true;
       const loaded = window.WorldrootState.loadState();
@@ -2240,7 +2250,13 @@
       console.error('[Worldroot] boot failed:', err);
       showBootError(`Game error: ${err.message}`);
     }
+    };
+    run();
   }
+
+  window.__worldrootBootGate = new Promise((resolve) => {
+    window.__worldrootReleaseBoot = resolve;
+  });
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', autoBoot);
   else autoBoot();

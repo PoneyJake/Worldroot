@@ -7,7 +7,7 @@ import {
   consumeAuthUrlErrors,
 } from './auth.js';
 import { isCloudEnabled } from './cloudConfig.js';
-import { flushCloudSave } from './cloudSave.js';
+import { flushCloudSave, prepareCloudPlay } from './cloudSave.js';
 import { registerServiceWorker, setupInstallPanel } from './pwa.js';
 
 const PLAY_MODE_KEY = 'worldroot_play_mode';
@@ -62,6 +62,12 @@ function updateAuthUi({ user, cloud }) {
 
 async function goToGame(mode) {
   sessionStorage.setItem(PLAY_MODE_KEY, mode);
+  if (mode === 'cloud') {
+    const { user } = await initAuth();
+    if (user && isCloudEnabled()) {
+      await prepareCloudPlay();
+    }
+  }
   window.location.href = 'game.html';
 }
 

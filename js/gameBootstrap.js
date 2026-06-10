@@ -22,10 +22,12 @@ async function boot() {
     const { user } = await initAuth();
 
     if (!mode && !user) {
+      window.__worldrootReleaseBoot?.();
       window.location.href = 'index.html';
       return;
     }
     if (mode === 'cloud' && !user) {
+      window.__worldrootReleaseBoot?.();
       window.location.href = 'index.html';
       return;
     }
@@ -43,13 +45,29 @@ async function boot() {
       await loadCloudSave();
       patchSaveForCloud();
       await syncLeaderboard();
-      window.WorldrootUI?.refresh();
-      window.WorldrootUI?.setSessionBadge(window.WorldrootSession);
     }
 
-    window.WorldrootCloud = { scheduleCloudSave, flushCloudSave, flush: flushCloudSave };
+    window.WorldrootCloud = {
+      scheduleCloudSave,
+      flushCloudSave,
+      flush: flushCloudSave,
+      sync: async () => {
+        await loadCloudSave();
+        await flushCloudSave();
+        if (window.WorldrootUI?.setState && window.WorldrootState?.loadState) {
+          window.WorldrootUI.setState(window.WorldrootState.loadState());
+          window.WorldrootUI.refresh?.();
+        }
+      },
+    };
   } catch (err) {
     console.warn('Cloud sync unavailable:', err);
+  } finally {
+    window.__worldrootReleaseBoot?.();
+    if (window.WorldrootSession?.isCloud) {
+      window.WorldrootUI?.refresh?.();
+      window.WorldrootUI?.setSessionBadge?.(window.WorldrootSession);
+    }
   }
 
   window.WorldrootLeaderboard = { fetchTop: fetchLeaderboardTop, sync: syncLeaderboard };
