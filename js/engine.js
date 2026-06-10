@@ -858,7 +858,8 @@
     return event;
   }
 
-  function tick(state) {
+  function tick(state, opts = {}) {
+    const save = opts.save !== false;
     state.lastTickAt = Date.now();
     S.refreshPendingSlot(state);
     tickSmelting(state);
@@ -869,11 +870,119 @@
       if (ev) {
         recordQuestFromEvent(state, char, ev);
         S.recordRateEvent(state, ev);
-        events.push(ev);
+        events.push({ char, ev });
       }
     }
-    S.saveState(state);
+    if (save) S.saveState(state);
     return events;
+  }
+
+  function snapshotSmeltProduce(state) {
+    return {
+      smeltingXp: state.smelting.skill.xp,
+      smeltingLevel: state.smelting.skill.level,
+      smeltReady: state.smelting.slots.map((s) => ({ bar: s.readyBar, ready: s.ready || 0 })),
+      chars: state.characters.map((c) => ({
+        prodXp: c.producing?.skill?.xp ?? 0,
+        prodLevel: c.producing?.skill?.level ?? 0,
+        prodReady: c.producing?.ready ?? 0,
+        prodItem: c.producing?.readyItem,
+      })),
+    };
+  }
+
+  function diffSmeltProduce(before, after) {
+    const smelt = { bars: {}, levelUp: null };
+    if (after.smeltingLevel > before.smeltingLevel) {
+      smelt.levelUp = after.smeltingLevel;
+    }
+    for (let i = 0; i < after.smeltReady.length; i++) {
+      const b = before.smeltReady[i];
+      const a = after.smeltReady[i];
+      if (a.bar && a.ready > (b?.ready || 0)) {
+        const delta = a.ready - (b?.ready || 0);
+        smelt.bars[a.bar] = (smelt.bars[a.bar] || 0) + delta;
+      }
+    }
+    const produce = after.chars.map((a, i) => {
+      const b = before.chars[i];
+      const out = { ready: 0, item: a.prodItem, levelUp: null };
+      if (a.prodLevel > b.prodLevel) out.levelUp = a.prodLevel;
+      if (a.prodReady > b.prodReady && a.prodItem) {
+        out.ready = a.prodReady - b.prodReady;
+        out.item = a.prodItem;
+      }
+      return out;
+    });
+    return { smelt, produce };
+  }
+
+  function initOfflineCharSummary(char) {
+    const cls = C.CLASSES[char.classId];
+    return {
+      classId: char.classId,
+      name: cls?.name ?? 'Hero',
+      icon: cls?.icon ?? '👤',
+      activity: char.activity,
+      target: char.target,
+      xpBySkill: {},
+      resources: {},
+      gold: 0,
+      kills: 0,
+      loot: {},
+      lost: 0,
+    };
+  }
+
+  function accumulateOfflineEvent(summary, charIndex, char, ev) {
+    if (!summary.characters[charIndex]) summary.characters[charIndex] = initOfflineCharSummary(char);
+    const s = summary.characters[charIndex];
+    if (ev.xpGain && ev.skill) {
+      s.xpBySkill[ev.skill] = (s.xpBySkill[ev.skill] || 0) + ev.xpGain;
+    }
+    if (ev.gold) s.gold += ev.gold;
+    if (ev.resource && ev.resourceAmount) {
+      s.resources[ev.resource] = (s.resources[ev.resource] || 0) + ev.resourceAmount;
+    }
+    if (ev.kill) s.kills += 1;
+    if (ev.loot && ev.lootAmount) {
+      s.loot[ev.loot] = (s.loot[ev.loot] || 0) + ev.lootAmount;
+    }
+    if (ev.lost) s.lost += ev.lost;
+  }
+
+  function catchUpOffline(state) {
+    const now = Date.now();
+    const last = state.lastTickAt || now;
+    const elapsed = now - last;
+    if (elapsed < C.TICK_MS * 2) return null;
+
+    const wallMs = Math.min(elapsed, C.OFFLINE_MAX_MS ?? 86400000);
+    const tickCount = Math.floor((wallMs * (C.OFFLINE_SPEED_MULT ?? 0.5)) / C.TICK_MS);
+    if (tickCount < 1) return null;
+
+    const before = snapshotSmeltProduce(state);
+    const summary = { characters: [], wallSeconds: Math.floor(wallMs / 1000), tickCount };
+
+    for (let i = 0; i < tickCount; i++) {
+      S.refreshPendingSlot(state);
+      tickSmelting(state);
+      tickProducing(state);
+      for (let ci = 0; ci < state.characters.length; ci++) {
+        const char = state.characters[ci];
+        const ev = tickCharacter(state, char);
+        if (ev) {
+          recordQuestFromEvent(state, char, ev);
+          accumulateOfflineEvent(summary, ci, char, ev);
+        }
+      }
+    }
+
+    state.lastTickAt = now;
+    const after = snapshotSmeltProduce(state);
+    summary.smeltProduce = diffSmeltProduce(before, after);
+    S.saveState(state);
+    return summary;
   }
 
   function unlockUpgradeTier(state, nodeId) {
@@ -1038,5 +1147,6 @@
     canUseConsumable, useConsumableFromSlot, shopItemAvailable, buyShopItem,
     canCraft, craftItem, canCraftFromStorage, craftItemFromStorage,
     canEquipItem, equipFromInventory, unequipSlot,
+    catchUpOffline,
   };
 })();

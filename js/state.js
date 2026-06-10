@@ -133,6 +133,7 @@
       selectedCharIndex: state.selectedCharIndex,
       rateStats: state.rateStats,
       smelting: state.smelting,
+      lastTickAt: state.lastTickAt ?? Date.now(),
     };
   }
 

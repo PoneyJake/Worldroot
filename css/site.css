@@ -41,23 +41,18 @@
 .site-brand {
   display: flex;
   align-items: center;
-  gap: 10px;
   text-decoration: none;
-  color: #a8d5a2;
 }
 
-.site-brand-icon {
-  font-size: 1.3rem;
+.site-brand-logo {
+  height: 34px;
+  width: auto;
+  display: block;
+  object-fit: contain;
 }
 
-.site-brand-name {
-  font-weight: 800;
-  font-size: 1.15rem;
-  letter-spacing: 0.04em;
-}
-
-.site-brand:hover .site-brand-name {
-  color: #c8e6c3;
+.site-brand:hover .site-brand-logo {
+  filter: brightness(1.08);
 }
 
 .site-top-nav {
@@ -166,12 +161,19 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 14px;
+  padding: 8px 12px;
   background: #141a14;
   border-bottom: 1px solid #1e2a1e;
   font-size: 0.78rem;
   font-weight: 700;
   color: #a8d5a2;
+}
+
+.preview-brand-logo {
+  height: 22px;
+  width: auto;
+  display: block;
+  object-fit: contain;
 }
 
 .preview-stats {

@@ -784,7 +784,6 @@
               <span>Lv ${mob.level}</span>
             </div>
           </div>
-          ${on ? '<p class="activity-assigned compact">Active</p>' : ''}
           ${locked ? `<p class="empty-msg compact">Lv ${mob.level} req.</p>` : `<div class="activity-card-actions">${renderAssignBtn('combat', mob.id, false)}</div>`}
         </article>`;
     }).join('');
@@ -830,7 +829,6 @@
               <span>Lv ${vein.minLevel} · ${resName(vein.resource)}</span>
             </div>
           </div>
-          ${on ? '<p class="activity-assigned compact">Active</p>' : ''}
           ${locked ? `<p class="empty-msg compact">Lv ${vein.minLevel} req.</p>` : `<div class="activity-card-actions">${renderAssignBtn(sk.activity, vein.id, false)}</div>`}
         </article>`;
     }).join('');
@@ -1322,6 +1320,7 @@
     const action = btn.dataset.action;
 
     if (action === 'switch-page') { switchPage(btn.dataset.page); return; }
+    if (action === 'close-offline-modal') { closeOfflineModal(); return; }
     if (action === 'select-detail') {
       const kind = btn.dataset.detailKind;
       if (kind === 'combat') detailPanel = { kind: 'combat', id: btn.dataset.detailId };
@@ -1779,6 +1778,96 @@
     });
   }
 
+  function formatOfflineDuration(seconds) {
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    if (h > 0) return `${h}h ${m}m`;
+    if (m > 0) return `${m}m`;
+    return `${Math.max(1, seconds)}s`;
+  }
+
+  function charHadOfflineGains(entry) {
+    if (!entry) return false;
+    if (entry.gold > 0 || entry.kills > 0 || entry.lost > 0) return true;
+    if (Object.keys(entry.xpBySkill).length) return true;
+    if (Object.keys(entry.resources).length) return true;
+    if (Object.keys(entry.loot).length) return true;
+    return false;
+  }
+
+  function renderOfflineSummaryHtml(summary) {
+    const lines = [];
+    lines.push(`<p class="offline-intro">You were away for <strong>${formatOfflineDuration(summary.wallSeconds)}</strong> (progress at <strong>50%</strong> speed while closed).</p>`);
+
+    let anyChar = false;
+    (summary.characters || []).forEach((entry) => {
+      if (!charHadOfflineGains(entry)) return;
+      anyChar = true;
+      const parts = [];
+      for (const [skillId, xp] of Object.entries(entry.xpBySkill)) {
+        const sk = C.SKILLS[skillId];
+        parts.push(`${sk?.name ?? skillId} +${fmt(xp)} XP`);
+      }
+      for (const [resId, amt] of Object.entries(entry.resources)) {
+        parts.push(`${fmt(amt)} ${resName(resId)}`);
+      }
+      if (entry.gold > 0) parts.push(`${fmt(entry.gold)} gold`);
+      if (entry.kills > 0) parts.push(`${fmt(entry.kills)} kills`);
+      for (const [lootId, amt] of Object.entries(entry.loot)) {
+        parts.push(`${fmt(amt)} ${resName(lootId)}`);
+      }
+      if (entry.lost > 0) parts.push(`${fmt(entry.lost)} lost (inv full)`);
+      lines.push(`
+        <div class="offline-char-row">
+          <strong>${entry.icon} ${entry.name}</strong>
+          <span>${parts.join(' · ') || 'No gains'}</span>
+        </div>`);
+    });
+
+    const sp = summary.smeltProduce;
+    if (sp?.smelt) {
+      const barParts = Object.entries(sp.smelt.bars).map(([id, n]) => `${fmt(n)} ${resName(id)}`);
+      if (barParts.length) {
+        anyChar = true;
+        lines.push(`<div class="offline-char-row"><strong>🔥 Smelting</strong><span>${barParts.join(' · ')} (collect from smelters)</span></div>`);
+      }
+      if (sp.smelt.levelUp) {
+        anyChar = true;
+        lines.push(`<div class="offline-char-row"><strong>🔥 Smelting</strong><span>Reached Lv ${sp.smelt.levelUp}</span></div>`);
+      }
+    }
+    if (sp?.produce) {
+      sp.produce.forEach((p, i) => {
+        const char = state.characters[i];
+        if (!char || (!p.ready && !p.levelUp)) return;
+        anyChar = true;
+        const cls = C.CLASSES[char.classId];
+        const parts = [];
+        if (p.ready && p.item) parts.push(`${fmt(p.ready)} ${resName(p.item)} ready`);
+        if (p.levelUp) parts.push(`Producing Lv ${p.levelUp}`);
+        lines.push(`<div class="offline-char-row"><strong>${cls?.icon ?? '👤'} ${cls?.name ?? 'Hero'}</strong><span>${parts.join(' · ')}</span></div>`);
+      });
+    }
+
+    if (!anyChar) {
+      lines.push('<p class="empty-msg">No progress while away — assign heroes to activities before closing.</p>');
+    }
+    return lines.join('');
+  }
+
+  function showOfflineModal(summary) {
+    const modal = $('offline-modal');
+    const content = $('offline-modal-content');
+    if (!modal || !content || !summary) return;
+    content.innerHTML = renderOfflineSummaryHtml(summary);
+    modal.hidden = false;
+  }
+
+  function closeOfflineModal() {
+    const modal = $('offline-modal');
+    if (modal) modal.hidden = true;
+  }
+
   function init(initialState) {
     state = initialState;
     state.lastTickAt = state.lastTickAt || Date.now();
@@ -1819,7 +1908,10 @@
       window.WorldrootSession = window.WorldrootSession || { isCloud: mode === 'cloud', isOffline: mode !== 'cloud', displayName: 'Offline' };
       if (window.__worldrootBooted) return;
       window.__worldrootBooted = true;
-      init(window.WorldrootState.loadState());
+      const loaded = window.WorldrootState.loadState();
+      init(loaded);
+      const offline = window.WorldrootEngine.catchUpOffline(window.WorldrootUI.getState());
+      if (offline) showOfflineModal(offline);
       addLog(state.characters.length ? 'Welcome back to Worldroot.' : 'Welcome to Worldroot. Choose your first class.');
       setInterval(() => {
         window.WorldrootEngine.tick(window.WorldrootUI.getState());
@@ -1827,7 +1919,9 @@
         window.WorldrootUI.refresh();
       }, C?.TICK_MS ?? 1000);
       window.addEventListener('beforeunload', () => {
-        window.WorldrootState.saveState(window.WorldrootUI.getState());
+        const s = window.WorldrootUI.getState();
+        s.lastTickAt = Date.now();
+        window.WorldrootState.saveState(s);
         if (window.WorldrootCloud?.flush) window.WorldrootCloud.flush();
       });
     } catch (err) {

@@ -4,14 +4,13 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Worldroot</title>
-  <link rel="stylesheet" href="css/style.css?v=43" />
+  <link rel="stylesheet" href="css/style.css?v=44" />
 </head>
 <body>
   <div class="app-shell">
     <header class="top-bar">
       <a href="index.html" class="top-bar-brand">
-        <span class="brand-icon">🌳</span>
-        <span class="brand-name">Worldroot</span>
+        <img src="assets/worldroot-logo.png" alt="Worldroot" class="brand-logo" />
       </a>
       <div class="top-bar-stats">
         <div class="stat-chip" title="Account Total Level">
@@ -77,12 +76,23 @@
     </div>
   </div>
 
-  <script src="js/config.js?v=43"></script>
-  <script src="js/items.js?v=43"></script>
-  <script src="js/gear.js?v=43"></script>
-  <script src="js/state.js?v=43"></script>
-  <script src="js/engine.js?v=43"></script>
-  <script src="js/ui.js?v=43"></script>
+  <div id="offline-modal" class="modal" hidden>
+    <div class="modal-backdrop" data-action="close-offline-modal"></div>
+    <div class="modal-card offline-modal-card">
+      <h2>Welcome back!</h2>
+      <div id="offline-modal-content" class="offline-modal-content"></div>
+      <div class="transfer-modal-actions">
+        <button type="button" class="btn-sm primary" data-action="close-offline-modal">Continue</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/config.js?v=44"></script>
+  <script src="js/items.js?v=44"></script>
+  <script src="js/gear.js?v=44"></script>
+  <script src="js/state.js?v=44"></script>
+  <script src="js/engine.js?v=44"></script>
+  <script src="js/ui.js?v=44"></script>
   <script>
     if (!window.__worldrootBooted) {
       var panel = document.getElementById('panel-main');
@@ -91,6 +101,6 @@
       }
     }
   </script>
-  <script type="module" src="js/gameBootstrap.js?v=43"></script>
+  <script type="module" src="js/gameBootstrap.js?v=44"></script>
 </body>
 </html>

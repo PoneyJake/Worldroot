@@ -4,6 +4,8 @@ window.WorldrootConfig = {
   SAVE_KEY: 'worldroot_save_v5',
   SAVE_KEY_OFFLINE: 'worldroot_save_offline_v5',
   TICK_MS: 1000,
+  OFFLINE_SPEED_MULT: 0.5,
+  OFFLINE_MAX_MS: 24 * 60 * 60 * 1000,
   BASE_XP_PER_TICK: 10,
   BASE_RESOURCE_PER_TICK: 1,
   UPGRADE_BONUS_PER_LEVEL: 0.01,
