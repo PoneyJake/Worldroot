@@ -47,11 +47,11 @@
       costs: [{ res: 'copper_staff', amt: 1 }, { res: 'trout', amt: 500 }] },
     // Iron tools
     { id: 'iron_pickaxe', name: 'Iron Pickaxe', category: 'tool', equip: { kind: 'tool', slot: 'pickaxe' },
-      costs: [{ res: 'iron', amt: 100 }] },
+      costs: [{ res: 'copper_pickaxe', amt: 1 }, { res: 'iron', amt: 100 }] },
     { id: 'iron_axe', name: 'Iron Axe', category: 'tool', equip: { kind: 'tool', slot: 'axe' },
-      costs: [{ res: 'spruce', amt: 200 }] },
+      costs: [{ res: 'copper_axe', amt: 1 }, { res: 'spruce', amt: 200 }] },
     { id: 'iron_rod', name: 'Iron Rod', category: 'tool', equip: { kind: 'tool', slot: 'rod' },
-      costs: [{ res: 'trout', amt: 200 }] },
+      costs: [{ res: 'copper_rod', amt: 1 }, { res: 'trout', amt: 200 }] },
 
     // Gold armor
     { id: 'gold_helmet', name: 'Gold Helmet', category: 'armor', equip: { kind: 'equipment', slot: 'helmet' },

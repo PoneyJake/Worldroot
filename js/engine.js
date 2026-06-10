@@ -921,29 +921,15 @@
   function canCraft(state, char, recipeId) {
     const recipe = C.CRAFT_RECIPES?.find((r) => r.id === recipeId);
     if (!recipe || !char) return false;
-    return recipe.costs.every((c) => S.charInventoryResourceHas(char, c.res, c.amt));
+    return recipe.costs.every((c) => S.hasCraftResource(char, state, c.res, c.amt));
   }
 
   function craftItem(state, char, recipeId) {
     const recipe = C.CRAFT_RECIPES?.find((r) => r.id === recipeId);
     if (!recipe || !canCraft(state, char, recipeId)) return false;
-    for (const cost of recipe.costs) S.removeFromCharInventory(char, cost.res, cost.amt);
-    const result = S.addToInventory(char, state, recipe.output, 1, 'combat');
-    if (result.added < 1) return false;
-    S.saveState(state);
-    return true;
-  }
-
-  function canCraftFromStorage(state, char, recipeId) {
-    const recipe = C.CRAFT_RECIPES?.find((r) => r.id === recipeId);
-    if (!recipe || !char) return false;
-    return recipe.costs.every((c) => S.storageHas(state, c.res, c.amt));
-  }
-
-  function craftItemFromStorage(state, char, recipeId) {
-    const recipe = C.CRAFT_RECIPES?.find((r) => r.id === recipeId);
-    if (!recipe || !canCraftFromStorage(state, char, recipeId)) return false;
-    for (const cost of recipe.costs) S.removeFromStorage(state, cost.res, cost.amt);
+    for (const cost of recipe.costs) {
+      if (S.removeCraftResource(state, char, cost.res, cost.amt) < cost.amt) return false;
+    }
     const result = S.addToInventory(char, state, recipe.output, 1, 'combat');
     if (result.added < 1) return false;
     S.saveState(state);
@@ -1516,7 +1502,7 @@
     collectProduce, collectSmelt, unloadSmeltOre,
     questTrackProgress, questIsComplete, questIsClaimed, claimQuest,
     canUseConsumable, useConsumableFromSlot, shopItemAvailable, buyShopItem,
-    canCraft, craftItem, canCraftFromStorage, craftItemFromStorage,
+    canCraft, craftItem,
     canEquipItem, equipFromInventory, unequipSlot, unequipToInventorySlot,
     canEquipCapacityPouch, equipCapacityPouch, unequipCapacityPouch,
     canEquipFood, equipFood, unequipFood, destroyFood,

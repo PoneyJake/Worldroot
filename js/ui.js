@@ -134,12 +134,13 @@
   function renderCraftCostChip(char, cost) {
     const invOwned = char ? S.countInInventory(char, cost.res) : 0;
     const storOwned = countInStorage(state, cost.res);
-    const metInv = invOwned >= cost.amt;
-    const metStor = storOwned >= cost.amt;
-    const cls = metInv ? 'met' : (metStor ? 'met-storage' : 'unmet');
-    let tip = `${resName(cost.res)}: ${fmt(invOwned)}/${fmt(cost.amt)} in inventory`;
-    if (storOwned > 0) tip += ` · ${fmt(storOwned)} in storage`;
-    return `<span class="craft-cost-chip compact ${cls}" title="${tip}">${resIcon(cost.res, 'game-icon sm')} <strong>${fmt(invOwned)}/${fmt(cost.amt)}</strong></span>`;
+    const totalOwned = invOwned + storOwned;
+    const met = totalOwned >= cost.amt;
+    const cls = met ? 'met' : 'unmet';
+    let tip = `${resName(cost.res)}: ${fmt(totalOwned)}/${fmt(cost.amt)} (${fmt(invOwned)} inv`;
+    if (storOwned > 0) tip += `, ${fmt(storOwned)} storage`;
+    tip += ')';
+    return `<span class="craft-cost-chip compact ${cls}" title="${tip}">${resIcon(cost.res, 'game-icon sm')} <strong>${fmt(totalOwned)}/${fmt(cost.amt)}</strong></span>`;
   }
 
   function classPortraitHtml(classId, className = 'class-portrait-img') {
@@ -1442,7 +1443,6 @@
     const recipes = filtered.map((recipe) => {
       const costs = recipe.costs.map((c) => renderCraftCostChip(char, c)).join('');
       const can = E.canCraft(state, char, recipe.id);
-      const canStorage = E.canCraftFromStorage(state, char, recipe.id);
       return `
         <article class="activity-card craft-card craft-card-compact">
           <div class="craft-card-top">
@@ -1451,15 +1451,14 @@
           </div>
           <div class="craft-cost-row compact">${costs}</div>
           <div class="craft-card-actions compact">
-            <button type="button" class="btn-sm primary" data-action="craft-item" data-recipe="${recipe.id}" ${!can ? 'disabled' : ''}>Inv</button>
-            <button type="button" class="btn-sm ghost" data-action="craft-item-storage" data-recipe="${recipe.id}" ${!canStorage ? 'disabled' : ''}>Stor</button>
+            <button type="button" class="btn-sm primary" data-action="craft-item" data-recipe="${recipe.id}" ${!can ? 'disabled' : ''}>Craft</button>
           </div>
         </article>`;
     }).join('');
     return `
       <header class="page-header">
         <span class="page-header-icon">${sk.icon}</span>
-        <div class="page-header-text"><h1>${sk.name}</h1><p>Craft gear — inventory on the right</p></div>
+        <div class="page-header-text"><h1>${sk.name}</h1><p>Craft gear — uses inventory first, then storage</p></div>
       </header>
       ${pageCharBar()}
       <div class="quest-track-tabs">${tabs}</div>
@@ -2082,16 +2081,8 @@
     if (action === 'craft-item') {
       const char = selectedChar();
       if (char && E.craftItem(state, char, btn.dataset.recipe)) {
-        addLog(`Crafted ${resName(btn.dataset.recipe)} from inventory.`);
-      } else addLog('Cannot craft — missing materials in inventory or inventory full.');
-      render();
-      return;
-    }
-    if (action === 'craft-item-storage') {
-      const char = selectedChar();
-      if (char && E.craftItemFromStorage(state, char, btn.dataset.recipe)) {
-        addLog(`Crafted ${resName(btn.dataset.recipe)} from storage.`);
-      } else addLog('Cannot craft — missing materials in storage or inventory full.');
+        addLog(`Crafted ${resName(btn.dataset.recipe)}.`);
+      } else addLog('Cannot craft — missing materials or inventory full.');
       render();
       return;
     }

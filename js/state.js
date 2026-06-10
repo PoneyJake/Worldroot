@@ -841,6 +841,23 @@
     return removeFromSlots(state.storageSlots, resourceId, amount);
   }
 
+  function craftResourceTotal(char, state, resourceId) {
+    return countInInventory(char, resourceId) + countInSlots(state.storageSlots, resourceId);
+  }
+
+  function hasCraftResource(char, state, resourceId, amount) {
+    if (!char) return false;
+    return craftResourceTotal(char, state, resourceId) >= amount;
+  }
+
+  function removeCraftResource(state, char, resourceId, amount) {
+    if (!char || amount <= 0 || craftResourceTotal(char, state, resourceId) < amount) return 0;
+    let left = amount;
+    left -= removeFromCharInventory(char, resourceId, left);
+    if (left > 0) removeFromStorage(state, resourceId, left);
+    return amount;
+  }
+
   function countInInventory(char, resourceId) {
     return countInSlots(char.inventorySlots, resourceId);
   }
@@ -1063,6 +1080,7 @@
     addToInventory, addToStorage, removeFromStorage, storageHas,
     charInventoryResourceHas, maxCharInventoryResource, anyCharInventoryResourceHas,
     findCharForResource, removeFromCharInventory,
+    craftResourceTotal, hasCraftResource, removeCraftResource,
     addToSlots, removeFromSlots, carryEffectForSkill, stackCapacityForResource, pouchTierForCategory,
     swapInventorySlots, swapStorageSlots, placeInInventorySlot, deleteInventorySlot, deleteStorageSlot,
     defaultCapacitySlots, defaultFoodSlots,
