@@ -498,6 +498,36 @@ button,
   gap: 3px;
 }
 
+.craft-cost-chip.met {
+  border-color: #4a7a44;
+  background: rgba(30, 50, 30, 0.92);
+  color: #9acc94;
+}
+
+.craft-cost-chip.met strong {
+  color: #b8e8b0;
+}
+
+.craft-cost-chip.met-storage {
+  border-color: #6a8a44;
+  background: rgba(36, 44, 28, 0.92);
+  color: #b8c894;
+}
+
+.craft-cost-chip.met-storage strong {
+  color: #d0e0a8;
+}
+
+.craft-cost-chip.unmet {
+  border-color: #7a4a4a;
+  background: rgba(44, 26, 26, 0.92);
+  color: #d89898;
+}
+
+.craft-cost-chip.unmet strong {
+  color: #e8a0a0;
+}
+
 .craft-card-actions.compact {
   flex-direction: row;
   justify-content: center;

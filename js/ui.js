@@ -124,6 +124,24 @@
     return `<span class="res-tip-wrap" data-res-tip="${tip}">${iconHtml(id, className)}</span>`;
   }
 
+  function countInStorage(state, resourceId) {
+    return (state.storageSlots || []).reduce(
+      (sum, s) => (s?.resourceId === resourceId ? sum + s.amount : sum),
+      0,
+    );
+  }
+
+  function renderCraftCostChip(char, cost) {
+    const invOwned = char ? S.countInInventory(char, cost.res) : 0;
+    const storOwned = countInStorage(state, cost.res);
+    const metInv = invOwned >= cost.amt;
+    const metStor = storOwned >= cost.amt;
+    const cls = metInv ? 'met' : (metStor ? 'met-storage' : 'unmet');
+    let tip = `${resName(cost.res)}: ${fmt(invOwned)}/${fmt(cost.amt)} in inventory`;
+    if (storOwned > 0) tip += ` · ${fmt(storOwned)} in storage`;
+    return `<span class="craft-cost-chip compact ${cls}" title="${tip}">${resIcon(cost.res, 'game-icon sm')} <strong>${fmt(invOwned)}/${fmt(cost.amt)}</strong></span>`;
+  }
+
   function classPortraitHtml(classId, className = 'class-portrait-img') {
     const cls = C.CLASSES[classId];
     const file = cls?.portrait;
@@ -1422,9 +1440,7 @@
     ).join('');
     const filtered = (C.CRAFT_RECIPES || []).filter((r) => r.category === craftCategory);
     const recipes = filtered.map((recipe) => {
-      const costs = recipe.costs.map((c) =>
-        `<span class="craft-cost-chip compact">${resIcon(c.res, 'game-icon sm')} <strong>${fmt(c.amt)}</strong></span>`,
-      ).join('');
+      const costs = recipe.costs.map((c) => renderCraftCostChip(char, c)).join('');
       const can = E.canCraft(state, char, recipe.id);
       const canStorage = E.canCraftFromStorage(state, char, recipe.id);
       return `
