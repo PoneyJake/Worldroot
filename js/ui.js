@@ -1000,7 +1000,7 @@
 
   function renderSmeltSlotPair(slot, i, batchCap, recipe, pct) {
     const oreQty = slot.oreLoaded || 0;
-    const oreFilled = Boolean(slot.ore);
+    const oreFilled = oreQty > 0 && Boolean(slot.ore);
     const oreClickable = oreQty > 0;
     const oreInner = oreFilled
       ? `<span class="item-slot-icon">${resIcon(slot.ore)}</span><span class="item-slot-qty">${fmt(oreQty)}</span>`
@@ -1695,7 +1695,7 @@
       const oreShows = oreSlot?.classList.contains('filled');
       const barShows = barSlot?.classList.contains('filled');
 
-      if (Boolean(slot.ore) !== oreShows || (slot.ready > 0) !== barShows) {
+      if (((slot.oreLoaded || 0) > 0 && Boolean(slot.ore)) !== oreShows || (slot.ready > 0) !== barShows) {
         needFull = true;
         return;
       }

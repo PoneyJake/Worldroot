@@ -634,6 +634,11 @@
       slot.readyBar = recipe.bar;
       S.grantXp(state.smelting.skill, Math.floor((recipe.xp ?? 5) * xpMult));
       slot.progress = 0;
+      if ((slot.oreLoaded || 0) <= 0) {
+        slot.oreLoaded = 0;
+        slot.ore = null;
+        slot.progress = 0;
+      }
     }
   }
 

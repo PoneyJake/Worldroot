@@ -388,13 +388,16 @@
     if (data.smelting) {
       state.smelting = {
         skill: { ...defaultSkill(), ...data.smelting.skill },
-        slots: (data.smelting.slots || defaultSmeltSlots()).map((s) => ({
-          ore: s.ore ?? null,
-          oreLoaded: s.oreLoaded ?? 0,
-          progress: s.progress ?? 0,
-          ready: s.ready ?? 0,
-          readyBar: s.readyBar ?? null,
-        })),
+        slots: (data.smelting.slots || defaultSmeltSlots()).map((s) => {
+          const oreLoaded = s.oreLoaded ?? 0;
+          return {
+            ore: oreLoaded > 0 ? (s.ore ?? null) : null,
+            oreLoaded: oreLoaded > 0 ? oreLoaded : 0,
+            progress: oreLoaded > 0 ? (s.progress ?? 0) : 0,
+            ready: s.ready ?? 0,
+            readyBar: s.readyBar ?? null,
+          };
+        }),
       };
       syncTalentPointsFromLevel(state.smelting.skill);
     }
