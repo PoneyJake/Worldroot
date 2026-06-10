@@ -56,13 +56,25 @@
     skill.talentPoints = Math.max(skill.talentPoints || 0, owed - spent);
   }
 
-  function spendTalentPoint(skill, talentId) {
+  function spendTalentPoints(skill, talentId, count = 1) {
     ensureSkillTalents(skill);
-    if ((skill.talentPoints || 0) < 1) return false;
     const max = C.TALENT_MAX_LEVEL ?? 50;
-    if ((skill.talents[talentId] || 0) >= max) return false;
-    skill.talentPoints -= 1;
-    skill.talents[talentId] = (skill.talents[talentId] || 0) + 1;
+    const current = skill.talents[talentId] || 0;
+    const room = max - current;
+    const afford = skill.talentPoints || 0;
+    const n = Math.min(Math.max(1, Math.floor(count)), room, afford);
+    if (n <= 0) return 0;
+    skill.talentPoints -= n;
+    skill.talents[talentId] = current + n;
+    return n;
+  }
+
+  function resetTalentRank(skill, talentId) {
+    ensureSkillTalents(skill);
+    const lv = skill.talents[talentId] || 0;
+    if (lv <= 0) return false;
+    skill.talentPoints += lv;
+    skill.talents[talentId] = 0;
     return true;
   }
 
@@ -1021,7 +1033,7 @@
 
   window.WorldrootState = {
     defaultState, loadState, saveState, resetState, exportSaveData, importSaveData,
-    setPlayMode, getSaveKey, createCharacter, xpForLevel, grantXp, spendTalentPoint, ensureSkillTalents,
+    setPlayMode, getSaveKey, createCharacter, xpForLevel, grantXp, spendTalentPoint, spendTalentPoints, resetTalentRank, ensureSkillTalents,
     characterTotalLevel, accountTotalLevel, maxUnlockedSlots, nextSlotUnlock,
     refreshPendingSlot, addCharacter, removeCharacter, selectCharacter, getSelectedCharacter,
     setActivity, stopActivity, emptyUpgrades, recordRateEvent, migrateUpgrades,

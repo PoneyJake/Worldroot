@@ -82,8 +82,8 @@ function saveProgressScore(save) {
   if (!save || typeof save !== 'object') return 0;
   const chars = save.characters?.length ?? 0;
   const level = accountLevelFromSave(save);
-  const gold = save.gold ?? 0;
-  return level * 1_000_000 + gold * 10 + chars;
+  /* Gold is excluded — spending in the shop must not make cloud saves look "ahead". */
+  return level * 1_000_000 + chars * 1000;
 }
 
 function saveHasProgress(save) {
@@ -117,7 +117,7 @@ function pickNewerSave(localPayload, cloudRow) {
         ? { payload: cloudPayload, source: 'cloud' }
         : { payload: localPayload, source: 'local' };
     }
-    return { payload: cloudPayload, source: 'cloud' };
+    return { payload: localPayload, source: 'local' };
   }
 
   if (cloudPayload) return { payload: cloudPayload, source: 'cloud' };
@@ -265,7 +265,11 @@ export async function pushCloudSave(force = false) {
   if (!force) {
     const remote = await fetchCloudRow();
     const picked = pickNewerSave(payload, remote);
-    if (picked.source === 'cloud' && picked.payload) {
+    const localTime = localSavedAt(payload);
+    const cloudTime = cloudSavedAt(remote);
+    if (picked.source === 'cloud' && picked.payload && localTime > cloudTime) {
+      /* Local edits are newer — push instead of reverting. */
+    } else if (picked.source === 'cloud' && picked.payload) {
       importSaveData(picked.payload);
       reloadUiFromStorage();
       cloudDirty = false;

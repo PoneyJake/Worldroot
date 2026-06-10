@@ -719,7 +719,12 @@
             <span>Rank <strong>${lv}</strong> / ${maxLv}</span>
             <span class="talent-total">${total}</span>
           </div>
-          <button type="button" class="btn-sm primary" data-action="buy-talent" data-skill="${skillId}" data-talent="${def.id}" ${canBuy ? '' : 'disabled'}>${atMax ? 'Max' : '+1'}</button>
+          <div class="talent-actions">
+            <button type="button" class="btn-sm primary" data-action="buy-talent" data-skill="${skillId}" data-talent="${def.id}" data-count="1" ${canBuy ? '' : 'disabled'}>${atMax ? 'Max' : '+1'}</button>
+            <button type="button" class="btn-sm primary" data-action="buy-talent" data-skill="${skillId}" data-talent="${def.id}" data-count="5" ${points >= 5 && !atMax ? '' : 'disabled'}>+5</button>
+            <button type="button" class="btn-sm primary" data-action="buy-talent" data-skill="${skillId}" data-talent="${def.id}" data-count="max" ${canBuy ? '' : 'disabled'}>Max</button>
+            <button type="button" class="btn-sm ghost" data-action="reset-talent" data-skill="${skillId}" data-talent="${def.id}" ${lv > 0 ? '' : 'disabled'}>Reset</button>
+          </div>
         </article>`;
     }).join('');
 
@@ -1339,12 +1344,18 @@
     const items = (C.SHOP_ITEMS || []).map((shop) => {
       const avail = E.shopItemAvailable(state, shop.id);
       const canBuy = avail && state.gold >= shop.gold;
+      const buyControls = shop.id === 'bread'
+        ? `<div class="shop-bulk-buy">
+            <input type="number" class="shop-qty-input" data-shop-qty="${shop.id}" min="1" max="9999" value="1" inputmode="numeric" aria-label="Bread quantity" />
+            <button type="button" class="btn-sm primary" data-action="buy-shop-qty" data-item="${shop.id}" ${!canBuy ? 'disabled' : ''}>Buy</button>
+          </div>`
+        : `<button type="button" class="btn-sm primary" data-action="buy-shop" data-item="${shop.id}" ${!canBuy ? 'disabled' : ''}>Buy</button>`;
       return `
         <article class="activity-card shop-card${!avail ? ' locked' : ''}">
           <div class="shop-card-icon">${resIcon(shop.id, 'game-icon xl')}</div>
           <strong>${resName(shop.id)}</strong>
-          <p class="empty-msg">${avail ? `${fmt(shop.gold)} gold` : 'Already used — unavailable'}</p>
-          <button type="button" class="btn-sm primary" data-action="buy-shop" data-item="${shop.id}" ${!canBuy ? 'disabled' : ''}>Buy</button>
+          <p class="empty-msg">${avail ? `${fmt(shop.gold)} gold each` : 'Already used — unavailable'}</p>
+          ${buyControls}
         </article>`;
     }).join('');
     return `
@@ -1698,9 +1709,20 @@
     if (action === 'buy-talent') {
       const skillId = btn.dataset.skill;
       const char = skillId === 'smelting' ? selectedChar() : selectedChar();
-      if (E.buyTalent(state, char, skillId, btn.dataset.talent)) {
+      const rawCount = btn.dataset.count ?? '1';
+      const count = rawCount === 'max' ? 'max' : Number(rawCount);
+      if (E.buyTalent(state, char, skillId, btn.dataset.talent, count)) {
         addLog('Talent upgraded.');
       } else addLog('Cannot upgrade — no points or talent at max rank.');
+      render();
+      return;
+    }
+    if (action === 'reset-talent') {
+      const skillId = btn.dataset.skill;
+      const char = skillId === 'smelting' ? selectedChar() : selectedChar();
+      if (E.resetTalent(state, char, skillId, btn.dataset.talent)) {
+        addLog('Talent points refunded.');
+      } else addLog('Nothing to reset on this talent.');
       render();
       return;
     }
@@ -1713,8 +1735,21 @@
     }
     if (action === 'buy-shop') {
       const char = selectedChar();
-      if (char && E.buyShopItem(state, char, btn.dataset.item)) {
-        addLog(`Bought ${resName(btn.dataset.item)}.`);
+      const bought = char ? E.buyShopItem(state, char, btn.dataset.item, 1) : 0;
+      if (bought > 0) {
+        addLog(`Bought ${fmt(bought)} × ${resName(btn.dataset.item)}.`);
+      } else addLog('Cannot buy — not enough gold, inventory full, or item unavailable.');
+      render();
+      return;
+    }
+    if (action === 'buy-shop-qty') {
+      const char = selectedChar();
+      const itemId = btn.dataset.item;
+      const input = document.querySelector(`input[data-shop-qty="${itemId}"]`);
+      const qty = Math.max(1, Math.floor(Number(input?.value) || 1));
+      const bought = char ? E.buyShopItem(state, char, itemId, qty) : 0;
+      if (bought > 0) {
+        addLog(`Bought ${fmt(bought)} × ${resName(itemId)}.`);
       } else addLog('Cannot buy — not enough gold, inventory full, or item unavailable.');
       render();
       return;

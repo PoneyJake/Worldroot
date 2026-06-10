@@ -167,11 +167,29 @@
     return skillForTalents(state, char, skillId)?.talentPoints ?? 0;
   }
 
-  function buyTalent(state, char, skillId, talentId) {
+  function buyTalent(state, char, skillId, talentId, count = 1) {
     if (skillId !== 'smelting' && !char) return false;
     const skill = skillForTalents(state, char, skillId);
     if (!skill || !talentDef(skillId, talentId)) return false;
-    if (!S.spendTalentPoint(skill, talentId)) return false;
+    const max = C.TALENT_MAX_LEVEL ?? 50;
+    const current = skill.talents?.[talentId] ?? 0;
+    const room = max - current;
+    let n = count;
+    if (count === 'max' || count === Infinity) {
+      n = Math.min(room, skill.talentPoints ?? 0);
+    } else {
+      n = Math.min(Math.max(1, Math.floor(count)), room, skill.talentPoints ?? 0);
+    }
+    if (n <= 0 || S.spendTalentPoints(skill, talentId, n) <= 0) return false;
+    S.saveState(state);
+    return true;
+  }
+
+  function resetTalent(state, char, skillId, talentId) {
+    if (skillId !== 'smelting' && !char) return false;
+    const skill = skillForTalents(state, char, skillId);
+    if (!skill || !talentDef(skillId, talentId)) return false;
+    if (!S.resetTalentRank(skill, talentId)) return false;
     S.saveState(state);
     return true;
   }
@@ -855,15 +873,18 @@
     return true;
   }
 
-  function buyShopItem(state, char, itemId) {
+  function buyShopItem(state, char, itemId, qty = 1) {
     const shop = C.SHOP_ITEMS?.find((s) => s.id === itemId);
-    if (!shop || !char || !shopItemAvailable(state, itemId)) return false;
-    if (state.gold < shop.gold) return false;
-    const result = S.addToInventory(char, state, itemId, 1, 'combat');
-    if (result.added < 1) return false;
-    state.gold -= shop.gold;
+    if (!shop || !char || !shopItemAvailable(state, itemId)) return 0;
+    qty = Math.max(1, Math.floor(qty));
+    const totalGold = shop.gold * qty;
+    if (state.gold < totalGold) return 0;
+    const affordable = Math.min(qty, Math.floor(state.gold / shop.gold));
+    const result = S.addToInventory(char, state, itemId, affordable, 'combat');
+    if (result.added < 1) return 0;
+    state.gold -= shop.gold * result.added;
     S.saveState(state);
-    return true;
+    return result.added;
   }
 
   function canCraft(state, char, recipeId) {
@@ -1390,6 +1411,6 @@
     destroyInventoryItem, destroyStorageItem, destroyEquipped, destroyCapacityPouch,
     catchUpOffline,
     talentTreeKey, skillForTalents, talentLevel, talentBonus, talentPointsAvailable,
-    buyTalent, formatTalentTotal, talentDef,
+    buyTalent, resetTalent, formatTalentTotal, talentDef,
   };
 })();
