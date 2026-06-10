@@ -29,6 +29,13 @@
       { id: 'rod', label: 'Rod', symbol: '🎣' },
     ],
 
+    CAPACITY_SLOTS: [
+      { id: 'material', label: 'Material' },
+      { id: 'mining', label: 'Mining' },
+      { id: 'woodcutting', label: 'Woodcutting' },
+      { id: 'fishing', label: 'Fishing' },
+    ],
+
     CONSUMABLE_ITEMS: {
       inventory_bag_1: { type: 'bag', tier: 1 },
       inventory_bag_2: { type: 'bag', tier: 2 },

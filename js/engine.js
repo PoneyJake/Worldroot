@@ -413,6 +413,7 @@
       charHp,
       charMaxHp: charHp,
       respawnSec: 0,
+      mobDead: false,
     };
   }
 
@@ -598,10 +599,7 @@
     if (!def || !char) return false;
     if (def.type === 'bag') return !char.bagsUsed.includes(def.tier);
     if (def.type === 'chest') return !state.storageChestsUsed.includes(def.tier);
-    if (def.type === 'pouch') {
-      const cur = char.pouchTiers?.[def.category] || 0;
-      return cur < def.tier && cur === def.tier - 1;
-    }
+    if (def.type === 'pouch') return false;
     return false;
   }
 
@@ -619,7 +617,7 @@
       state.storageChestsUsed.push(def.tier);
       S.ensureStorageSize(state);
     } else if (def.type === 'pouch') {
-      char.pouchTiers[def.category] = def.tier;
+      return false;
     }
 
     S.removeFromInventorySlot(char, slotIdx, 1);
@@ -630,6 +628,81 @@
   function shopItemAvailable(state, itemId) {
     const def = C.CONSUMABLE_ITEMS?.[itemId];
     if (def?.type === 'chest') return !state.storageChestsUsed?.includes(def.tier);
+    return true;
+  }
+
+  function canEquipCapacityPouch(char, itemId, category) {
+    const def = C.CONSUMABLE_ITEMS?.[itemId];
+    return Boolean(def?.type === 'pouch' && def.category === category && char);
+  }
+
+  function equipCapacityPouch(state, char, invIdx, category) {
+    const slot = char.inventorySlots[invIdx];
+    if (!slot?.amount || !canEquipCapacityPouch(char, slot.resourceId, category)) return false;
+    const itemId = slot.resourceId;
+    if (!char.capacitySlots) char.capacitySlots = S.defaultCapacitySlots();
+    const prev = char.capacitySlots[category];
+    S.removeFromInventorySlot(char, invIdx, 1);
+    if (prev) {
+      const back = S.addToInventory(char, state, prev, 1, 'combat');
+      if (back.added < 1) {
+        S.addToInventory(char, state, itemId, 1, 'combat');
+        return false;
+      }
+    }
+    char.capacitySlots[category] = itemId;
+    S.saveState(state);
+    return true;
+  }
+
+  function unequipCapacityPouch(state, char, category, invIdx = null) {
+    const itemId = char.capacitySlots?.[category];
+    if (!itemId) return false;
+    if (invIdx != null) {
+      if (!S.placeInInventorySlot(state, char, invIdx, itemId, 1)) return false;
+    } else {
+      const back = S.addToInventory(char, state, itemId, 1, 'combat');
+      if (back.added < 1) return false;
+    }
+    char.capacitySlots[category] = null;
+    S.saveState(state);
+    return true;
+  }
+
+  function unequipToInventorySlot(state, char, slotType, slotKey, invIdx) {
+    const store = slotType === 'tool' ? char.tools : char.equipment;
+    const itemId = store[slotKey];
+    if (!itemId) return false;
+    if (!S.placeInInventorySlot(state, char, invIdx, itemId, 1)) return false;
+    store[slotKey] = null;
+    S.saveState(state);
+    return true;
+  }
+
+  function destroyInventoryItem(state, char, invIdx) {
+    if (!S.deleteInventorySlot(char, invIdx)) return false;
+    S.saveState(state);
+    return true;
+  }
+
+  function destroyStorageItem(state, storIdx) {
+    if (!S.deleteStorageSlot(state, storIdx)) return false;
+    S.saveState(state);
+    return true;
+  }
+
+  function destroyEquipped(state, char, slotType, slotKey) {
+    const store = slotType === 'tool' ? char.tools : char.equipment;
+    if (!store[slotKey]) return false;
+    store[slotKey] = null;
+    S.saveState(state);
+    return true;
+  }
+
+  function destroyCapacityPouch(state, char, category) {
+    if (!char.capacitySlots?.[category]) return false;
+    char.capacitySlots[category] = null;
+    S.saveState(state);
     return true;
   }
 
@@ -756,10 +829,17 @@
         if (cs.respawnSec <= 0) {
           cs.charHp = cs.charMaxHp;
           cs.mobHp = cs.mobMaxHp;
+          cs.mobDead = false;
           event.charHp = cs.charHp;
           event.mobHp = cs.mobHp;
         }
         return event;
+      }
+
+      if (cs.mobDead) {
+        cs.mobHp = cs.mobMaxHp;
+        cs.mobDead = false;
+        event.mobHp = cs.mobHp;
       }
 
       char.combatCd = (char.combatCd || 0) + C.TICK_MS / 1000;
@@ -820,8 +900,9 @@
           event.multikill = true;
         }
 
-        cs.mobHp = cs.mobMaxHp;
-        event.mobHp = cs.mobHp;
+        cs.mobHp = 0;
+        cs.mobDead = true;
+        event.mobHp = 0;
         event.charHp = cs.charHp;
       } else {
         cs.charHp -= mobDmg;
@@ -1146,7 +1227,9 @@
     questTrackProgress, questIsComplete, questIsClaimed, claimQuest,
     canUseConsumable, useConsumableFromSlot, shopItemAvailable, buyShopItem,
     canCraft, craftItem, canCraftFromStorage, craftItemFromStorage,
-    canEquipItem, equipFromInventory, unequipSlot,
+    canEquipItem, equipFromInventory, unequipSlot, unequipToInventorySlot,
+    canEquipCapacityPouch, equipCapacityPouch, unequipCapacityPouch,
+    destroyInventoryItem, destroyStorageItem, destroyEquipped, destroyCapacityPouch,
     catchUpOffline,
   };
 })();

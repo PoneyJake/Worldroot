@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Worldroot</title>
-  <link rel="stylesheet" href="css/style.css?v=44" />
+  <link rel="stylesheet" href="css/style.css?v=45" />
 </head>
 <body>
   <div class="app-shell">
@@ -87,12 +87,24 @@
     </div>
   </div>
 
-  <script src="js/config.js?v=44"></script>
-  <script src="js/items.js?v=44"></script>
-  <script src="js/gear.js?v=44"></script>
-  <script src="js/state.js?v=44"></script>
-  <script src="js/engine.js?v=44"></script>
-  <script src="js/ui.js?v=44"></script>
+  <div id="trash-modal" class="modal" hidden>
+    <div class="modal-backdrop" data-action="close-trash-modal"></div>
+    <div class="modal-card transfer-modal-card">
+      <h2>Delete item?</h2>
+      <p id="trash-modal-label" class="empty-msg"></p>
+      <div class="transfer-modal-actions">
+        <button type="button" class="btn-sm primary" data-action="confirm-trash">Delete</button>
+        <button type="button" class="btn-sm ghost" data-action="close-trash-modal">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/config.js?v=45"></script>
+  <script src="js/items.js?v=45"></script>
+  <script src="js/gear.js?v=45"></script>
+  <script src="js/state.js?v=45"></script>
+  <script src="js/engine.js?v=45"></script>
+  <script src="js/ui.js?v=45"></script>
   <script>
     if (!window.__worldrootBooted) {
       var panel = document.getElementById('panel-main');
@@ -101,6 +113,6 @@
       }
     }
   </script>
-  <script type="module" src="js/gameBootstrap.js?v=44"></script>
+  <script type="module" src="js/gameBootstrap.js?v=45"></script>
 </body>
 </html>

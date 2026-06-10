@@ -60,6 +60,10 @@
     return { xp: {}, resources: {}, kills: {}, loot: {}, ticks: 0 };
   }
 
+  function defaultCapacitySlots() {
+    return { material: null, mining: null, woodcutting: null, fishing: null };
+  }
+
   function defaultPouchTiers() {
     return { material: 0, mining: 0, woodcutting: 0, fishing: 0 };
   }
@@ -94,6 +98,7 @@
       inventorySlots: emptySlotArray(C.BASE_INVENTORY_SLOTS),
       bagsUsed: [],
       pouchTiers: defaultPouchTiers(),
+      capacitySlots: defaultCapacitySlots(),
       equipment: defaultEquipment(),
       tools: defaultTools(),
       gatherCd: 0,
@@ -271,6 +276,7 @@
       inventorySlots: migrateSlotArray(inventorySlots),
       bagsUsed,
       pouchTiers: { ...defaultPouchTiers(), ...c.pouchTiers },
+      capacitySlots: { ...defaultCapacitySlots(), ...(c.capacitySlots || {}) },
       equipment: { ...defaultEquipment(), ...c.equipment },
       tools: { ...defaultTools(), ...c.tools },
       gatherCd: c.gatherCd ?? 0,
@@ -450,6 +456,15 @@
     twine: 'producing', wooden_pegs: 'producing', iron_nails: 'producing', resin: 'producing',
   };
 
+  function pouchTierForCategory(char, category) {
+    const equipped = char?.capacitySlots?.[category];
+    if (equipped) {
+      const def = C.CONSUMABLE_ITEMS?.[equipped];
+      return def?.tier ?? 0;
+    }
+    return char?.pouchTiers?.[category] ?? 0;
+  }
+
   function stackCapacity(state, skillId, char = null) {
     const effect = carryEffectForSkill(skillId);
     let bonus = window.WorldrootEngine?.effectBonus(state, effect) || 0;
@@ -464,11 +479,61 @@
   function stackCapacityForResource(state, resourceId, char) {
     if (C.GEAR_ITEM_IDS?.has(resourceId)) return 1;
     const cat = C.POUCH_CATEGORY_FOR_RESOURCE?.[resourceId];
-    if (cat && char?.pouchTiers?.[cat] > 0) {
-      return C.POUCH_CAPACITIES[char.pouchTiers[cat] - 1];
+    if (cat) {
+      const tier = pouchTierForCategory(char, cat);
+      if (tier > 0) return C.POUCH_CAPACITIES[tier - 1];
     }
     const skillId = RESOURCE_SKILL_MAP[resourceId] || 'combat';
     return stackCapacity(state, skillId, char);
+  }
+
+  function swapInventorySlots(char, fromIdx, toIdx) {
+    if (fromIdx === toIdx) return false;
+    const total = inventorySlotCount(char);
+    if (fromIdx < 0 || toIdx < 0 || fromIdx >= total || toIdx >= total) return false;
+    const tmp = char.inventorySlots[fromIdx];
+    char.inventorySlots[fromIdx] = char.inventorySlots[toIdx];
+    char.inventorySlots[toIdx] = tmp;
+    return true;
+  }
+
+  function swapStorageSlots(state, fromIdx, toIdx) {
+    if (fromIdx === toIdx) return false;
+    const total = storageSlotCount(state);
+    if (fromIdx < 0 || toIdx < 0 || fromIdx >= total || toIdx >= total) return false;
+    const tmp = state.storageSlots[fromIdx];
+    state.storageSlots[fromIdx] = state.storageSlots[toIdx];
+    state.storageSlots[toIdx] = tmp;
+    return true;
+  }
+
+  function placeInInventorySlot(state, char, invIdx, resourceId, amount = 1) {
+    ensureInventorySize(char);
+    const cap = stackCapacityForResource(state, resourceId, char);
+    const target = char.inventorySlots[invIdx];
+    if (!target) {
+      char.inventorySlots[invIdx] = { resourceId, amount };
+      return true;
+    }
+    if (target.resourceId === resourceId && target.amount + amount <= cap) {
+      target.amount += amount;
+      return true;
+    }
+    return false;
+  }
+
+  function deleteInventorySlot(char, invIdx) {
+    const slot = char.inventorySlots[invIdx];
+    if (!slot) return null;
+    char.inventorySlots[invIdx] = null;
+    return slot;
+  }
+
+  function deleteStorageSlot(state, storIdx) {
+    const slot = state.storageSlots[storIdx];
+    if (!slot) return null;
+    state.storageSlots[storIdx] = null;
+    return slot;
   }
 
   function inventorySlotCount(char) {
@@ -848,7 +913,9 @@
     addToInventory, addToStorage, removeFromStorage, storageHas,
     charInventoryResourceHas, maxCharInventoryResource, anyCharInventoryResourceHas,
     findCharForResource, removeFromCharInventory,
-    addToSlots, removeFromSlots, carryEffectForSkill, stackCapacityForResource,
+    addToSlots, removeFromSlots, carryEffectForSkill, stackCapacityForResource, pouchTierForCategory,
+    swapInventorySlots, swapStorageSlots, placeInInventorySlot, deleteInventorySlot, deleteStorageSlot,
+    defaultCapacitySlots,
     depositAllToStorage, transferInvToStorage, transferStorageToInv,
     countInInventory, removeFromInventorySlot, loadOreToSmelt,
     splitInventorySlot, splitStorageSlot, defaultQuestProgress,

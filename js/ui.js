@@ -21,6 +21,7 @@
   let leaderboardEntries = null;
   let leaderboardError = null;
   let leaderboardLoading = false;
+  let trashModal = null;
   let detailPanel = null;
   let logBuffer = [];
   let holdTimer = null;
@@ -147,16 +148,25 @@
     return `<span class="sidebar-skill-chars">${chars.map((c) => C.CLASSES[c.classId].icon).join('')}</span>`;
   }
 
+  function renderTrashZone() {
+    return `
+      <div class="trash-drop-zone" data-drop-zone="trash" title="Drag items here to delete">
+        <span class="trash-icon">🗑️</span>
+        <span>Trash</span>
+      </div>`;
+  }
+
   function renderSlotGrid(slots, totalSlots, opts = {}) {
     const {
       transferType = null, gridClass = '', start = 0, end = totalSlots,
-      holdUse = false, char = null, smeltOrePick = false,
+      holdUse = false, char = null, smeltOrePick = false, dragKind = 'inv',
     } = opts;
     let html = '';
     for (let idx = start; idx < end; idx++) {
       const slot = slots[idx];
+      const dropAttrs = ` data-drop-zone="${dragKind}" data-slot="${idx}"`;
       if (!slot) {
-        html += `<div class="item-slot empty"><span class="item-slot-empty">+</span></div>`;
+        html += `<div class="item-slot empty drag-drop-target"${dropAttrs}><span class="item-slot-empty">+</span></div>`;
       } else {
         const transferAttr = transferType
           ? ` data-transfer-type="${transferType}" data-slot="${idx}"`
@@ -165,16 +175,17 @@
         const canLoad = isOre && E.findFirstSmeltSlotForOre(state, slot.resourceId) >= 0;
         const smeltAttr = canLoad ? ` data-action="load-smelt-ore" data-inv="${idx}"` : '';
         const consumable = holdUse && C.CONSUMABLE_ITEMS?.[slot.resourceId];
-        const canUse = consumable && char && E.canUseConsumable(state, char, slot.resourceId);
+        const canUse = consumable && consumable.type !== 'pouch' && char && E.canUseConsumable(state, char, slot.resourceId);
         const holdAttr = canUse ? ` data-hold-use="${idx}"` : '';
         const canEquip = transferType === 'inv' && char && E.canEquipItem(char, slot.resourceId);
         const equipAttr = canEquip ? ` data-action="equip-item" data-inv="${idx}"` : '';
         const tapHint = transferType && activePage === 'storage'
           ? (storageSplitMode ? ' — click: custom amount' : storageQuickTap ? ' — inv→all storage · storage→1 stack' : ' — double-click: move 1 · shift+click: move all')
           : '';
-        const holdHint = canUse ? ' · hold 2s to use' : (canLoad ? ' — click to load smelter' : (canEquip ? ' — click to equip' : ''));
+        const holdHint = canUse ? ' · hold 2s to use bag/chest' : (canLoad ? ' — click to load smelter' : (canEquip ? ' — click to equip' : ' · drag to move'));
         html += `
-          <div class="item-slot filled${transferType ? ' transferable' : ''}${canLoad ? ' smelt-ore-pick' : ''}${canUse ? ' hold-use-slot' : ''}${canEquip ? ' equip-item-slot' : ''}" title="${resName(slot.resourceId)}${tapHint}${holdHint}"${transferAttr}${smeltAttr}${holdAttr}${equipAttr}>
+          <div class="item-slot filled drag-drop-target draggable-item${transferType ? ' transferable' : ''}${canLoad ? ' smelt-ore-pick' : ''}${canUse ? ' hold-use-slot' : ''}${canEquip ? ' equip-item-slot' : ''}"
+            draggable="true" data-drag-kind="${dragKind}" data-drag-idx="${idx}" title="${resName(slot.resourceId)}${tapHint}${holdHint}"${dropAttrs}${transferAttr}${smeltAttr}${holdAttr}${equipAttr}>
             <span class="item-slot-icon">${resIcon(slot.resourceId, 'game-icon')}</span>
             <span class="item-slot-qty">${fmt(slot.amount)}</span>
             ${canUse ? '<span class="hold-use-ring"></span>' : ''}
@@ -212,7 +223,7 @@
     const end = Math.min(start + pageSize, total);
     return `
       ${renderPageTabs(storPage, pages, 'stor-page')}
-      ${renderSlotGrid(state.storageSlots, total, { ...opts, start, end })}`;
+      ${renderSlotGrid(state.storageSlots, total, { ...opts, start, end, dragKind: 'storage' })}`;
   }
 
   function selectedIndex() {
@@ -560,10 +571,11 @@
         <span class="page-header-icon">🎒</span>
         <div class="page-header-text">
           <h1>Inventory</h1>
-          <p>Hold-click bags & pouches for 2s to use · overflow is lost</p>
+          <p>Drag items to equip, move, or trash · hold bags/chests 2s to expand slots</p>
         </div>
       </header>
       ${pageCharBar()}
+      ${renderTrashZone()}
       <section class="storage-panel slot-panel-fit">
         <h3 class="storage-half-title">${charLabel(char)}'s Inventory</h3>
         ${renderPagedInventory(char, { transferType: 'inv', gridClass: 'grid-inv-4' })}
@@ -869,7 +881,7 @@
           </div>` : '';
 
       return `
-        <article class="activity-card smelt-drop-zone smelt-slot-compact${selected}" data-smelt-slot="${i}">
+        <article class="activity-card smelt-drop-zone smelt-slot-compact${selected}" data-drop-zone="smelt" data-smelt-slot="${i}">
           <strong class="smelt-slot-title" data-action="select-smelt-slot" data-slot="${i}">Slot ${i + 1}</strong>
           <div class="smelt-slot-items">${readySlot}</div>
           ${slot.ore ? `<p class="empty-msg smelt-slot-meta">${fmt(slot.oreLoaded || 0)}/${batchCap} · ${recipe?.ticks ?? '?'}s</p>
@@ -949,45 +961,70 @@
       ${readySlot ? `<div class="produce-ready-wrap compact"><h3 class="storage-half-title">Ready to collect</h3>${readySlot}</div>` : ''}`;
   }
 
+  function renderEquipSlotBox(item, slotType, slotKey, label) {
+    const inner = item
+      ? resIcon(item, 'game-icon xl')
+      : `<span class="equip-slot-word">${label}</span>`;
+    const dragAttrs = item
+      ? ` draggable="true" data-drag-kind="equip" data-slot-type="${slotType}" data-slot-key="${slotKey}"`
+      : '';
+    return `
+      <div class="equip-slot-box equip-slot-box-lg drag-drop-target${item ? ' filled draggable-item' : ''}"
+        data-drop-zone="equip" data-slot-type="${slotType}" data-slot-key="${slotKey}"${dragAttrs}
+        title="${label}${item ? ` — ${resName(item)} · double-click or drag to unequip` : ' · drag gear here'}">${inner}</div>`;
+  }
+
+  function renderCapacitySlotBox(item, category, label) {
+    const def = item ? C.CONSUMABLE_ITEMS?.[item] : null;
+    const cap = def ? C.POUCH_CAPACITIES[def.tier - 1] : null;
+    const inner = item
+      ? resIcon(item, 'game-icon lg')
+      : `<span class="equip-slot-word">${label}</span>`;
+    const dragAttrs = item
+      ? ` draggable="true" data-drag-kind="capacity" data-capacity-category="${category}"`
+      : '';
+    const capLine = cap ? `<p class="equip-stat-line">${fmt(cap)} / stack</p>` : '';
+    return `
+      <div class="equip-slot capacity-slot">
+        <span class="equip-slot-label">${label}</span>
+        <div class="equip-slot-box drag-drop-target${item ? ' filled draggable-item' : ''}"
+          data-drop-zone="capacity" data-capacity-category="${category}"${dragAttrs}
+          title="${label}${item ? ` — ${resName(item)}` : ' · drag matching pouch here'}">${inner}</div>
+        ${capLine}
+      </div>`;
+  }
+
   function renderEquipmentPanel() {
     const char = selectedChar();
     if (!char) return '<p class="empty-msg">Select a character from the Characters page.</p>';
     const eqSlots = (C.EQUIPMENT_SLOTS || []).map((def) => {
       const item = char.equipment?.[def.id];
       const statLine = item ? `<p class="equip-stat-line">${formatGearStats(item)}</p>` : '';
-      const inner = item
-        ? resIcon(item, 'game-icon xl')
-        : `<span class="equip-slot-word">${def.label}</span>`;
-      const unequip = item
-        ? `<button type="button" class="btn-sm ghost equip-unequip-btn" data-action="unequip-gear" data-slot-type="equipment" data-slot-key="${def.id}">Remove</button>`
-        : '';
-      return `<div class="equip-slot" title="${def.label}${item ? ` — ${resName(item)}` : ''}">
-        <div class="equip-slot-box equip-slot-box-lg${item ? ' filled' : ''}">${inner}</div>
+      return `<div class="equip-slot" title="${def.label}">
+        <span class="equip-slot-label">${def.label}</span>
+        ${renderEquipSlotBox(item, 'equipment', def.id, def.label)}
         ${statLine}
-        ${unequip}
       </div>`;
     }).join('');
     const toolSlots = (C.TOOL_SLOTS || []).map((def) => {
       const item = char.tools?.[def.id];
       const statLine = item ? `<p class="equip-stat-line">${formatGearStats(item)}</p>` : '';
-      const inner = item
-        ? resIcon(item, 'game-icon xl')
-        : `<span class="equip-slot-word">${def.label}</span>`;
-      const unequip = item
-        ? `<button type="button" class="btn-sm ghost equip-unequip-btn" data-action="unequip-gear" data-slot-type="tool" data-slot-key="${def.id}">Remove</button>`
-        : '';
-      return `<div class="equip-slot tool-slot" title="${def.label}${item ? ` — ${resName(item)}` : ''}">
-        <div class="equip-slot-box equip-slot-box-lg${item ? ' filled' : ''}">${inner}</div>
+      return `<div class="equip-slot tool-slot" title="${def.label}">
+        <span class="equip-slot-label">${def.label}</span>
+        ${renderEquipSlotBox(item, 'tool', def.id, def.label)}
         ${statLine}
-        ${unequip}
       </div>`;
     }).join('');
+    const capSlots = (C.CAPACITY_SLOTS || []).map((def) =>
+      renderCapacitySlotBox(char.capacitySlots?.[def.id], def.id, def.label),
+    ).join('');
     return `
       <header class="page-header">
         <span class="page-header-icon">🛡</span>
-        <div class="page-header-text"><h1>Equipment</h1><p>${charLabel(char)} — gear and tools</p></div>
+        <div class="page-header-text"><h1>Equipment</h1><p>${charLabel(char)} — drag gear, pouches, and tools</p></div>
       </header>
       ${pageCharBar()}
+      ${renderTrashZone()}
       <div class="skill-split-layout equipment-split">
         <section class="skill-split-main">
           <section class="storage-panel slot-panel-fit">
@@ -997,6 +1034,10 @@
           <section class="storage-panel slot-panel-fit">
             <h3 class="storage-half-title">Tools</h3>
             <div class="tools-grid">${toolSlots}</div>
+          </section>
+          <section class="storage-panel slot-panel-fit">
+            <h3 class="storage-half-title">Capacity</h3>
+            <div class="capacity-grid">${capSlots}</div>
           </section>
         </section>
         <section class="skill-split-side storage-panel slot-panel-fit">
@@ -1321,6 +1362,8 @@
 
     if (action === 'switch-page') { switchPage(btn.dataset.page); return; }
     if (action === 'close-offline-modal') { closeOfflineModal(); return; }
+    if (action === 'close-trash-modal') { closeTrashModal(); return; }
+    if (action === 'confirm-trash') { confirmTrashDelete(); return; }
     if (action === 'select-detail') {
       const kind = btn.dataset.detailKind;
       if (kind === 'combat') detailPanel = { kind: 'combat', id: btn.dataset.detailId };
@@ -1518,35 +1561,186 @@
     }
   }
 
+  function parseDragPayload(e) {
+    try {
+      const raw = e.dataTransfer.getData('application/worldroot-drag');
+      return raw ? JSON.parse(raw) : null;
+    } catch { return null; }
+  }
+
+  function buildDragPayload(el) {
+    const kind = el.dataset.dragKind;
+    const charIdx = selectedIndex();
+    if (kind === 'inv') return { kind: 'inv', idx: Number(el.dataset.dragIdx), charIdx };
+    if (kind === 'storage') return { kind: 'storage', idx: Number(el.dataset.dragIdx) };
+    if (kind === 'equip') return { kind: 'equip', slotType: el.dataset.slotType, key: el.dataset.slotKey, charIdx };
+    if (kind === 'capacity') return { kind: 'capacity', category: el.dataset.capacityCategory, charIdx };
+    return null;
+  }
+
+  function openTrashModal(payload) {
+    if (!payload) return;
+    let label = '';
+    if (payload.kind === 'inv') {
+      const char = state.characters[payload.charIdx];
+      const slot = char?.inventorySlots[payload.idx];
+      if (!slot) return;
+      label = `${fmt(slot.amount)} × ${resName(slot.resourceId)}`;
+    } else if (payload.kind === 'storage') {
+      const slot = state.storageSlots[payload.idx];
+      if (!slot) return;
+      label = `${fmt(slot.amount)} × ${resName(slot.resourceId)}`;
+    } else if (payload.kind === 'equip') {
+      const char = state.characters[payload.charIdx];
+      const store = payload.slotType === 'tool' ? char?.tools : char?.equipment;
+      const item = store?.[payload.key];
+      if (!item) return;
+      label = resName(item);
+    } else if (payload.kind === 'capacity') {
+      const char = state.characters[payload.charIdx];
+      const item = char?.capacitySlots?.[payload.category];
+      if (!item) return;
+      label = resName(item);
+    } else return;
+    trashModal = payload;
+    const modal = $('trash-modal');
+    const text = $('trash-modal-label');
+    if (text) text.textContent = `Permanently delete ${label}? This cannot be undone.`;
+    if (modal) modal.hidden = false;
+  }
+
+  function closeTrashModal() {
+    trashModal = null;
+    const modal = $('trash-modal');
+    if (modal) modal.hidden = true;
+  }
+
+  function confirmTrashDelete() {
+    if (!trashModal) return;
+    const payload = trashModal;
+    closeTrashModal();
+    let ok = false;
+    if (payload.kind === 'inv') {
+      const char = state.characters[payload.charIdx];
+      ok = char && E.destroyInventoryItem(state, char, payload.idx);
+    } else if (payload.kind === 'storage') {
+      ok = E.destroyStorageItem(state, payload.idx);
+    } else if (payload.kind === 'equip') {
+      const char = state.characters[payload.charIdx];
+      ok = char && E.destroyEquipped(state, char, payload.slotType, payload.key);
+    } else if (payload.kind === 'capacity') {
+      const char = state.characters[payload.charIdx];
+      ok = char && E.destroyCapacityPouch(state, char, payload.category);
+    }
+    addLog(ok ? 'Item deleted.' : 'Could not delete item.');
+    render();
+  }
+
+  function handleDragDrop(payload, zone) {
+    const dropZone = zone.dataset.dropZone;
+    const char = selectedChar();
+    if (!payload || !char) return;
+
+    if (dropZone === 'trash') {
+      openTrashModal(payload);
+      return;
+    }
+
+    if (dropZone === 'smelt' && payload.kind === 'inv') {
+      selectedSmeltSlot = Number(zone.dataset.smeltSlot);
+      loadSmeltFromDrag(payload.idx, zone.dataset.smeltSlot);
+      return;
+    }
+
+    if (dropZone === 'inv') {
+      const toIdx = Number(zone.dataset.slot);
+      if (payload.kind === 'inv') {
+        if (payload.charIdx === selectedIndex() && S.swapInventorySlots(char, payload.idx, toIdx)) {
+          S.saveState(state);
+          render();
+        }
+      } else if (payload.kind === 'equip') {
+        if (payload.charIdx === selectedIndex() && E.unequipToInventorySlot(state, char, payload.slotType, payload.key, toIdx)) {
+          addLog('Unequipped item.');
+          render();
+        } else addLog('Cannot unequip — slot occupied or full.');
+      } else if (payload.kind === 'capacity') {
+        if (payload.charIdx === selectedIndex() && E.unequipCapacityPouch(state, char, payload.category, toIdx)) {
+          addLog('Unequipped capacity pouch.');
+          render();
+        } else addLog('Cannot unequip pouch — slot occupied or full.');
+      } else if (payload.kind === 'storage') {
+        const slot = state.storageSlots[payload.idx];
+        if (slot && S.placeInInventorySlot(state, char, toIdx, slot.resourceId, 1)) {
+          S.removeFromStorage(state, slot.resourceId, 1);
+          addLog('Moved 1 item to inventory.');
+          render();
+        }
+      }
+      return;
+    }
+
+    if (dropZone === 'storage' && payload.kind === 'storage') {
+      if (S.swapStorageSlots(state, payload.idx, Number(zone.dataset.slot))) {
+        S.saveState(state);
+        render();
+      }
+      return;
+    }
+
+    if (dropZone === 'equip' && payload.kind === 'inv') {
+      if (E.equipFromInventory(state, char, payload.idx)) {
+        addLog('Equipped item.');
+        render();
+      } else addLog('Cannot equip item.');
+      return;
+    }
+
+    if (dropZone === 'capacity' && payload.kind === 'inv') {
+      const category = zone.dataset.capacityCategory;
+      if (E.equipCapacityPouch(state, char, payload.idx, category)) {
+        addLog('Equipped capacity pouch.');
+        render();
+      } else addLog('Cannot equip — wrong pouch type or inventory full.');
+    }
+  }
+
   function initDragDrop() {
     document.body.addEventListener('dragstart', (e) => {
-      const el = e.target.closest('[data-drag-type="smelt-ore"]');
+      const el = e.target.closest('[data-drag-kind]');
       if (!el || el.getAttribute('draggable') !== 'true') return;
-      e.dataTransfer.setData('application/worldroot-smelt', JSON.stringify({
-        inv: el.dataset.inv,
-        resource: el.dataset.resource,
-      }));
+      const payload = buildDragPayload(el);
+      if (!payload) return;
+      e.dataTransfer.setData('application/worldroot-drag', JSON.stringify(payload));
       e.dataTransfer.effectAllowed = 'move';
+      el.classList.add('dragging');
+    });
+
+    document.body.addEventListener('dragend', (e) => {
+      e.target.closest('.dragging')?.classList.remove('dragging');
+      document.querySelectorAll('.drag-over').forEach((n) => n.classList.remove('drag-over'));
     });
 
     document.body.addEventListener('dragover', (e) => {
-      if (e.target.closest('.smelt-drop-zone')) {
-        e.preventDefault();
-        e.dataTransfer.dropEffect = 'move';
-      }
+      const zone = e.target.closest('[data-drop-zone]');
+      if (!zone) return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      zone.classList.add('drag-over');
+    });
+
+    document.body.addEventListener('dragleave', (e) => {
+      const zone = e.target.closest('[data-drop-zone]');
+      if (zone) zone.classList.remove('drag-over');
     });
 
     document.body.addEventListener('drop', (e) => {
-      const zone = e.target.closest('.smelt-drop-zone');
+      const zone = e.target.closest('[data-drop-zone]');
       if (!zone) return;
       e.preventDefault();
-      try {
-        const raw = e.dataTransfer.getData('application/worldroot-smelt');
-        if (!raw) return;
-        const { inv } = JSON.parse(raw);
-        selectedSmeltSlot = Number(zone.dataset.smeltSlot);
-        loadSmeltFromDrag(inv, zone.dataset.smeltSlot);
-      } catch { /* ignore */ }
+      zone.classList.remove('drag-over');
+      const payload = parseDragPayload(e);
+      handleDragDrop(payload, zone);
     });
   }
 
@@ -1677,6 +1871,32 @@
       e.stopPropagation();
       handleCollect(collectEl);
       return;
+    }
+
+    if (e.type === 'dblclick') {
+      const equipZone = e.target.closest('[data-drop-zone="equip"]');
+      if (equipZone) {
+        e.preventDefault();
+        const char = selectedChar();
+        const slotType = equipZone.dataset.slotType;
+        const key = equipZone.dataset.slotKey;
+        if (char && E.unequipSlot(state, char, slotType, key)) {
+          addLog('Unequipped item.');
+          render();
+        } else addLog('Cannot unequip — inventory full.');
+        return;
+      }
+      const capZone = e.target.closest('[data-drop-zone="capacity"]');
+      if (capZone) {
+        e.preventDefault();
+        const char = selectedChar();
+        const category = capZone.dataset.capacityCategory;
+        if (char && E.unequipCapacityPouch(state, char, category)) {
+          addLog('Unequipped capacity pouch.');
+          render();
+        } else addLog('Cannot unequip pouch — inventory full.');
+        return;
+      }
     }
 
     const slotEl = e.target.closest('[data-transfer-type]');
