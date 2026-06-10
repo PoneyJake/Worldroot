@@ -15,6 +15,7 @@ function patchSaveForCloud() {
     orig(state, opts);
     if (window.WorldrootSession?.isCloud && opts?.touchCloud !== false) {
       scheduleCloudSave();
+      if (opts?.flushCloud) flushCloudSave();
     }
   };
 }

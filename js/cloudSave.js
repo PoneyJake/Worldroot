@@ -10,8 +10,9 @@ const LOCAL_SAVE_KEYS = [
   'worldroot_save_v1',
 ];
 
-const DEBOUNCE_MS = 1500;
-const MAX_WAIT_MS = 12000;
+const DEBOUNCE_MS = 500;
+const MAX_WAIT_MS = 8000;
+const PERIODIC_SYNC_MS = 8000;
 
 let saveTimer = null;
 let maxWaitTimer = null;
@@ -20,6 +21,7 @@ let lastPushAt = 0;
 let cloudDirty = false;
 let listenersBound = false;
 let lastSyncLabel = '';
+let periodicSyncTimer = null;
 
 function notifySyncStatus(state, message) {
   lastSyncLabel = message || state;
@@ -164,6 +166,20 @@ export async function loadCloudSave() {
   }
 
   const picked = pickNewerSave(localPayload, data);
+
+  // Don't push a stale empty local cache over cloud progress (e.g. phone played, PC still on reset).
+  if (picked.source === 'local' && data.save_data) {
+    const cloudScore = saveProgressScore(data.save_data);
+    const localScore = saveProgressScore(localPayload);
+    if (cloudScore > localScore) {
+      importSaveData(data.save_data);
+      reloadUiFromStorage();
+      cloudDirty = false;
+      notifySyncStatus('saved', 'Loaded from cloud');
+      return { source: 'cloud' };
+    }
+  }
+
   if (picked.payload) {
     importSaveData(picked.payload);
     reloadUiFromStorage();
@@ -347,27 +363,50 @@ export function flushCloudSave() {
 }
 
 export async function flushCloudSaveOnExit() {
-  if (!isCloudEnabled() || !getCurrentUser() || !cloudDirty) return;
+  if (!isCloudEnabled()) return;
+
+  const session = await ensureAuthSession();
+  if (!session) return;
+
   persistGameSave();
   const payload = exportSaveData();
   if (!payload) return;
 
   payload.savedAt = Date.now();
-  const sb = getSupabase();
-  const user = getCurrentUser();
-  if (!sb || !user) return;
+  if (window.WorldrootUI?.getState) {
+    window.WorldrootUI.getState().savedAt = payload.savedAt;
+    window.WorldrootState?.saveState?.(window.WorldrootUI.getState(), { touchCloud: false });
+  }
+
+  cloudDirty = true;
 
   if (document.visibilityState === 'visible') {
     await pushCloudSave(true);
     return;
   }
 
-  const { data: sessionData } = await sb.auth.getSession();
-  const token = sessionData.session?.access_token;
-  const ok = await pushCloudSaveKeepalive(payload, user.id, token);
+  const ok = await pushCloudSaveKeepalive(payload, session.user.id, session.access_token);
   if (ok) {
     cloudDirty = false;
     lastPushAt = Date.now();
+    notifySyncStatus('saved', 'Saved to cloud');
+  } else {
+    notifySyncStatus('error', 'Could not save before close');
+  }
+}
+
+function startPeriodicCloudSync() {
+  if (periodicSyncTimer) return;
+  periodicSyncTimer = setInterval(() => {
+    if (!window.WorldrootSession?.isCloud || !getCurrentUser()) return;
+    if (cloudDirty) pushCloudSave();
+  }, PERIODIC_SYNC_MS);
+}
+
+function stopPeriodicCloudSync() {
+  if (periodicSyncTimer) {
+    clearInterval(periodicSyncTimer);
+    periodicSyncTimer = null;
   }
 }
 
@@ -375,17 +414,22 @@ export function initCloudSyncListeners() {
   if (listenersBound || !window.WorldrootSession?.isCloud) return;
   listenersBound = true;
 
+  const onHide = () => { flushCloudSaveOnExit(); };
+  const onShow = () => { loadCloudSave(); };
+
   document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'hidden') {
-      flushCloudSaveOnExit();
-    } else {
-      loadCloudSave();
-    }
+    if (document.visibilityState === 'hidden') onHide();
+    else onShow();
   });
-  window.addEventListener('pagehide', () => flushCloudSaveOnExit());
+  window.addEventListener('pagehide', onHide);
+  window.addEventListener('blur', onHide);
+  document.addEventListener('freeze', onHide);
+
+  startPeriodicCloudSync();
 }
 
 export function stopCloudSyncListeners() {
   listenersBound = false;
+  stopPeriodicCloudSync();
   clearSaveTimers();
 }

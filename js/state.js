@@ -910,7 +910,7 @@
     if (state.characters.length === 1) state.selectedCharIndex = 0;
     state.pendingSlot = null;
     refreshPendingSlot(state);
-    saveState(state);
+    saveState(state, { flushCloud: true });
     return true;
   }
 
@@ -932,7 +932,7 @@
     char.gatherCd = 0;
     char.combatCd = 0;
     if (activityId !== 'combat') char.combatState = null;
-    saveState(state);
+    saveState(state, { flushCloud: true });
   }
 
   function stopActivity(state, charIndex) {
