@@ -994,6 +994,48 @@
 
   /* ── Smelting ── */
 
+  function renderSmeltSlotPair(slot, i, batchCap, recipe, pct) {
+    const oreQty = slot.oreLoaded || 0;
+    const oreFilled = Boolean(slot.ore);
+    const oreClickable = oreQty > 0;
+    const oreInner = oreFilled
+      ? `<span class="item-slot-icon">${resIcon(slot.ore)}</span><span class="item-slot-qty">${fmt(oreQty)}</span>`
+      : '<span class="item-slot-empty">+</span>';
+    const oreTip = oreClickable
+      ? 'Click to return ore to inventory'
+      : 'Load ore from inventory';
+
+    const barReady = slot.ready > 0 && slot.readyBar;
+    const barInner = barReady
+      ? `<span class="item-slot-icon">${resIcon(slot.readyBar)}</span><span class="item-slot-qty">${fmt(slot.ready)}</span>`
+      : '<span class="item-slot-empty">—</span>';
+    const barTip = barReady ? `Click to collect ${resName(slot.readyBar)}` : 'Bars appear here';
+
+    const progressBlock = oreFilled
+      ? `<p class="empty-msg smelt-slot-meta">${fmt(oreQty)}/${batchCap} · ${recipe?.ticks ?? '?'}s</p>
+         <div class="progress-bar compact"><div class="progress-bar-fill" style="width:${pct}%"></div></div>`
+      : '<p class="empty-msg smelt-slot-meta">Drag ore to the left slot</p>';
+
+    return `
+      <div class="smelt-slot-pair">
+        <div class="smelt-item-wrap smelt-ore-wrap">
+          <span class="smelt-slot-pair-label">Ore</span>
+          <div class="produce-ready-slot smelt-ore-slot smelt-drop-zone${oreFilled ? ' filled' : ' empty'}${oreClickable ? ' transferable' : ''}"
+            data-drop-zone="smelt" data-smelt-slot="${i}"${oreClickable ? ` data-collect-type="smelt-ore" data-slot="${i}"` : ''} title="${oreTip}">
+            ${oreInner}
+          </div>
+        </div>
+        <span class="smelt-slot-arrow" aria-hidden="true">→</span>
+        <div class="smelt-item-wrap smelt-bar-wrap">
+          <span class="smelt-slot-pair-label">Bar</span>
+          <div class="produce-ready-slot smelt-bar-slot${barReady ? ' filled transferable' : ' empty'}"${barReady ? ` data-collect-type="smelt" data-slot="${i}"` : ''} title="${barTip}">
+            ${barInner}
+          </div>
+        </div>
+      </div>
+      ${progressBlock}`;
+  }
+
   function renderSmeltingPage(sk) {
     const lv = state.smelting.skill.level;
     const char = selectedChar();
@@ -1006,28 +1048,17 @@
       const pct = slot.ore && recipe ? Math.min(100, (slot.progress / recipe.ticks) * 100) : 0;
       const selected = i === selectedSmeltSlot ? ' smelt-slot-selected' : '';
 
-      const readySlot = slot.ready > 0
-        ? `<div class="smelt-item-wrap">
-            <div class="smelt-slot-pair-label">Click to collect</div>
-            <div class="produce-ready-slot transferable" data-collect-type="smelt" data-slot="${i}" title="Click to collect ${resName(slot.readyBar)} into inventory">
-              <span class="item-slot-icon">${resIcon(slot.readyBar)}</span>
-              <span class="item-slot-qty">${fmt(slot.ready)}</span>
-            </div>
-          </div>` : '';
-
       return `
         <article class="activity-card smelt-drop-zone smelt-slot-compact${selected}" data-drop-zone="smelt" data-smelt-slot="${i}">
           <strong class="smelt-slot-title" data-action="select-smelt-slot" data-slot="${i}">Slot ${i + 1}</strong>
-          <div class="smelt-slot-items">${readySlot}</div>
-          ${slot.ore ? `<p class="empty-msg smelt-slot-meta">${fmt(slot.oreLoaded || 0)}/${batchCap} · ${recipe?.ticks ?? '?'}s</p>
-            <div class="progress-bar compact"><div class="progress-bar-fill" style="width:${pct}%"></div></div>` : '<p class="empty-msg smelt-slot-meta">Load ore →</p>'}
+          ${renderSmeltSlotPair(slot, i, batchCap, recipe, pct)}
         </article>`;
     }).join('');
 
     return `
       <header class="page-header">
         <span class="page-header-icon">${sk.icon}</span>
-        <div class="page-header-text"><h1>${sk.name}</h1><p>Click ore in inventory to load smelters — max ${batchCap} per slot · click bars to collect</p></div>
+        <div class="page-header-text"><h1>${sk.name}</h1><p>Left: load ore · Right: collect bars · click ore to remove and swap</p></div>
         <div class="page-header-stat"><span class="page-header-stat-label">Smelting Lv</span><span class="page-header-stat-value">${lv}</span></div>
       </header>
       ${renderSkillXpBar(state.smelting.skill, 'Smelting XP')}
@@ -1649,26 +1680,31 @@
     const batchCap = E.smeltBatchCapacity(state);
 
     state.smelting.slots.forEach((slot, i) => {
-      const card = document.querySelector(`[data-smelt-slot="${i}"]`);
+      const card = document.querySelector(`article[data-smelt-slot="${i}"]`);
       if (!card) { needFull = true; return; }
       const recipe = C.SMELT_RECIPES.find((r) => r.ore === slot.ore);
       const pct = slot.ore && recipe ? Math.min(100, (slot.progress / recipe.ticks) * 100) : 0;
       const fill = card.querySelector('.progress-bar .progress-bar-fill');
       const meta = card.querySelector('.smelt-slot-meta');
-      const hasReadyEl = !!card.querySelector('.produce-ready-slot');
+      const oreSlot = card.querySelector('.smelt-ore-slot');
+      const barSlot = card.querySelector('.smelt-bar-slot');
+      const oreShows = oreSlot?.classList.contains('filled');
+      const barShows = barSlot?.classList.contains('filled');
 
-      if ((slot.ready > 0) !== hasReadyEl || (slot.ore && !fill) || (!slot.ore && fill)) {
+      if (Boolean(slot.ore) !== oreShows || (slot.ready > 0) !== barShows) {
         needFull = true;
         return;
       }
+      if (slot.ore && !fill) { needFull = true; return; }
+      if (!slot.ore && fill) { needFull = true; return; }
       if (fill) fill.style.width = `${pct}%`;
       if (meta && slot.ore) {
         meta.textContent = `${fmt(slot.oreLoaded || 0)}/${batchCap} · ${recipe?.ticks ?? '?'}s`;
       }
-      if (hasReadyEl) {
-        const qty = card.querySelector('.item-slot-qty');
-        if (qty) qty.textContent = fmt(slot.ready);
-      }
+      const oreQty = card.querySelector('.smelt-ore-slot .item-slot-qty');
+      if (oreQty) oreQty.textContent = fmt(slot.oreLoaded || 0);
+      const barQty = card.querySelector('.smelt-bar-slot .item-slot-qty');
+      if (barQty) barQty.textContent = fmt(slot.ready);
     });
 
     if (patchSkillXpBar(state.smelting.skill)) needFull = true;
@@ -2618,6 +2654,7 @@
     if (type === 'smelt-ore') {
       const n = E.unloadSmeltOre(state, slotIdx, selectedIndex());
       if (n > 0) addLog(`Returned ${n} ore to inventory.`);
+      else addLog('Could not return ore — inventory may be full.');
       render();
     }
   }

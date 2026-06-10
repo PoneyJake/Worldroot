@@ -1405,7 +1405,6 @@
       slot.oreLoaded = 0;
       slot.ore = null;
       slot.progress = 0;
-      slot.readyBar = null;
     }
     S.saveState(state);
     return returned;

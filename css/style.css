@@ -1634,6 +1634,62 @@ button,
   margin: 8px 0;
 }
 
+.smelt-slot-pair {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 10px;
+  margin: 8px 0 4px;
+}
+
+.smelt-slot-arrow {
+  color: #6a8a66;
+  font-size: 1.25rem;
+  line-height: 1;
+  padding-bottom: 1.6rem;
+  flex-shrink: 0;
+}
+
+.smelt-ore-wrap,
+.smelt-bar-wrap {
+  flex: 1;
+  min-width: 0;
+  max-width: 5.75rem;
+}
+
+.smelt-ore-wrap .smelt-slot-pair-label,
+.smelt-bar-wrap .smelt-slot-pair-label {
+  text-align: center;
+}
+
+.smelt-ore-slot,
+.smelt-bar-slot {
+  width: 100%;
+  min-height: 4.75rem;
+}
+
+.smelt-ore-slot.empty {
+  border-style: dashed;
+  border-color: #3a4a38;
+}
+
+.smelt-ore-slot.filled.transferable:hover {
+  border-color: #8a9a68;
+  background: #1e2418;
+}
+
+.smelt-bar-slot.empty {
+  border-style: dashed;
+  border-color: #2a382a;
+  opacity: 0.65;
+  pointer-events: none;
+}
+
+.smelt-bar-slot.filled.transferable:hover {
+  border-color: #5a9a52;
+  background: #1a281a;
+}
+
 .smelt-item-wrap {
   display: flex;
   flex-direction: column;
