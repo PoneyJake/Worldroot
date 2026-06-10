@@ -36,7 +36,12 @@
       { id: 'fishing', label: 'Fishing' },
     ],
 
+    FOOD_SLOTS: [
+      { id: 'food', label: 'Food', symbol: '🍞' },
+    ],
+
     CONSUMABLE_ITEMS: {
+      bread: { type: 'food', heal: 20, threshold: 0.5, cooldownSec: 30 },
       inventory_bag_1: { type: 'bag', tier: 1 },
       inventory_bag_2: { type: 'bag', tier: 2 },
       inventory_bag_3: { type: 'bag', tier: 3 },
@@ -84,6 +89,7 @@
     },
 
     SHOP_ITEMS: [
+      { id: 'bread', gold: 5 },
       { id: 'inventory_bag_2', gold: 500 },
       { id: 'inventory_bag_3', gold: 2000 },
       { id: 'inventory_bag_4', gold: 8000 },
@@ -170,6 +176,7 @@
   });
 
   const extraResources = [
+    'bread',
     'leech_sucker', 'moth_pollen',
     'inventory_bag_1', 'inventory_bag_2', 'inventory_bag_3', 'inventory_bag_4', 'inventory_bag_5',
     'storage_chest_1', 'storage_chest_2', 'storage_chest_3', 'storage_chest_4', 'storage_chest_5',
@@ -180,6 +187,7 @@
   ];
 
   const extraNames = {
+    bread: 'Bread',
     leech_sucker: 'Leech Sucker', moth_pollen: 'Moth Pollen',
     inventory_bag_1: 'Inventory Bag #1', inventory_bag_2: 'Inventory Bag #2',
     inventory_bag_3: 'Inventory Bag #3', inventory_bag_4: 'Inventory Bag #4', inventory_bag_5: 'Inventory Bag #5',
@@ -200,6 +208,7 @@
   };
 
   const extraIcons = {
+    bread: 'bread',
     bog_leech: 'bog_leech', pollen_moth: 'pollen_moth',
     leech_sucker: 'leech_sucker', moth_pollen: 'moth_pollen',
     inventory_bag_1: 'inventory_bag_1', inventory_bag_2: 'inventory_bag_2',

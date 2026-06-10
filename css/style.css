@@ -2496,6 +2496,17 @@ button,
   gap: 10px;
 }
 
+.food-grid {
+  display: grid;
+  grid-template-columns: minmax(88px, 120px);
+  gap: 10px;
+}
+
+.food-slot .equip-slot-box {
+  width: 68px;
+  height: 68px;
+}
+
 .capacity-slot .equip-slot-box {
   width: 68px;
   height: 68px;

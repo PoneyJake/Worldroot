@@ -103,6 +103,12 @@
     return t;
   }
 
+  function defaultFoodSlots() {
+    const f = {};
+    for (const s of C.FOOD_SLOTS || []) f[s.id] = null;
+    return f;
+  }
+
   function defaultQuestProgress() {
     return { kills: {}, gathered: {}, produced: {} };
   }
@@ -124,6 +130,8 @@
       capacitySlots: defaultCapacitySlots(),
       equipment: defaultEquipment(),
       tools: defaultTools(),
+      foodSlots: defaultFoodSlots(),
+      foodCd: 0,
       gatherCd: 0,
       combatCd: 0,
       combatState: null,
@@ -305,6 +313,8 @@
       capacitySlots: { ...defaultCapacitySlots(), ...(c.capacitySlots || {}) },
       equipment: { ...defaultEquipment(), ...c.equipment },
       tools: { ...defaultTools(), ...c.tools },
+      foodSlots: { ...defaultFoodSlots(), ...(c.foodSlots || {}) },
+      foodCd: c.foodCd ?? 0,
       gatherCd: c.gatherCd ?? 0,
       combatCd: c.combatCd ?? 0,
       combatState,
@@ -1023,7 +1033,7 @@
     findCharForResource, removeFromCharInventory,
     addToSlots, removeFromSlots, carryEffectForSkill, stackCapacityForResource, pouchTierForCategory,
     swapInventorySlots, swapStorageSlots, placeInInventorySlot, deleteInventorySlot, deleteStorageSlot,
-    defaultCapacitySlots,
+    defaultCapacitySlots, defaultFoodSlots,
     depositAllToStorage, transferInvToStorage, transferStorageToInv,
     transferStorageToInvSlot, transferInvToStorageSlot,
     countInInventory, removeFromInventorySlot, loadOreToSmelt,

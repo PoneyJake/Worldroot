@@ -490,7 +490,36 @@
     } else if (cs.respawnSec === undefined) {
       cs.respawnSec = 0;
     }
+    if (cs.charMaxHp !== charMaxHp(state, char)) {
+      cs.charMaxHp = charMaxHp(state, char);
+      cs.charHp = Math.min(cs.charHp, cs.charMaxHp);
+    }
     return char.combatState;
+  }
+
+  function foodItemDef(itemId) {
+    const def = C.CONSUMABLE_ITEMS?.[itemId];
+    return def?.type === 'food' ? def : null;
+  }
+
+  function tickFoodCooldown(char, dtSec) {
+    if (!char?.foodCd) return;
+    char.foodCd = Math.max(0, char.foodCd - dtSec);
+  }
+
+  function tryAutoEatFood(state, char, cs) {
+    if (!cs || cs.charHp <= 0 || cs.respawnSec > 0) return false;
+    const slotKey = C.FOOD_SLOTS?.[0]?.id ?? 'food';
+    const itemId = char.foodSlots?.[slotKey];
+    const def = foodItemDef(itemId);
+    if (!def) return false;
+    if ((char.foodCd || 0) > 0) return false;
+    if (cs.charHp / cs.charMaxHp >= (def.threshold ?? 0.5)) return false;
+
+    cs.charHp = Math.min(cs.charMaxHp, cs.charHp + (def.heal ?? 20));
+    char.foodCd = def.cooldownSec ?? 30;
+    char.foodSlots[slotKey] = null;
+    return true;
   }
 
   function smeltBatchCapacity(state) {
@@ -672,6 +701,7 @@
     if (def.type === 'bag') return !char.bagsUsed.includes(def.tier);
     if (def.type === 'chest') return !state.storageChestsUsed.includes(def.tier);
     if (def.type === 'pouch') return false;
+    if (def.type === 'food') return false;
     return false;
   }
 
@@ -774,6 +804,53 @@
   function destroyCapacityPouch(state, char, category) {
     if (!char.capacitySlots?.[category]) return false;
     char.capacitySlots[category] = null;
+    S.saveState(state);
+    return true;
+  }
+
+  function canEquipFood(char, itemId) {
+    return Boolean(foodItemDef(itemId) && char);
+  }
+
+  function equipFood(state, char, invIdx, slotKey = null) {
+    const key = slotKey || C.FOOD_SLOTS?.[0]?.id || 'food';
+    const slot = char.inventorySlots[invIdx];
+    if (!slot?.amount || !canEquipFood(char, slot.resourceId)) return false;
+    const itemId = slot.resourceId;
+    if (!char.foodSlots) char.foodSlots = S.defaultFoodSlots();
+    const prev = char.foodSlots[key];
+    S.removeFromInventorySlot(char, invIdx, 1);
+    if (prev) {
+      const back = S.addToInventory(char, state, prev, 1, 'combat');
+      if (back.added < 1) {
+        S.addToInventory(char, state, itemId, 1, 'combat');
+        return false;
+      }
+    }
+    char.foodSlots[key] = itemId;
+    S.saveState(state);
+    return true;
+  }
+
+  function unequipFood(state, char, slotKey, invIdx = null) {
+    const key = slotKey || C.FOOD_SLOTS?.[0]?.id || 'food';
+    const itemId = char.foodSlots?.[key];
+    if (!itemId) return false;
+    if (invIdx != null) {
+      if (!S.placeInInventorySlot(state, char, invIdx, itemId, 1)) return false;
+    } else {
+      const back = S.addToInventory(char, state, itemId, 1, 'combat');
+      if (back.added < 1) return false;
+    }
+    char.foodSlots[key] = null;
+    S.saveState(state);
+    return true;
+  }
+
+  function destroyFood(state, char, slotKey) {
+    const key = slotKey || C.FOOD_SLOTS?.[0]?.id || 'food';
+    if (!char.foodSlots?.[key]) return false;
+    char.foodSlots[key] = null;
     S.saveState(state);
     return true;
   }
@@ -895,6 +972,7 @@
       const cs = ensureCombatState(state, char, monster);
       event.charHp = cs.charHp;
       event.mobHp = cs.mobHp;
+      tickFoodCooldown(char, C.TICK_MS / 1000);
 
       if (cs.respawnSec > 0) {
         cs.respawnSec = Math.max(0, cs.respawnSec - C.TICK_MS / 1000);
@@ -982,6 +1060,10 @@
       } else {
         cs.charHp -= mobDmg;
         event.charHp = cs.charHp;
+        if (tryAutoEatFood(state, char, cs)) {
+          event.charHp = cs.charHp;
+          event.foodUsed = true;
+        }
         if (cs.charHp <= 0) {
           cs.charHp = 0;
           cs.respawnSec = C.COMBAT_RESPAWN_SEC;
@@ -1304,6 +1386,7 @@
     canCraft, craftItem, canCraftFromStorage, craftItemFromStorage,
     canEquipItem, equipFromInventory, unequipSlot, unequipToInventorySlot,
     canEquipCapacityPouch, equipCapacityPouch, unequipCapacityPouch,
+    canEquipFood, equipFood, unequipFood, destroyFood,
     destroyInventoryItem, destroyStorageItem, destroyEquipped, destroyCapacityPouch,
     catchUpOffline,
     talentTreeKey, skillForTalents, talentLevel, talentBonus, talentPointsAvailable,

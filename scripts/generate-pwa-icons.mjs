@@ -5,7 +5,7 @@ import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(__dirname, '..');
-const src = path.join(root, 'assets/worldroot-logo.png');
+const src = path.join(root, 'assets/pwa/game-icon-source.png');
 const outDir = path.join(root, 'assets/pwa');
 
 const sizes = [
@@ -16,10 +16,10 @@ const sizes = [
 ];
 
 async function renderIcon({ name, size, maskable }) {
-  const pad = maskable ? Math.round(size * 0.2) : Math.round(size * 0.08);
+  const pad = maskable ? Math.round(size * 0.12) : 0;
   const inner = size - pad * 2;
   const png = await sharp(src)
-    .resize(inner, inner, { fit: 'contain', background: { r: 13, g: 18, b: 13, alpha: 1 } })
+    .resize(inner, inner, { fit: 'cover', position: 'centre' })
     .extend({
       top: pad,
       bottom: pad,

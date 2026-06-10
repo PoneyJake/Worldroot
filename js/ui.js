@@ -103,6 +103,10 @@
     if (consumable?.type === 'chest') {
       return `${name} — +${C.CHEST_SLOTS_ADD || 3} storage slots`;
     }
+    if (consumable?.type === 'food') {
+      const pct = Math.round((consumable.threshold ?? 0.5) * 100);
+      return `${name} — heals ${consumable.heal ?? 20} HP below ${pct}% HP · ${consumable.cooldownSec ?? 30}s cooldown`;
+    }
     return name;
   }
 
@@ -224,13 +228,17 @@
         const pouchAttr = canEquipPouch
           ? ` data-action="equip-pouch" data-inv="${idx}" data-pouch-category="${pouchDef.category}"`
           : '';
+        const canEquipFood = transferType === 'inv' && pouchDef?.type === 'food' && activePage === 'equipment';
+        const foodAttr = canEquipFood
+          ? ` data-action="equip-food" data-inv="${idx}" data-food-slot="${C.FOOD_SLOTS?.[0]?.id ?? 'food'}"`
+          : '';
         const tapHint = transferType && activePage === 'storage'
           ? (storageSplitMode ? ' — click: custom amount' : storageQuickTap ? ' — inv→all storage · storage→1 stack' : ' — double-click: move 1 · shift+click: move all')
           : '';
-        const holdHint = canUse ? ' · hold 2s to use bag/chest' : (canLoad ? ' — click to load smelter' : (canEquip ? ' — click to equip' : (canEquipPouch ? ' — click to equip pouch' : ' · drag to move')));
+        const holdHint = canUse ? ' · hold 2s to use bag/chest' : (canLoad ? ' — click to load smelter' : (canEquip ? ' — click to equip' : (canEquipPouch ? ' — click to equip pouch' : (canEquipFood ? ' — click to equip food' : ' · drag to move'))));
         html += `
-          <div class="item-slot filled drag-drop-target draggable-item${transferType ? ' transferable' : ''}${canLoad ? ' smelt-ore-pick' : ''}${canUse ? ' hold-use-slot' : ''}${canEquip ? ' equip-item-slot' : ''}${canEquipPouch ? ' equip-pouch-slot' : ''}"${tipAttr(slot.resourceId)}
-            draggable="true" data-drag-kind="${dragKind}" data-drag-idx="${idx}" title="${resName(slot.resourceId)}${tapHint}${holdHint}"${dropAttrs}${transferAttr}${smeltAttr}${holdAttr}${equipAttr}${pouchAttr}>
+          <div class="item-slot filled drag-drop-target draggable-item${transferType ? ' transferable' : ''}${canLoad ? ' smelt-ore-pick' : ''}${canUse ? ' hold-use-slot' : ''}${canEquip ? ' equip-item-slot' : ''}${canEquipPouch ? ' equip-pouch-slot' : ''}${canEquipFood ? ' equip-food-slot' : ''}"${tipAttr(slot.resourceId)}
+            draggable="true" data-drag-kind="${dragKind}" data-drag-idx="${idx}" title="${resName(slot.resourceId)}${tapHint}${holdHint}"${dropAttrs}${transferAttr}${smeltAttr}${holdAttr}${equipAttr}${pouchAttr}${foodAttr}>
             <span class="item-slot-icon">${resIcon(slot.resourceId, 'game-icon')}</span>
             <span class="item-slot-qty">${fmt(slot.amount)}</span>
             ${canUse ? '<span class="hold-use-ring"></span>' : ''}
@@ -1113,6 +1121,25 @@
       </div>`;
   }
 
+  function renderFoodSlotBox(item, slotKey, label) {
+    const def = item ? C.CONSUMABLE_ITEMS?.[item] : null;
+    const inner = item ? resIcon(item, 'game-icon lg') : '';
+    const dragAttrs = item
+      ? ` draggable="true" data-drag-kind="food" data-food-slot="${slotKey}" data-action="unequip-food" data-food-slot="${slotKey}"`
+      : '';
+    const effectLine = def?.type === 'food'
+      ? `<p class="equip-stat-line">+${def.heal ?? 20} HP below ${Math.round((def.threshold ?? 0.5) * 100)}%</p>`
+      : '';
+    return `
+      <div class="equip-slot food-slot">
+        <span class="equip-slot-label">${label}</span>
+        <div class="equip-slot-box drag-drop-target${item ? ' filled draggable-item' : ''}"${item ? tipAttr(item) : ''}
+          data-drop-zone="food" data-food-slot="${slotKey}"${dragAttrs}
+          title="${label}${item ? ` — ${itemTipText(item)}` : ' · drag food here'}">${inner}</div>
+        ${effectLine}
+      </div>`;
+  }
+
   function renderEquipmentPanel() {
     const char = selectedChar();
     if (!char) return '<p class="empty-msg">Select a character from the Characters page.</p>';
@@ -1137,6 +1164,9 @@
     const capSlots = (C.CAPACITY_SLOTS || []).map((def) =>
       renderCapacitySlotBox(char.capacitySlots?.[def.id], def.id, def.label),
     ).join('');
+    const foodSlots = (C.FOOD_SLOTS || []).map((def) =>
+      renderFoodSlotBox(char.foodSlots?.[def.id], def.id, def.label),
+    ).join('');
     return `
       <header class="page-header">
         <span class="page-header-icon">🛡</span>
@@ -1156,6 +1186,10 @@
           <section class="storage-panel slot-panel-fit">
             <h3 class="storage-half-title">Capacity</h3>
             <div class="capacity-grid">${capSlots}</div>
+          </section>
+          <section class="storage-panel slot-panel-fit">
+            <h3 class="storage-half-title">Food</h3>
+            <div class="food-grid">${foodSlots}</div>
           </section>
         </section>
         <section class="skill-split-side storage-panel slot-panel-fit">
@@ -1602,6 +1636,16 @@
       render();
       return;
     }
+    const foodBtn = origin.closest?.('[data-action="equip-food"]');
+    if (foodBtn && !e.shiftKey) {
+      e.stopPropagation();
+      const char = selectedChar();
+      if (char && E.equipFood(state, char, Number(foodBtn.dataset.inv), foodBtn.dataset.foodSlot)) {
+        addLog('Equipped food.');
+      } else addLog('Cannot equip food — inventory full.');
+      render();
+      return;
+    }
     const btn = origin.closest?.('[data-action]');
     if (!btn) return false;
     if (btn.disabled) return true;
@@ -1701,6 +1745,16 @@
       if (char && E.unequipCapacityPouch(state, char, btn.dataset.capacityCategory)) {
         addLog('Unequipped capacity pouch.');
       } else addLog('Cannot unequip pouch — inventory full.');
+      render();
+      return;
+    }
+    if (action === 'unequip-food') {
+      if (Date.now() < suppressClickUntil) return;
+      e.stopPropagation();
+      const char = selectedChar();
+      if (char && E.unequipFood(state, char, btn.dataset.foodSlot)) {
+        addLog('Unequipped food.');
+      } else addLog('Cannot unequip food — inventory full.');
       render();
       return;
     }
@@ -1842,6 +1896,7 @@
     if (origin.closest('[data-collect-type]')) return origin;
     if (origin.closest('[data-action="equip-item"]')) return origin;
     if (origin.closest('[data-action="equip-pouch"]')) return origin;
+    if (origin.closest('[data-action="equip-food"]')) return origin;
     if (origin.closest('[data-action]')) return origin;
     if (activePage === 'storage' && origin.closest('[data-transfer-type]')) return origin;
     return null;
@@ -1957,6 +2012,7 @@
     if (kind === 'storage') return { kind: 'storage', idx: Number(el.dataset.dragIdx) };
     if (kind === 'equip') return { kind: 'equip', slotType: el.dataset.slotType, key: el.dataset.slotKey, charIdx };
     if (kind === 'capacity') return { kind: 'capacity', category: el.dataset.capacityCategory, charIdx };
+    if (kind === 'food') return { kind: 'food', slotKey: el.dataset.foodSlot, charIdx };
     return null;
   }
 
@@ -1981,6 +2037,11 @@
     } else if (payload.kind === 'capacity') {
       const char = state.characters[payload.charIdx];
       const item = char?.capacitySlots?.[payload.category];
+      if (!item) return;
+      label = resName(item);
+    } else if (payload.kind === 'food') {
+      const char = state.characters[payload.charIdx];
+      const item = char?.foodSlots?.[payload.slotKey];
       if (!item) return;
       label = resName(item);
     } else return;
@@ -2013,6 +2074,9 @@
     } else if (payload.kind === 'capacity') {
       const char = state.characters[payload.charIdx];
       ok = char && E.destroyCapacityPouch(state, char, payload.category);
+    } else if (payload.kind === 'food') {
+      const char = state.characters[payload.charIdx];
+      ok = char && E.destroyFood(state, char, payload.slotKey);
     }
     addLog(ok ? 'Item deleted.' : 'Could not delete item.');
     render();
@@ -2051,6 +2115,11 @@
           addLog('Unequipped capacity pouch.');
           render();
         } else addLog('Cannot unequip pouch — slot occupied or full.');
+      } else if (payload.kind === 'food') {
+        if (payload.charIdx === selectedIndex() && E.unequipFood(state, char, payload.slotKey, toIdx)) {
+          addLog('Unequipped food.');
+          render();
+        } else addLog('Cannot unequip food — slot occupied or full.');
       } else if (payload.kind === 'storage') {
         const moved = S.transferStorageToInvSlot(state, char, payload.idx, toIdx);
         if (moved > 0) {
@@ -2092,6 +2161,15 @@
         addLog('Equipped capacity pouch.');
         render();
       } else addLog('Cannot equip — wrong pouch type or inventory full.');
+      return;
+    }
+
+    if (dropZone === 'food' && payload.kind === 'inv') {
+      const slotKey = zone.dataset.foodSlot;
+      if (E.equipFood(state, char, payload.idx, slotKey)) {
+        addLog('Equipped food.');
+        render();
+      } else addLog('Cannot equip food — wrong item or inventory full.');
     }
   }
 
