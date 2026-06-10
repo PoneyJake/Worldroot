@@ -42,7 +42,7 @@
     { id: 'iron_sword', name: 'Iron Sword', category: 'weapon', equip: { kind: 'equipment', slot: 'weapon', classId: 'warrior' },
       costs: [{ res: 'copper_sword', amt: 1 }, { res: 'iron_bar', amt: 125 }] },
     { id: 'iron_bow', name: 'Iron Bow', category: 'weapon', equip: { kind: 'equipment', slot: 'weapon', classId: 'archer' },
-      costs: [{ res: 'copper_bow', amt: 1 }, { res: 'birch', amt: 500 }] },
+      costs: [{ res: 'copper_bow', amt: 1 }, { res: 'spruce', amt: 500 }] },
     { id: 'iron_staff', name: 'Iron Staff', category: 'weapon', equip: { kind: 'equipment', slot: 'weapon', classId: 'sorcerer' },
       costs: [{ res: 'copper_staff', amt: 1 }, { res: 'trout', amt: 500 }] },
     // Iron tools
