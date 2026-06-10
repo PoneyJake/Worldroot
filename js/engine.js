@@ -525,18 +525,29 @@
     char.foodCd = Math.max(0, char.foodCd - dtSec);
   }
 
+  function normalizeFoodSlot(slot) {
+    if (!slot) return null;
+    if (typeof slot === 'string') return { resourceId: slot, amount: 1 };
+    if (slot.resourceId && (slot.amount ?? 0) > 0) {
+      return { resourceId: slot.resourceId, amount: slot.amount };
+    }
+    return null;
+  }
+
   function tryAutoEatFood(state, char, cs) {
     if (!cs || cs.charHp <= 0 || cs.respawnSec > 0) return false;
     const slotKey = C.FOOD_SLOTS?.[0]?.id ?? 'food';
-    const itemId = char.foodSlots?.[slotKey];
-    const def = foodItemDef(itemId);
+    const foodSlot = normalizeFoodSlot(char.foodSlots?.[slotKey]);
+    if (!foodSlot) return false;
+    const def = foodItemDef(foodSlot.resourceId);
     if (!def) return false;
     if ((char.foodCd || 0) > 0) return false;
     if (cs.charHp / cs.charMaxHp >= (def.threshold ?? 0.5)) return false;
 
     cs.charHp = Math.min(cs.charMaxHp, cs.charHp + (def.heal ?? 20));
     char.foodCd = def.cooldownSec ?? 30;
-    char.foodSlots[slotKey] = null;
+    foodSlot.amount -= 1;
+    char.foodSlots[slotKey] = foodSlot.amount > 0 ? foodSlot : null;
     return true;
   }
 
@@ -832,42 +843,52 @@
 
   function equipFood(state, char, invIdx, slotKey = null) {
     const key = slotKey || C.FOOD_SLOTS?.[0]?.id || 'food';
-    const slot = char.inventorySlots[invIdx];
-    if (!slot?.amount || !canEquipFood(char, slot.resourceId)) return false;
-    const itemId = slot.resourceId;
+    const invSlot = char.inventorySlots[invIdx];
+    if (!invSlot?.amount || !canEquipFood(char, invSlot.resourceId)) return false;
+    const itemId = invSlot.resourceId;
+    const moveAmt = invSlot.amount;
     if (!char.foodSlots) char.foodSlots = S.defaultFoodSlots();
-    const prev = char.foodSlots[key];
-    S.removeFromInventorySlot(char, invIdx, 1);
-    if (prev) {
-      const back = S.addToInventory(char, state, prev, 1, 'combat');
-      if (back.added < 1) {
-        S.addToInventory(char, state, itemId, 1, 'combat');
-        return false;
-      }
+
+    const current = normalizeFoodSlot(char.foodSlots[key]);
+    if (current && current.resourceId !== itemId) {
+      const back = S.addToInventory(char, state, current.resourceId, current.amount, 'combat');
+      if (back.added < current.amount) return false;
+      char.foodSlots[key] = null;
     }
-    char.foodSlots[key] = itemId;
+
+    S.removeFromInventorySlot(char, invIdx, moveAmt);
+    const existing = normalizeFoodSlot(char.foodSlots[key]);
+    char.foodSlots[key] = existing && existing.resourceId === itemId
+      ? { resourceId: itemId, amount: existing.amount + moveAmt }
+      : { resourceId: itemId, amount: moveAmt };
     S.saveState(state);
     return true;
   }
 
   function unequipFood(state, char, slotKey, invIdx = null) {
     const key = slotKey || C.FOOD_SLOTS?.[0]?.id || 'food';
-    const itemId = char.foodSlots?.[key];
-    if (!itemId) return false;
+    const foodSlot = normalizeFoodSlot(char.foodSlots?.[key]);
+    if (!foodSlot) return false;
+
     if (invIdx != null) {
-      if (!S.placeInInventorySlot(state, char, invIdx, itemId, 1)) return false;
-    } else {
-      const back = S.addToInventory(char, state, itemId, 1, 'combat');
-      if (back.added < 1) return false;
+      if (S.placeInInventorySlot(state, char, invIdx, foodSlot.resourceId, foodSlot.amount)) {
+        char.foodSlots[key] = null;
+        S.saveState(state);
+        return true;
+      }
     }
-    char.foodSlots[key] = null;
+
+    const back = S.addToInventory(char, state, foodSlot.resourceId, foodSlot.amount, 'combat');
+    if (back.added < 1) return false;
+    foodSlot.amount -= back.added;
+    char.foodSlots[key] = foodSlot.amount > 0 ? foodSlot : null;
     S.saveState(state);
     return true;
   }
 
   function destroyFood(state, char, slotKey) {
     const key = slotKey || C.FOOD_SLOTS?.[0]?.id || 'food';
-    if (!char.foodSlots?.[key]) return false;
+    if (!normalizeFoodSlot(char.foodSlots?.[key])) return false;
     char.foodSlots[key] = null;
     S.saveState(state);
     return true;

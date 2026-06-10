@@ -2507,6 +2507,23 @@ button,
   height: 68px;
 }
 
+.food-slot-box {
+  position: relative;
+}
+
+.food-slot-qty {
+  position: absolute;
+  right: 2px;
+  bottom: 2px;
+  padding: 1px 4px;
+  border-radius: 4px;
+  background: rgba(8, 12, 8, 0.85);
+  color: #dce6d8;
+  font-size: 0.68rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
 .capacity-slot .equip-slot-box {
   width: 68px;
   height: 68px;

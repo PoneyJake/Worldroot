@@ -125,6 +125,19 @@
     return f;
   }
 
+  function migrateFoodSlots(raw) {
+    const slots = defaultFoodSlots();
+    for (const def of C.FOOD_SLOTS || []) {
+      const val = raw?.[def.id];
+      if (!val) continue;
+      if (typeof val === 'string') slots[def.id] = { resourceId: val, amount: 1 };
+      else if (val.resourceId && (val.amount ?? 0) > 0) {
+        slots[def.id] = { resourceId: val.resourceId, amount: val.amount };
+      }
+    }
+    return slots;
+  }
+
   function defaultQuestProgress() {
     return { kills: {}, gathered: {}, produced: {} };
   }
@@ -329,7 +342,7 @@
       capacitySlots: { ...defaultCapacitySlots(), ...(c.capacitySlots || {}) },
       equipment: { ...defaultEquipment(), ...c.equipment },
       tools: { ...defaultTools(), ...c.tools },
-      foodSlots: { ...defaultFoodSlots(), ...(c.foodSlots || {}) },
+      foodSlots: migrateFoodSlots(c.foodSlots),
       foodCd: c.foodCd ?? 0,
       gatherCd: c.gatherCd ?? 0,
       combatCd: c.combatCd ?? 0,

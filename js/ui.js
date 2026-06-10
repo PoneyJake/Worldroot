@@ -1126,9 +1126,16 @@
       </div>`;
   }
 
-  function renderFoodSlotBox(item, slotKey, label) {
+  function renderFoodSlotBox(slot, slotKey, label) {
+    const normalized = slot && typeof slot === 'string'
+      ? { resourceId: slot, amount: 1 }
+      : slot;
+    const item = normalized?.resourceId;
+    const qty = normalized?.amount ?? 0;
     const def = item ? C.CONSUMABLE_ITEMS?.[item] : null;
-    const inner = item ? resIcon(item, 'game-icon lg') : '';
+    const inner = item
+      ? `${resIcon(item, 'game-icon lg')}${qty > 0 ? `<span class="food-slot-qty">${fmt(qty)}</span>` : ''}`
+      : '';
     const dragAttrs = item
       ? ` draggable="true" data-drag-kind="food" data-food-slot="${slotKey}" data-action="unequip-food" data-food-slot="${slotKey}"`
       : '';
@@ -1138,9 +1145,9 @@
     return `
       <div class="equip-slot food-slot">
         <span class="equip-slot-label">${label}</span>
-        <div class="equip-slot-box drag-drop-target${item ? ' filled draggable-item' : ''}"${item ? tipAttr(item) : ''}
+        <div class="equip-slot-box food-slot-box drag-drop-target${item ? ' filled draggable-item' : ''}"${item ? tipAttr(item) : ''}
           data-drop-zone="food" data-food-slot="${slotKey}"${dragAttrs}
-          title="${label}${item ? ` — ${itemTipText(item)}` : ' · drag food here'}">${inner}</div>
+          title="${label}${item ? ` — ${fmt(qty)} × ${itemTipText(item)}` : ' · drag food here'}">${inner}</div>
         ${effectLine}
       </div>`;
   }
@@ -2076,9 +2083,12 @@
       label = resName(item);
     } else if (payload.kind === 'food') {
       const char = state.characters[payload.charIdx];
-      const item = char?.foodSlots?.[payload.slotKey];
-      if (!item) return;
-      label = resName(item);
+      const foodSlot = char?.foodSlots?.[payload.slotKey];
+      const normalized = foodSlot && typeof foodSlot === 'string'
+        ? { resourceId: foodSlot, amount: 1 }
+        : foodSlot;
+      if (!normalized?.resourceId) return;
+      label = `${fmt(normalized.amount ?? 1)} × ${resName(normalized.resourceId)}`;
     } else return;
     trashModal = payload;
     const modal = $('trash-modal');
