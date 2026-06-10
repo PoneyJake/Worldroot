@@ -21,6 +21,7 @@
   let leaderboardEntries = null;
   let leaderboardError = null;
   let leaderboardLoading = false;
+  let detailPanel = null;
   let logBuffer = [];
   let holdTimer = null;
   let holdEl = null;
@@ -288,8 +289,9 @@
     if (item?.comingSoon) return;
     if (pageId !== 'storage') closeTransferModal();
     activePage = pageId;
+    detailPanel = pageId === 'crafting' ? { kind: 'craft' } : null;
     renderSidebar();
-    renderMainPanel();
+    render();
     if (pageId === 'leaderboard') refreshLeaderboard();
   }
 
@@ -593,6 +595,119 @@
 
   /* ── Combat ── */
 
+  function renderCombatDetail(mobId) {
+    const mob = C.MONSTERS.find((m) => m.id === mobId);
+    if (!mob) return '';
+    const char = selectedChar();
+    const rateChar = char || state.characters[0];
+    const rates = rateChar ? E.getTheoreticalCombatRates(state, rateChar, mob) : { xpHr: 0, killsHr: 0, hitPct: 0 };
+    const xpPerKill = rateChar ? E.combatXpPerKill(state, rateChar, mob) : 0;
+    const hitPct = rateChar ? (rates.hitPct * 100).toFixed(0) : '0';
+    const best = char ? charSkillLevel(char, 'combat') : bestSkillLevel('combat');
+    const locked = best < mob.level;
+    const on = char?.activity === 'combat' && char?.target === mob.id;
+
+    return `
+      <div class="detail-panel-inner">
+        <div class="detail-panel-head">
+          ${iconHtml(mob.id, 'game-icon xl')}
+          <h2>${mob.name}</h2>
+          <p class="detail-panel-sub">Lv ${mob.level} monster</p>
+        </div>
+        <div class="detail-stat-grid">
+          <div class="detail-stat"><span>HP</span><strong>${E.mobMaxHp(mob)}</strong></div>
+          <div class="detail-stat"><span>Damage</span><strong>${mob.damage}</strong></div>
+          <div class="detail-stat"><span>XP / kill</span><strong>${fmt(xpPerKill)}</strong></div>
+          <div class="detail-stat"><span>Accuracy req.</span><strong>${mob.accuracy ?? 0}</strong></div>
+          <div class="detail-stat"><span>Hit chance</span><strong>${hitPct}%</strong></div>
+          <div class="detail-stat"><span>XP / hr</span><strong>${fmt(rates.xpHr)}</strong></div>
+          <div class="detail-stat"><span>Kills / hr</span><strong>${fmt(rates.killsHr)}</strong></div>
+          <div class="detail-stat"><span>Attack speed</span><strong>${rateChar ? E.combatAttackSec(state, rateChar).toFixed(2) : C.COMBAT_ATTACK_SEC}s</strong></div>
+        </div>
+        ${renderMobDrops(mob)}
+        ${locked ? `<p class="empty-msg">Requires Combat Lv ${mob.level}</p>` : `<div class="detail-panel-actions">${renderAssignBtn('combat', mob.id, false)}</div>`}
+        ${on ? '<p class="activity-assigned"><strong>Fighting now</strong></p>' : ''}
+      </div>`;
+  }
+
+  function renderGatherDetail(skillId, veinId) {
+    const sk = C.SKILLS[skillId];
+    const vein = C.VEINS[skillId]?.find((v) => v.id === veinId);
+    if (!vein || !sk) return '';
+    const char = selectedChar();
+    const labels = gatherStatLabels(skillId);
+    const best = char ? charSkillLevel(char, skillId) : bestSkillLevel(skillId);
+    const locked = best < vein.minLevel;
+    const on = char?.activity === sk.activity && char?.target === vein.id;
+    const xpPerAction = char ? E.gatherXpPerAction(state, char, skillId, vein) : (vein.xp ?? 5);
+    const catchRaw = char ? E.gatherCatchDisplayPercent(state, char, skillId, vein) : 0;
+    const catchPct = catchRaw >= 100 ? catchRaw.toFixed(0) : catchRaw.toFixed(1);
+    const thresholds = E.gatherPlusOneThresholds(vein);
+    const gatherSec = char ? E.gatherIntervalTicks(state, char, skillId) * (C.TICK_MS / 1000) : 0;
+    const eff = char ? E.gatherEfficiency(state, char, skillId) : 0;
+    const multiPct = char ? (E.gatherMultiChance(state, char, skillId) * 100).toFixed(1) : '0';
+    const resLabel = skillId === 'mining' ? 'ore' : skillId === 'woodcutting' ? 'log' : 'fish';
+    const gatherPct = on && char ? Math.min(100, ((char.gatherCd || 0) / E.gatherIntervalTicks(state, char, skillId)) * 100) : 0;
+
+    return `
+      <div class="detail-panel-inner">
+        <div class="detail-panel-head">
+          ${iconHtml(vein.icon, 'game-icon gather')}
+          <h2>${vein.name}</h2>
+          <p class="detail-panel-sub">${resName(vein.resource)} · Lv ${vein.minLevel}</p>
+        </div>
+        <div class="detail-stat-grid">
+          <div class="detail-stat"><span>XP / gather</span><strong>${fmt(xpPerAction)}</strong></div>
+          <div class="detail-stat"><span>Speed</span><strong>${gatherSec}s</strong></div>
+          <div class="detail-stat"><span>${labels.eff}</span><strong>${eff}</strong></div>
+          <div class="detail-stat"><span>${labels.chance}</span><strong>${catchPct}%</strong></div>
+          <div class="detail-stat"><span>${labels.multi}</span><strong>${multiPct}%</strong></div>
+          <div class="detail-stat"><span>10% +1 ${resLabel}</span><strong>${fmt(thresholds.effFor10)} eff</strong></div>
+          <div class="detail-stat"><span>100% +1 ${resLabel}</span><strong>${fmt(thresholds.effFor100)} eff</strong></div>
+        </div>
+        ${on ? `<div class="progress-bar"><div class="progress-bar-fill" data-gather-progress data-gather-vein="${vein.id}" style="width:${gatherPct}%"></div></div>` : ''}
+        ${locked ? `<p class="empty-msg">Requires ${sk.name} Lv ${vein.minLevel}</p>` : `<div class="detail-panel-actions">${renderAssignBtn(sk.activity, vein.id, false)}</div>`}
+        ${on ? '<p class="activity-assigned"><strong>Active on selected hero</strong></p>' : ''}
+      </div>`;
+  }
+
+  function renderCraftDetailPanel() {
+    const char = selectedChar();
+    if (!char) return '<p class="empty-msg">Select a character.</p>';
+    return `
+      <div class="detail-panel-inner">
+        <h2 class="detail-panel-title">Inventory</h2>
+        <p class="detail-panel-sub">${charLabel(char)}</p>
+        ${renderPagedInventory(char, { transferType: 'inv', gridClass: 'grid-inv-4' })}
+      </div>`;
+  }
+
+  function renderDetailPanel() {
+    const el = $('panel-detail');
+    if (!el) return;
+
+    if (activePage === 'crafting') {
+      el.classList.remove('hidden');
+      el.innerHTML = renderCraftDetailPanel();
+      return;
+    }
+
+    if (detailPanel?.kind === 'combat') {
+      el.classList.remove('hidden');
+      el.innerHTML = renderCombatDetail(detailPanel.id);
+      return;
+    }
+
+    if (detailPanel?.kind === 'gather') {
+      el.classList.remove('hidden');
+      el.innerHTML = renderGatherDetail(detailPanel.skillId, detailPanel.id);
+      return;
+    }
+
+    el.classList.add('hidden');
+    el.innerHTML = '';
+  }
+
   function renderCombatArena(char) {
     if (!char || char.activity !== 'combat' || !char.target) return '';
     const monster = C.MONSTERS.find((m) => m.id === char.target);
@@ -631,33 +746,23 @@
     const char = selectedChar();
     const best = char ? charSkillLevel(char, 'combat') : bestSkillLevel('combat');
     const arena = renderCombatArena(char);
-    const rateChar = char || state.characters[0];
     const cards = C.MONSTERS.map((mob) => {
-      const rates = rateChar ? E.getTheoreticalCombatRates(state, rateChar, mob) : { xpHr: 0, killsHr: 0, hitPct: 0 };
-      const xpPerKill = rateChar ? E.combatXpPerKill(state, rateChar, mob) : 0;
-      const hitPct = rateChar ? (rates.hitPct * 100).toFixed(0) : '0';
       const locked = best < mob.level;
       const on = char?.activity === 'combat' && char?.target === mob.id;
-      const accNeed = mob.accuracy ?? 0;
+      const selected = detailPanel?.kind === 'combat' && detailPanel.id === mob.id;
 
       return `
-        <article class="activity-card ${locked ? 'locked' : ''}">
+        <article class="activity-card activity-card-compact${locked ? ' locked' : ''}${on ? ' activity-assigned-card' : ''}${selected ? ' detail-selected' : ''}"
+          data-action="select-detail" data-detail-kind="combat" data-detail-id="${mob.id}" role="button" tabindex="0">
           <div class="activity-card-head">
-            <span class="activity-card-icon">${iconHtml(mob.id, 'game-icon xl')}</span>
+            <span class="activity-card-icon">${iconHtml(mob.id, 'game-icon lg')}</span>
             <div class="activity-card-title">
               <strong>${mob.name}</strong>
-              <span>Lv ${mob.level} · ${E.mobMaxHp(mob)} HP · ${mob.damage} dmg · ${fmt(xpPerKill)} XP/kill · ${accNeed} acc</span>
+              <span>Lv ${mob.level}</span>
             </div>
           </div>
-          <div class="activity-stats">
-            <div class="activity-stat"><span class="activity-stat-label">Hit chance</span><span class="activity-stat-value">${hitPct}%</span></div>
-            <div class="activity-stat"><span class="activity-stat-label">XP/hr</span><span class="activity-stat-value">${fmt(rates.xpHr)}</span></div>
-            <div class="activity-stat"><span class="activity-stat-label">Kills/hr</span><span class="activity-stat-value">${fmt(rates.killsHr)}</span></div>
-            <div class="activity-stat"><span class="activity-stat-label">Attack speed</span><span class="activity-stat-value">${E.combatAttackSec(state, rateChar || char).toFixed(2)}s</span></div>
-          </div>
-          ${renderMobDrops(mob)}
-          ${locked ? `<p class="empty-msg">Requires Combat Lv ${mob.level}</p>` : `<div class="activity-actions">${renderAssignBtn('combat', mob.id, false)}</div>`}
-          ${on ? '<p class="activity-assigned"><strong>Fighting now</strong></p>' : ''}
+          ${on ? '<p class="activity-assigned compact">Active</p>' : ''}
+          ${locked ? `<p class="empty-msg compact">Lv ${mob.level} req.</p>` : ''}
         </article>`;
     }).join('');
 
@@ -671,7 +776,7 @@
       ${combatSkill ? renderSkillXpBar(combatSkill, 'Combat XP') : ''}
       ${pageCharBar()}
       ${arena}
-      <div class="activity-grid">${cards}</div>`;
+      <div class="activity-grid activity-grid-compact">${cards}</div>`;
   }
 
   /* ── Gathering ── */
@@ -686,66 +791,26 @@
     const veins = C.VEINS[sk.id] ?? [];
     const char = selectedChar();
     const best = char ? charSkillLevel(char, sk.id) : bestSkillLevel(sk.id);
-    const labels = gatherStatLabels(sk.id);
-    const eff = char ? E.gatherEfficiency(state, char, sk.id) : 0;
-    const multiPct = char ? (E.gatherMultiChance(state, char, sk.id) * 100).toFixed(1) : '0';
-    const gatherSec = E.gatherIntervalTicks(state, char, sk.id) * (C.TICK_MS / 1000);
-    const resLabel = sk.id === 'mining' ? 'ore' : sk.id === 'woodcutting' ? 'log' : 'fish';
 
     const cards = veins.map((vein) => {
-      const xpPerAction = char ? E.gatherXpPerAction(state, char, sk.id, vein) : (vein.xp ?? 5);
       const locked = best < vein.minLevel;
       const on = char?.activity === sk.activity && char?.target === vein.id;
-      const gatherPct = on ? Math.min(100, ((char.gatherCd || 0) / E.gatherIntervalTicks(state, char, sk.id)) * 100) : 0;
-      const catchRaw = char ? E.gatherCatchDisplayPercent(state, char, sk.id, vein) : 0;
-      const catchPct = catchRaw >= 100 ? catchRaw.toFixed(0) : catchRaw.toFixed(1);
-      const thresholds = E.gatherPlusOneThresholds(vein);
+      const selected = detailPanel?.kind === 'gather' && detailPanel.skillId === sk.id && detailPanel.id === vein.id;
 
       return `
-        <article class="activity-card ${locked ? 'locked' : ''}">
+        <article class="activity-card activity-card-compact${locked ? ' locked' : ''}${on ? ' activity-assigned-card' : ''}${selected ? ' detail-selected' : ''}"
+          data-action="select-detail" data-detail-kind="gather" data-detail-skill="${sk.id}" data-detail-id="${vein.id}" role="button" tabindex="0">
           <div class="activity-card-head">
             <span class="activity-card-icon">${iconHtml(vein.icon, 'game-icon gather')}</span>
             <div class="activity-card-title">
               <strong>${vein.name}</strong>
-              <span>Lv ${vein.minLevel} · ${resName(vein.resource)} · ${fmt(xpPerAction)} XP/gather</span>
+              <span>Lv ${vein.minLevel} · ${resName(vein.resource)}</span>
             </div>
           </div>
-          <div class="vein-stat-trio">
-            <div class="vein-stat-box">
-              <span class="vein-stat-label">${labels.chance}</span>
-              <span class="vein-stat-value">${catchPct}%</span>
-            </div>
-            <div class="vein-stat-box">
-              <span class="vein-stat-label">10% +1 ${resLabel}</span>
-              <span class="vein-stat-value">${fmt(thresholds.effFor10)} eff</span>
-            </div>
-            <div class="vein-stat-box">
-              <span class="vein-stat-label">100% +1 ${resLabel}</span>
-              <span class="vein-stat-value">${fmt(thresholds.effFor100)} eff</span>
-            </div>
-          </div>
-          ${on ? `<div class="progress-bar"><div class="progress-bar-fill" data-gather-progress data-gather-vein="${vein.id}" style="width:${gatherPct}%"></div></div>` : ''}
-          ${locked ? `<p class="empty-msg">Requires ${sk.name} Lv ${vein.minLevel}</p>` : `<div class="activity-actions">${renderAssignBtn(sk.activity, vein.id, false)}</div>`}
-          ${on ? '<p class="activity-assigned"><strong>Active on selected hero</strong></p>' : ''}
+          ${on ? '<p class="activity-assigned compact">Active</p>' : ''}
+          ${locked ? `<p class="empty-msg compact">Lv ${vein.minLevel} req.</p>` : ''}
         </article>`;
     }).join('');
-
-    const summaryStats = char ? `
-      <div class="gather-summary-stats">
-        <div class="gather-summary-stat">
-          <span class="gather-summary-label">Speed</span>
-          <span class="gather-summary-value">${gatherSec}s</span>
-          <span class="gather-summary-sub">per ${resLabel}</span>
-        </div>
-        <div class="gather-summary-stat">
-          <span class="gather-summary-label">${labels.eff}</span>
-          <span class="gather-summary-value">${eff}</span>
-        </div>
-        <div class="gather-summary-stat">
-          <span class="gather-summary-label">${labels.multi}</span>
-          <span class="gather-summary-value">${multiPct}%</span>
-        </div>
-      </div>` : '';
 
     const gatherSkill = char?.skills?.[sk.id];
     return `
@@ -756,8 +821,7 @@
       </header>
       ${gatherSkill ? renderSkillXpBar(gatherSkill, `${sk.name} XP`) : ''}
       ${pageCharBar()}
-      ${summaryStats}
-      <div class="activity-grid">${cards}</div>`;
+      <div class="activity-grid activity-grid-compact">${cards}</div>`;
   }
 
   /* ── Smelting ── */
@@ -1083,49 +1147,37 @@
   function renderCraftingPage(sk) {
     const char = selectedChar();
     if (!char) return '<p class="empty-msg">Select a character to craft.</p>';
-    const cls = C.CLASSES[char.classId];
     const tabs = (C.CRAFT_CATEGORIES || []).map((cat) =>
       `<button type="button" class="quest-track-tab${craftCategory === cat.id ? ' active' : ''}" data-action="craft-category" data-category="${cat.id}">${cat.icon} ${cat.label}</button>`,
     ).join('');
     const filtered = (C.CRAFT_RECIPES || []).filter((r) => r.category === craftCategory);
     const recipes = filtered.map((recipe) => {
       const costs = recipe.costs.map((c) =>
-        `<span class="craft-cost-chip">${resIcon(c.res, 'game-icon md')} <strong>${fmt(c.amt)}</strong></span>`,
+        `<span class="craft-cost-chip compact">${resIcon(c.res, 'game-icon sm')} <strong>${fmt(c.amt)}</strong></span>`,
       ).join('');
       const can = E.canCraft(state, char, recipe.id);
       const canStorage = E.canCraftFromStorage(state, char, recipe.id);
-      const eqDef = C.EQUIP_ITEM_SLOTS?.[recipe.output];
-      const classNote = eqDef?.classId ? `<p class="craft-class-note">${C.CLASSES[eqDef.classId]?.name} only</p>` : '';
-      const statLine = formatGearStats(recipe.output);
       return `
-        <article class="activity-card craft-card craft-card-lg">
-          <div class="shop-card-icon">${resIcon(recipe.output, 'game-icon xl')}</div>
-          <strong>${resName(recipe.output)}</strong>
-          ${classNote}
-          ${statLine ? `<p class="craft-stat-line">${statLine}</p>` : ''}
-          <div class="craft-cost-row">${costs}</div>
-          <div class="craft-card-actions">
-            <button type="button" class="btn-sm primary" data-action="craft-item" data-recipe="${recipe.id}" ${!can ? 'disabled' : ''}>Craft (inventory)</button>
-            <button type="button" class="btn-sm ghost" data-action="craft-item-storage" data-recipe="${recipe.id}" ${!canStorage ? 'disabled' : ''}>Craft (storage)</button>
+        <article class="activity-card craft-card craft-card-compact">
+          <div class="craft-card-top">
+            ${resIcon(recipe.output, 'game-icon lg')}
+            <strong>${resName(recipe.output)}</strong>
+          </div>
+          <div class="craft-cost-row compact">${costs}</div>
+          <div class="craft-card-actions compact">
+            <button type="button" class="btn-sm primary" data-action="craft-item" data-recipe="${recipe.id}" ${!can ? 'disabled' : ''}>Inv</button>
+            <button type="button" class="btn-sm ghost" data-action="craft-item-storage" data-recipe="${recipe.id}" ${!canStorage ? 'disabled' : ''}>Stor</button>
           </div>
         </article>`;
     }).join('');
     return `
       <header class="page-header">
         <span class="page-header-icon">${sk.icon}</span>
-        <div class="page-header-text"><h1>${sk.name}</h1><p>${cls.name} — craft gear then click items in inventory to equip</p></div>
+        <div class="page-header-text"><h1>${sk.name}</h1><p>Craft gear — inventory on the right</p></div>
       </header>
       ${pageCharBar()}
       <div class="quest-track-tabs">${tabs}</div>
-      <div class="skill-split-layout">
-        <section class="skill-split-main">
-          <div class="activity-grid craft-grid craft-grid-lg">${recipes || '<p class="empty-msg">No recipes in this category.</p>'}</div>
-        </section>
-        <section class="skill-split-side storage-panel slot-panel-fit">
-          <h3 class="storage-half-title">${charLabel(char)}'s Inventory</h3>
-          ${renderPagedInventory(char, { transferType: 'inv', gridClass: 'grid-inv-4' })}
-        </section>
-      </div>`;
+      <div class="activity-grid craft-grid craft-grid-compact">${recipes || '<p class="empty-msg">No recipes in this category.</p>'}</div>`;
   }
 
   function renderComingSoon(sk) {
@@ -1248,6 +1300,7 @@
     renderHud();
     renderSidebar();
     renderMainPanel();
+    renderDetailPanel();
   }
 
   function handleClick(e) {
@@ -1258,7 +1311,7 @@
       const char = selectedChar();
       if (char && E.equipFromInventory(state, char, Number(equipBtn.dataset.inv))) {
         addLog('Equipped item.');
-      } else addLog('Cannot equip — wrong class or inventory full.');
+      } else addLog('Cannot equip — inventory full.');
       render();
       return;
     }
@@ -1267,6 +1320,13 @@
     const action = btn.dataset.action;
 
     if (action === 'switch-page') { switchPage(btn.dataset.page); return; }
+    if (action === 'select-detail') {
+      const kind = btn.dataset.detailKind;
+      if (kind === 'combat') detailPanel = { kind: 'combat', id: btn.dataset.detailId };
+      else if (kind === 'gather') detailPanel = { kind: 'gather', skillId: btn.dataset.detailSkill, id: btn.dataset.detailId };
+      render();
+      return;
+    }
     if (action === 'select-char') { S.selectCharacter(state, Number(btn.dataset.char)); render(); return; }
     if (action === 'pick-class') {
       S.addCharacter(state, btn.dataset.class);

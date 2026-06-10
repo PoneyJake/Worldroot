@@ -689,7 +689,6 @@
   function canEquipItem(char, itemId) {
     const def = C.EQUIP_ITEM_SLOTS?.[itemId];
     if (!def || !char) return false;
-    if (def.classId && def.classId !== char.classId) return false;
     return true;
   }
 

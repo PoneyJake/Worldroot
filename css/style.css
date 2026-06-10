@@ -194,6 +194,180 @@ body {
   background: #0f1410;
 }
 
+.main-content {
+  flex: 1;
+  min-width: 0;
+  overflow-y: auto;
+  background: #0f1410;
+}
+
+.page-body-split {
+  display: flex;
+  align-items: stretch;
+  min-height: 100%;
+  width: 100%;
+}
+
+.page-body-split .content-panel {
+  flex: 1;
+  min-width: 0;
+  max-width: none;
+}
+
+.detail-panel {
+  width: 340px;
+  flex-shrink: 0;
+  border-left: 1px solid #2a382a;
+  background: #0e140e;
+  padding: 16px;
+  overflow-y: auto;
+  animation: fadeIn 0.15s ease;
+}
+
+.detail-panel.hidden {
+  display: none;
+}
+
+.detail-panel-inner {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.detail-panel-head {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 8px;
+}
+
+.detail-panel-head h2 {
+  margin: 0;
+  font-size: 1.15rem;
+  color: #dce6d8;
+}
+
+.detail-panel-title {
+  margin: 0;
+  font-size: 1.1rem;
+  color: #dce6d8;
+}
+
+.detail-panel-sub {
+  margin: 0;
+  font-size: 0.82rem;
+  color: #7a8a76;
+}
+
+.detail-stat-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.detail-stat {
+  background: #161e16;
+  border: 1px solid #2a382a;
+  border-radius: 8px;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.detail-stat span {
+  font-size: 0.72rem;
+  color: #7a8a76;
+}
+
+.detail-stat strong {
+  font-size: 0.95rem;
+  color: #a8d5a2;
+}
+
+.detail-panel-actions {
+  margin-top: 4px;
+}
+
+.activity-grid-compact {
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 10px;
+}
+
+.activity-card-compact {
+  padding: 10px;
+  gap: 6px;
+  cursor: pointer;
+}
+
+.activity-card-compact.detail-selected {
+  border-color: #5a9a52;
+  box-shadow: 0 0 0 2px rgba(90, 154, 82, 0.35);
+}
+
+.activity-card-compact .activity-card-icon {
+  min-width: 2.5rem;
+}
+
+.activity-card-compact .activity-card-title strong {
+  font-size: 0.88rem;
+}
+
+.activity-card-compact .activity-card-title span {
+  font-size: 0.75rem;
+}
+
+.activity-assigned.compact,
+.empty-msg.compact {
+  margin: 0;
+  font-size: 0.72rem;
+}
+
+.craft-grid-compact {
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 8px;
+}
+
+.craft-card-compact {
+  padding: 8px;
+  gap: 6px;
+}
+
+.craft-card-top {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.craft-card-top strong {
+  font-size: 0.82rem;
+  line-height: 1.2;
+}
+
+.craft-cost-row.compact {
+  margin: 4px 0;
+  gap: 4px;
+}
+
+.craft-cost-chip.compact {
+  padding: 2px 5px;
+  font-size: 0.72rem;
+  gap: 3px;
+}
+
+.craft-card-actions.compact {
+  flex-direction: row;
+  justify-content: center;
+  gap: 4px;
+}
+
+.craft-card-actions.compact .btn-sm {
+  padding: 4px 8px;
+  font-size: 0.72rem;
+}
+
 .content-panel {
   padding: 20px 24px 32px;
   animation: fadeIn 0.15s ease;
@@ -1981,6 +2155,22 @@ body {
 
   .content-panel {
     padding: 14px 12px 24px;
+  }
+
+  .page-body-split {
+    flex-direction: column;
+  }
+
+  .detail-panel {
+    width: 100%;
+    border-left: none;
+    border-top: 1px solid #2a382a;
+    max-height: 45vh;
+  }
+
+  .activity-grid-compact,
+  .craft-grid-compact {
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
   }
 
   .activity-grid {
