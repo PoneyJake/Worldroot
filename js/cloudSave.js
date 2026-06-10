@@ -92,23 +92,23 @@ function reloadUiFromStorage() {
 
 function pickNewerSave(localPayload, cloudRow) {
   const cloudPayload = cloudRow?.save_data;
-  const cloudHas = saveHasProgress(cloudPayload);
-  const localHas = saveHasProgress(localPayload);
   const cloudTime = cloudSavedAt(cloudRow);
   const localTime = localSavedAt(localPayload);
 
-  if (cloudHas && !localHas) return { payload: cloudPayload, source: 'cloud' };
-  if (localHas && !cloudHas) return { payload: localPayload, source: 'local' };
-
-  if (cloudHas && localHas) {
-    if (cloudTime > localTime) return { payload: cloudPayload, source: 'cloud' };
-    if (localTime > cloudTime) return { payload: localPayload, source: 'local' };
+  if (cloudPayload && localPayload) {
+    if (cloudTime !== localTime) {
+      return cloudTime > localTime
+        ? { payload: cloudPayload, source: 'cloud' }
+        : { payload: localPayload, source: 'local' };
+    }
     const cloudScore = saveProgressScore(cloudPayload);
     const localScore = saveProgressScore(localPayload);
     if (cloudScore >= localScore) return { payload: cloudPayload, source: 'cloud' };
     return { payload: localPayload, source: 'local' };
   }
 
+  if (cloudPayload) return { payload: cloudPayload, source: 'cloud' };
+  if (localPayload) return { payload: localPayload, source: 'local' };
   return { payload: null, source: 'none' };
 }
 
@@ -156,7 +156,7 @@ export async function downloadCloudSave() {
   if (!isCloudEnabled() || !getCurrentUser()) return false;
 
   const data = await fetchCloudRow();
-  if (!data?.save_data || !saveHasProgress(data.save_data)) return false;
+  if (!data?.save_data) return false;
 
   importSaveData(data.save_data);
   reloadUiFromStorage();

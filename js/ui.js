@@ -1742,11 +1742,17 @@
       return;
     }
     if (action === 'reset-save') {
-      if (confirm('Reset all progress?')) {
+      if (confirm('Reset all progress? This will wipe cloud save too when logged in.')) {
         state = S.resetState();
-        if (window.WorldrootSession?.isCloud && window.WorldrootCloud?.flush) window.WorldrootCloud.flush();
+        S.saveState(state);
         addLog('Save cleared.');
         render();
+        if (window.WorldrootSession?.isCloud && window.WorldrootCloud?.upload) {
+          window.WorldrootCloud.upload().then((ok) => {
+            addLog(ok ? 'Reset synced to cloud.' : 'Could not sync reset — tap Upload to cloud.');
+            render();
+          }).catch(() => addLog('Could not sync reset — tap Upload to cloud.'));
+        }
       }
       return;
     }
