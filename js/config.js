@@ -91,7 +91,7 @@ window.WorldrootConfig = {
   BASE_ACCURACY: 0,
   BASE_DROP_CHANCE: 0.2,
 
-  SLOT_UNLOCK_AT: [0, 10, 25],
+  SLOT_UNLOCK_AT: [0, 5, 10],
   MAX_SLOTS: 3,
   UNLOCK_LEVELS: [0, 5, 10, 15],
   SMELT_SLOT_UNLOCKS: [0, 5, 10, 15],

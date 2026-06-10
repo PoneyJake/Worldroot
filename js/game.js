@@ -15,7 +15,7 @@ window.WorldrootConfig = {
   SMELT_TICKS_PER_ORE: 8,
   STAT_SCALE: 0.03,
 
-  SLOT_UNLOCK_AT: [0, 10, 25],
+  SLOT_UNLOCK_AT: [0, 5, 10],
   MAX_SLOTS: 3,
   UNLOCK_LEVELS: [0, 5, 10, 15],
   SMELT_SLOT_UNLOCKS: [0, 5, 10, 15],
