@@ -3,6 +3,14 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Grow the World Tree. Command your party in this browser idle RPG." />
+  <meta name="theme-color" content="#1a281a" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Worldroot" />
+  <link rel="manifest" href="/manifest.webmanifest" />
+  <link rel="apple-touch-icon" href="/assets/pwa/apple-touch-icon.png" />
   <title>Worldroot — Idle RPG</title>
   <link rel="stylesheet" href="css/site.css?v=20" />
 </head>
@@ -37,6 +45,7 @@
             <button id="btn-play-offline" type="button" class="site-btn primary large">
               <span class="site-btn-icon">▶</span> Play offline
             </button>
+            <button id="btn-install-app" type="button" class="site-btn ghost hidden" data-install-app>Install app</button>
             <div class="auth-actions-row">
               <button id="btn-login" type="button" class="site-btn">Log In</button>
               <button id="btn-register" type="button" class="site-btn">Create Account</button>
@@ -48,6 +57,7 @@
             <button id="btn-play" type="button" class="site-btn primary large">
               <span class="site-btn-icon">▶</span> Play Worldroot
             </button>
+            <button type="button" class="site-btn ghost hidden" data-install-app>Install app</button>
             <button id="btn-logout" type="button" class="site-btn ghost">Log Out</button>
           </div>
         </section>
@@ -128,7 +138,7 @@
       </section>
 
       <footer class="site-footer">
-        <p>Progress saves to your account when logged in, or to this browser when playing offline.</p>
+        <p>Progress saves to your account when logged in, or to this browser when playing offline. Install Worldroot from your browser menu or the Install app button for a full-screen app experience.</p>
       </footer>
     </div>
 
@@ -168,6 +178,6 @@
     </div>
   </div>
 
-  <script type="module" src="js/site.js?v=20"></script>
+  <script type="module" src="js/site.js?v=21"></script>
 </body>
 </html>

@@ -1,6 +1,7 @@
 import { initAuth, getDisplayName, signOut } from './auth.js';
 import { loadCloudSave, scheduleCloudSave, flushCloudSave } from './cloudSave.js';
 import { fetchLeaderboardTop, syncLeaderboard } from './leaderboard.js';
+import { registerServiceWorker } from './pwa.js';
 
 const PLAY_MODE_KEY = 'worldroot_play_mode';
 
@@ -13,6 +14,7 @@ function patchSaveForCloud() {
 }
 
 async function boot() {
+  registerServiceWorker();
   try {
     const mode = sessionStorage.getItem(PLAY_MODE_KEY);
     const { user } = await initAuth();

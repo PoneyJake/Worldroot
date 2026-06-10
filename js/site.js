@@ -8,6 +8,7 @@ import {
 } from './auth.js';
 import { isCloudEnabled } from './cloudConfig.js';
 import { flushCloudSave } from './cloudSave.js';
+import { registerServiceWorker, setupInstallPrompt } from './pwa.js';
 
 const PLAY_MODE_KEY = 'worldroot_play_mode';
 
@@ -65,6 +66,8 @@ async function goToGame(mode) {
 }
 
 async function boot() {
+  registerServiceWorker();
+  setupInstallPrompt();
   hideErrors();
   showScreen('home');
 
