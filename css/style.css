@@ -2338,7 +2338,7 @@ button,
 
 @media (max-width: 768px) {
   .sidebar {
-    width: 56px;
+    width: 58px;
   }
 
   .sidebar-btn-label,
@@ -2350,10 +2350,16 @@ button,
   .sidebar-btn {
     justify-content: center;
     padding: 12px 8px;
+    min-height: 46px;
   }
 
   .sidebar-btn.active {
     padding-left: 8px;
+  }
+
+  .sidebar-btn-icon {
+    font-size: 1.28rem;
+    width: 26px;
   }
 
   .content-panel {
@@ -3011,13 +3017,13 @@ button,
   }
 
   .sidebar {
-    width: 48px;
-    padding: 4px 0;
+    width: 58px;
+    padding: 6px 0;
   }
 
   .sidebar-btn {
-    padding: 8px 4px;
-    min-height: 40px;
+    padding: 10px 6px;
+    min-height: 46px;
   }
 
   .sidebar-btn-label,
@@ -3030,7 +3036,8 @@ button,
   }
 
   .sidebar-btn-icon {
-    font-size: 1.1rem;
+    font-size: 1.28rem;
+    width: 26px;
   }
 
   .main-content {
