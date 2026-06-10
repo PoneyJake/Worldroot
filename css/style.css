@@ -2153,6 +2153,11 @@ button,
   line-height: 1.45;
 }
 
+.phone-flip-row {
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 .log {
   margin: 0;
   padding-left: 16px;
@@ -2948,39 +2953,72 @@ html.touch-phone body {
   overflow: hidden;
   background: #0a0e0a;
   background-image: none;
-  font-size: 12px;
-  -webkit-text-size-adjust: 100%;
-  width: var(--phone-long, 100%);
-  height: var(--phone-short, 100dvh);
-  max-width: var(--phone-long, 100%);
-  max-height: var(--phone-short, 100dvh);
-}
-
-html.touch-phone:not(.force-landscape) body {
   position: fixed;
   inset: 0;
   width: 100%;
   height: 100%;
-  height: 100dvh;
-  max-width: none;
-  max-height: none;
 }
 
-html.touch-phone.force-landscape body {
+html.touch-phone .game-viewport {
   position: fixed;
-  top: 50%;
   left: 50%;
-  transform: translate(-50%, -50%) rotate(90deg);
+  top: 50%;
+  width: var(--game-w, 100%);
+  height: var(--game-h, 100%);
+  transform: translate(-50%, -50%) rotate(var(--game-rotate, 0deg));
   transform-origin: center center;
+  overflow: hidden;
+  background: #0a0e0a;
+  box-sizing: border-box;
 }
 
 html.touch-phone .app-shell {
   width: 100%;
   height: 100%;
   min-height: 0;
+  max-height: 100%;
+  box-sizing: border-box;
+  /* Override desktop 100vw/100vh — causes clipping when rotated. */
+  max-width: 100%;
+}
+
+html.touch-phone:not(.force-landscape) .app-shell {
+  padding:
+    env(safe-area-inset-top, 0px)
+    env(safe-area-inset-right, 0px)
+    env(safe-area-inset-bottom, 0px)
+    env(safe-area-inset-left, 0px);
+}
+
+/* Rotated 90° CW: physical top → game left (keep sidebar clear). */
+html.touch-phone.force-landscape.flip-cw .app-shell {
+  padding:
+    env(safe-area-inset-right, 0px)
+    env(safe-area-inset-bottom, 0px)
+    env(safe-area-inset-left, 0px)
+    env(safe-area-inset-top, 0px);
+}
+
+/* Rotated 90° CCW: physical top → game right (sidebar on left, clear). */
+html.touch-phone.force-landscape.flip-ccw .app-shell {
+  padding:
+    env(safe-area-inset-left, 0px)
+    env(safe-area-inset-top, 0px)
+    env(safe-area-inset-right, 0px)
+    env(safe-area-inset-bottom, 0px);
+}
+
+html.touch-phone .app-body {
+  min-height: 0;
+  flex: 1;
 }
 
 @media (hover: none) and (pointer: coarse) {
+  body {
+    font-size: 12px;
+    -webkit-text-size-adjust: 100%;
+  }
+
   .top-bar {
     height: 40px;
     padding: 0 10px;

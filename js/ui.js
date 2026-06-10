@@ -1491,6 +1491,17 @@
     const syncLine = session?.isCloud
       ? `<p id="cloud-sync-status" class="settings-line cloud-sync-status">${escHtml(cloudSyncLabel)}</p>`
       : '';
+    const mobile = window.WorldrootMobile;
+    const flip = mobile?.getLandscapeFlip?.() ?? 'ccw';
+    const phoneLayoutSection = mobile?.isTouchPhoneDevice?.()
+      ? `<section class="detail-box"><h3>Phone layout</h3>
+          <p class="settings-hint">With rotation lock on, choose which landscape direction feels right. Status bar and home indicator should stay off the menu side.</p>
+          <div class="btn-row phone-flip-row">
+            <button type="button" class="btn-sm${flip === 'ccw' ? ' primary' : ' ghost'}" data-action="landscape-flip" data-flip="ccw">Menu on left</button>
+            <button type="button" class="btn-sm${flip === 'cw' ? ' primary' : ' ghost'}" data-action="landscape-flip" data-flip="cw">Menu on right</button>
+          </div>
+        </section>`
+      : '';
     return `
       <header class="page-header">
         <span class="page-header-icon">⚙</span>
@@ -1510,6 +1521,7 @@
           <p class="settings-line">Account Level: <strong>${fmt(S.accountTotalLevel(state))}</strong></p>
           <p class="settings-line">Characters: <strong>${state.characters.length} / ${MAX_SLOTS}</strong></p>
         </section>
+        ${phoneLayoutSection}
         <section class="detail-box"><h3>Activity log</h3><ul id="activity-log" class="log"></ul></section>
       </div>`;
   }
@@ -1927,6 +1939,12 @@
     }
     if (action === 'reset-save') {
       performResetSave();
+      return;
+    }
+    if (action === 'landscape-flip') {
+      window.WorldrootMobile?.setLandscapeFlip?.(btn.dataset.flip);
+      addLog('Phone layout updated.');
+      render();
       return;
     }
     if (action === 'go-menu' && window.WorldrootGoMenu) window.WorldrootGoMenu();

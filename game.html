@@ -7,14 +7,15 @@
   <meta name="theme-color" content="#0a0e0a" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="black" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="Worldroot" />
   <link rel="manifest" href="/manifest.webmanifest" />
   <link rel="apple-touch-icon" href="/assets/pwa/apple-touch-icon.png" />
   <title>Worldroot</title>
-  <link rel="stylesheet" href="css/style.css?v=78" />
+  <link rel="stylesheet" href="css/style.css?v=79" />
 </head>
 <body>
+  <div id="game-viewport" class="game-viewport">
   <div id="rotate-device-overlay" class="rotate-device-overlay" aria-live="polite">
     <div class="rotate-device-card">
       <span class="rotate-device-icon" aria-hidden="true">📱↻</span>
@@ -115,12 +116,14 @@
     </div>
   </div>
 
-  <script src="js/config.js?v=78"></script>
-  <script src="js/items.js?v=78"></script>
-  <script src="js/gear.js?v=78"></script>
-  <script src="js/state.js?v=78"></script>
-  <script src="js/engine.js?v=78"></script>
-  <script src="js/ui.js?v=78"></script>
-  <script type="module" src="js/gameBootstrap.js?v=78"></script>
+  </div>
+
+  <script src="js/config.js?v=79"></script>
+  <script src="js/items.js?v=79"></script>
+  <script src="js/gear.js?v=79"></script>
+  <script src="js/state.js?v=79"></script>
+  <script src="js/engine.js?v=79"></script>
+  <script src="js/ui.js?v=79"></script>
+  <script type="module" src="js/gameBootstrap.js?v=79"></script>
 </body>
 </html>
