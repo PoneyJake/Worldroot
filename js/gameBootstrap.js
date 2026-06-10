@@ -20,6 +20,7 @@ function patchSaveForCloud() {
 }
 
 async function boot() {
+  window.WorldrootLeaderboard = { fetchTop: fetchLeaderboardTop, sync: syncLeaderboard };
   registerServiceWorker();
   initMobileGameLayout();
   try {
@@ -70,8 +71,6 @@ async function boot() {
       window.WorldrootUI?.setSessionBadge?.(window.WorldrootSession);
     }
   }
-
-  window.WorldrootLeaderboard = { fetchTop: fetchLeaderboardTop, sync: syncLeaderboard };
 }
 
 window.WorldrootGoMenu = async () => {

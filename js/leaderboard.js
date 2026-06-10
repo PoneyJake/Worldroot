@@ -2,9 +2,17 @@ import { getSupabase, getCurrentUser, getDisplayName } from './auth.js';
 import { isCloudEnabled } from './cloudConfig.js';
 
 export async function fetchLeaderboardTop(limit = 10) {
+  if (!isCloudEnabled()) {
+    return {
+      entries: [],
+      cloud: false,
+      error: 'Cloud is not configured. Leaderboard needs Play Worldroot with a logged-in account.',
+    };
+  }
+
   const sb = getSupabase();
-  if (!sb || !isCloudEnabled()) {
-    return { entries: [], cloud: false };
+  if (!sb) {
+    return { entries: [], cloud: false, error: 'Could not connect to cloud services.' };
   }
 
   const { data, error } = await sb

@@ -1216,18 +1216,37 @@
 
   async function refreshLeaderboard() {
     if (!window.WorldrootLeaderboard?.fetchTop) {
+      leaderboardLoading = false;
       leaderboardError = 'Leaderboard is still loading. Try again in a moment.';
       if (activePage === 'leaderboard') renderMainPanel();
       return;
     }
+
     leaderboardLoading = true;
     leaderboardError = null;
     if (activePage === 'leaderboard') renderMainPanel();
-    const result = await window.WorldrootLeaderboard.fetchTop(10);
-    leaderboardEntries = result.entries;
-    leaderboardError = result.error ?? null;
-    leaderboardLoading = false;
-    if (activePage === 'leaderboard') renderMainPanel();
+
+    try {
+      const session = window.WorldrootSession || {};
+      if (session.isCloud && window.WorldrootLeaderboard.sync) {
+        await window.WorldrootLeaderboard.sync();
+      }
+      const result = await window.WorldrootLeaderboard.fetchTop(10);
+      leaderboardEntries = result.entries;
+      if (result.error) {
+        leaderboardError = result.error;
+      } else if (!result.cloud && session.isOffline) {
+        leaderboardError = 'Play offline hides the online leaderboard. Use Play Worldroot while logged in to rank.';
+      } else if (!result.cloud) {
+        leaderboardError = 'Could not reach the online leaderboard.';
+      }
+    } catch (err) {
+      leaderboardError = err?.message || 'Leaderboard failed to load.';
+      leaderboardEntries = [];
+    } finally {
+      leaderboardLoading = false;
+      if (activePage === 'leaderboard') renderMainPanel();
+    }
   }
 
   function renderShopPanel() {
