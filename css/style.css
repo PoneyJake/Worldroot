@@ -1773,12 +1773,23 @@ button,
 }
 
 .upgrade-card.can-buy {
-  border-color: #4a7a44;
+  border: 2px solid #5cba50;
+  background: #182818;
+  box-shadow:
+    0 0 0 1px rgba(92, 186, 80, 0.35),
+    inset 0 0 14px rgba(92, 186, 80, 0.08);
+}
+
+.upgrade-card.can-buy .upgrade-card-name {
+  color: #b8e8b0;
 }
 
 .upgrade-card.can-buy:hover {
-  border-color: #5a9a52;
-  background: #1e2e1e;
+  border-color: #72d866;
+  background: #1e321e;
+  box-shadow:
+    0 0 10px rgba(114, 216, 102, 0.4),
+    inset 0 0 16px rgba(114, 216, 102, 0.1);
 }
 
 .storage-dual {

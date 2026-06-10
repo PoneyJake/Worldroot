@@ -1702,6 +1702,36 @@
     return needFull;
   }
 
+  function patchWorldTreeAffordability() {
+    for (const branch of C.WORLD_TREE_BRANCHES) {
+      for (const node of branch.nodes) {
+        const card = document.querySelector(`.upgrade-card[data-upgrade="${node.id}"]`);
+        if (!card) continue;
+        const lv = E.upgradeLevel(state, node.id);
+        const atMax = lv >= C.UPGRADE_MAX_LEVEL;
+        const canBuy = !atMax && E.canAffordUpgrade(state, node.id);
+        card.classList.toggle('can-buy', canBuy);
+
+        const costEl = card.querySelector('.upgrade-card-cost');
+        if (!costEl || atMax) continue;
+        if (E.upgradeNeedsUnlock(state, node.id)) {
+          const unlock = E.upgradeUnlockCosts(node.id, E.upgradeTierCount(state, node.id));
+          if (!unlock) continue;
+          const owned = S.maxCharInventoryResource(state, unlock.resource);
+          const met = owned >= unlock.resourceAmt;
+          costEl.classList.toggle('met', met);
+          costEl.classList.toggle('unmet', !met);
+        } else {
+          const goldCost = E.upgradeLevelGoldCost(state, node.id);
+          if (goldCost == null) continue;
+          const met = state.gold >= goldCost;
+          costEl.classList.toggle('met', met);
+          costEl.classList.toggle('unmet', !met);
+        }
+      }
+    }
+  }
+
   /** Update live skill-page UI without rebuilding icon DOM. Returns true if a full render is needed. */
   function patchTickPanels() {
     const char = selectedChar();
@@ -1755,6 +1785,8 @@
         lastSidebarHash = hash;
         renderSidebar();
       }
+    } else if (activePage === 'worldtree') {
+      patchWorldTreeAffordability();
     }
   }
 
