@@ -140,8 +140,10 @@
       <div class="char-switcher">
         ${state.characters.map((c, i) => {
           const cls = C.CLASSES[c.classId];
-          return `<button type="button" class="char-switch-btn${i === sel ? ' active' : ''}"
-            data-action="select-char" data-char="${i}" title="${cls.name}">
+          return `<button type="button" class="char-switch-btn drag-drop-target${i === sel ? ' active' : ''}"
+            data-action="select-char" data-char="${i}"
+            data-drop-zone="char-inv" data-char-idx="${i}"
+            title="${cls.name} · drop items to add to inventory">
             ${classPortraitHtml(c.classId, 'char-switch-portrait')}
           </button>`;
         }).join('')}
@@ -571,8 +573,10 @@
       const cls = C.CLASSES[char.classId];
       const active = i === sel;
       return `
-        <button type="button" class="char-rail-btn${active ? ' active' : ''}"
-          data-action="select-char" data-char="${i}">
+        <button type="button" class="char-rail-btn drag-drop-target${active ? ' active' : ''}"
+          data-action="select-char" data-char="${i}"
+          data-drop-zone="char-inv" data-char-idx="${i}"
+          title="${cls.name} · drop items to add to inventory">
           <span class="char-rail-icon">${classPortraitHtml(char.classId, 'class-portrait-img sm')}</span>
           <span class="char-rail-name">${cls.name}</span>
           <span class="char-rail-lv">Lv ${S.characterTotalLevel(char)}</span>
@@ -2402,10 +2406,31 @@
     render();
   }
 
+  function handleDropToCharInv(payload, targetCharIdx) {
+    const target = state.characters[targetCharIdx];
+    if (!target) return;
+    const name = charLabel(target);
+    const result = E.transferDragToCharInventory(state, payload, targetCharIdx);
+    if (result.added > 0) {
+      addLog(`Gave ${fmt(result.added)} ${resName(result.itemId)} to ${name}.`);
+      if (result.lost > 0) addLog(`${fmt(result.lost)} could not fit — ${name}'s inventory is full.`);
+    } else {
+      addLog(`Could not add to ${name}'s inventory — not enough space.`);
+    }
+    render();
+  }
+
   function handleDragDrop(payload, zone) {
+    if (!payload) return;
     const dropZone = zone.dataset.dropZone;
+
+    if (dropZone === 'char-inv') {
+      handleDropToCharInv(payload, Number(zone.dataset.charIdx));
+      return;
+    }
+
     const char = selectedChar();
-    if (!payload || !char) return;
+    if (!char) return;
 
     if (dropZone === 'trash') {
       openTrashModal(payload);

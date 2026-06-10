@@ -1538,6 +1538,13 @@ button,
   flex-wrap: wrap;
 }
 
+.char-switch-btn.drag-over,
+.char-rail-btn.drag-over {
+  border-color: #72d866;
+  background: #243824;
+  box-shadow: 0 0 0 2px rgba(114, 216, 102, 0.5);
+}
+
 .char-switch-btn {
   width: 52px;
   height: 52px;

@@ -995,6 +995,86 @@
     return true;
   }
 
+  function transferDragToCharInventory(state, payload, targetCharIdx) {
+    const targetChar = state.characters[targetCharIdx];
+    if (!targetChar || !payload) return { added: 0, lost: 0, itemId: null };
+
+    if (payload.kind === 'storage') {
+      const slot = state.storageSlots[payload.idx];
+      if (!slot?.amount) return { added: 0, lost: 0, itemId: null };
+      const itemId = slot.resourceId;
+      const amt = slot.amount;
+      if (S.transferStorageToInv(state, targetChar, payload.idx)) {
+        const left = state.storageSlots[payload.idx]?.amount ?? 0;
+        return { added: amt - left, lost: left, itemId };
+      }
+      return { added: 0, lost: amt, itemId };
+    }
+
+    if (payload.kind === 'inv') {
+      const fromChar = state.characters[payload.charIdx];
+      if (!fromChar) return { added: 0, lost: 0, itemId: null };
+      const slot = fromChar.inventorySlots[payload.idx];
+      if (!slot?.amount) return { added: 0, lost: 0, itemId: null };
+      const itemId = slot.resourceId;
+      const amt = slot.amount;
+      const result = S.addToInventory(targetChar, state, itemId, amt, 'combat');
+      if (result.added > 0) {
+        slot.amount -= result.added;
+        if (slot.amount <= 0) fromChar.inventorySlots[payload.idx] = null;
+        S.saveState(state);
+      }
+      return { added: result.added, lost: result.lost, itemId };
+    }
+
+    if (payload.kind === 'equip') {
+      const fromChar = state.characters[payload.charIdx];
+      if (!fromChar) return { added: 0, lost: 0, itemId: null };
+      const store = payload.slotType === 'tool' ? fromChar.tools : fromChar.equipment;
+      const itemId = store[payload.key];
+      if (!itemId) return { added: 0, lost: 0, itemId: null };
+      const result = S.addToInventory(targetChar, state, itemId, 1, 'combat');
+      if (result.added >= 1) {
+        store[payload.key] = null;
+        S.saveState(state);
+        return { added: 1, lost: 0, itemId };
+      }
+      return { added: 0, lost: 1, itemId };
+    }
+
+    if (payload.kind === 'capacity') {
+      const fromChar = state.characters[payload.charIdx];
+      if (!fromChar) return { added: 0, lost: 0, itemId: null };
+      const itemId = fromChar.capacitySlots?.[payload.category];
+      if (!itemId) return { added: 0, lost: 0, itemId: null };
+      const result = S.addToInventory(targetChar, state, itemId, 1, 'combat');
+      if (result.added >= 1) {
+        fromChar.capacitySlots[payload.category] = null;
+        S.saveState(state);
+        return { added: 1, lost: 0, itemId };
+      }
+      return { added: 0, lost: 1, itemId };
+    }
+
+    if (payload.kind === 'food') {
+      const fromChar = state.characters[payload.charIdx];
+      if (!fromChar) return { added: 0, lost: 0, itemId: null };
+      const foodSlot = normalizeFoodSlot(fromChar.foodSlots?.[payload.slotKey]);
+      if (!foodSlot) return { added: 0, lost: 0, itemId: null };
+      const itemId = foodSlot.resourceId;
+      const result = S.addToInventory(targetChar, state, itemId, foodSlot.amount, 'combat');
+      if (result.added > 0) {
+        foodSlot.amount -= result.added;
+        if (foodSlot.amount <= 0) fromChar.foodSlots[payload.slotKey] = null;
+        else fromChar.foodSlots[payload.slotKey] = foodSlot;
+        S.saveState(state);
+      }
+      return { added: result.added, lost: result.lost, itemId };
+    }
+
+    return { added: 0, lost: 0, itemId: null };
+  }
+
   function tickCharacter(state, char) {
     if (!char.activity) return null;
 
@@ -1436,6 +1516,7 @@
     canEquipCapacityPouch, equipCapacityPouch, unequipCapacityPouch,
     canEquipFood, equipFood, unequipFood, destroyFood,
     destroyInventoryItem, destroyStorageItem, destroyEquipped, destroyCapacityPouch,
+    transferDragToCharInventory,
     catchUpOffline,
     talentTreeKey, skillForTalents, talentLevel, talentBonus, talentPointsAvailable,
     buyTalent, resetTalent, formatTalentTotal, talentDef,
