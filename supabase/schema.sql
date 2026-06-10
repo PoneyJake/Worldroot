@@ -57,7 +57,8 @@ create policy "worldroot_saves_insert_own"
 drop policy if exists "worldroot_saves_update_own" on public.worldroot_saves;
 create policy "worldroot_saves_update_own"
   on public.worldroot_saves for update
-  using (auth.uid() = user_id);
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
 
 drop policy if exists "leaderboard_select_all" on public.worldroot_leaderboard;
 create policy "leaderboard_select_all"

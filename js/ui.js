@@ -32,6 +32,7 @@
   let detailPanel = null;
   let skillSubTab = 'activity';
   let logBuffer = [];
+  let cloudSyncLabel = 'Auto-sync enabled';
   let holdTimer = null;
   let holdEl = null;
 
@@ -1401,6 +1402,9 @@
   function renderSettingsPanel() {
     const session = window.WorldrootSession;
     const sessionText = session?.isCloud ? `Cloud save · ${session.displayName}` : 'Offline · this device only';
+    const syncLine = session?.isCloud
+      ? `<p id="cloud-sync-status" class="settings-line cloud-sync-status">${escHtml(cloudSyncLabel)}</p>`
+      : '';
     return `
       <header class="page-header">
         <span class="page-header-icon">⚙</span>
@@ -1409,9 +1413,9 @@
       ${pageCharBar()}
       <div class="settings-grid">
         <section class="detail-box"><h3>Save</h3><p class="settings-line">${sessionText}</p>
+          ${syncLine}
+          <p class="settings-hint">${session?.isCloud ? 'Progress syncs automatically between devices when you play logged in.' : 'Use Play Worldroot on the main menu to sync across devices.'}</p>
           <div class="btn-row">
-            ${session?.isCloud ? `<button type="button" class="btn-sm primary" data-action="upload-cloud-save">Upload to cloud</button>
-            <button type="button" class="btn-sm ghost" data-action="download-cloud-save">Download from cloud</button>` : ''}
             <button type="button" class="btn-sm ghost" data-action="go-menu">Main menu</button>
             <button type="button" class="btn-sm danger" data-action="reset-save">Reset save</button>
           </div>
@@ -1495,6 +1499,13 @@
     lastTapActionAt = Date.now();
   }
 
+  function updateCloudSyncLabel(message) {
+    if (!message) return;
+    cloudSyncLabel = message;
+    const el = document.getElementById('cloud-sync-status');
+    if (el) el.textContent = message;
+  }
+
   function performResetSave() {
     if (!confirm('Reset all progress? This will wipe cloud save too when logged in.')) return;
     state = S.resetState();
@@ -1508,20 +1519,28 @@
       return;
     }
 
-    const uploadFn = window.WorldrootCloud?.upload ?? window.WorldrootCloud?.flush;
-    if (!uploadFn) {
-      addLog('Cloud upload not ready — reload, then tap Upload to cloud.');
+    const flushFn = window.WorldrootCloud?.flush ?? window.WorldrootCloud?.upload;
+    if (!flushFn) {
+      addLog('Cloud sync not ready — reload the game.');
+      updateCloudSyncLabel('Sync not ready — reload the game');
       render({ force: true });
       return;
     }
 
-    addLog('Syncing reset to cloud…');
-    renderLogEl();
-    uploadFn().then((ok) => {
-      addLog(ok ? 'Reset synced to cloud.' : 'Could not sync reset — tap Upload to cloud.');
+    updateCloudSyncLabel('Saving reset to cloud…');
+    flushFn().then((result) => {
+      const ok = result?.ok ?? result === true;
+      if (ok) {
+        addLog('Reset synced to cloud.');
+        updateCloudSyncLabel('Saved to cloud');
+      } else {
+        addLog('Could not sync reset to cloud.');
+        updateCloudSyncLabel('Sync failed — check connection');
+      }
       render({ force: true });
     }).catch(() => {
-      addLog('Could not sync reset — tap Upload to cloud.');
+      addLog('Could not sync reset to cloud.');
+      updateCloudSyncLabel('Sync failed — check connection');
       render({ force: true });
     });
   }
@@ -1761,46 +1780,6 @@
       E.clearSmeltSlot(state, Number(btn.dataset.slot));
       addLog(`Stopped smelter slot ${Number(btn.dataset.slot) + 1}.`);
       render();
-      return;
-    }
-    if (action === 'upload-cloud-save') {
-      const uploadFn = window.WorldrootCloud?.upload ?? window.WorldrootCloud?.flush;
-      if (uploadFn) {
-        addLog('Uploading to cloud…');
-        renderLogEl();
-        uploadFn().then((ok) => {
-          state = S.loadState();
-          addLog(ok ? 'Uploaded save to cloud.' : 'Could not upload to cloud.');
-          render({ force: true });
-        }).catch(() => {
-          addLog('Could not upload to cloud.');
-          render({ force: true });
-        });
-      } else {
-        addLog('Cloud upload not ready — reload the game and try again.');
-        render({ force: true });
-      }
-      return;
-    }
-    if (action === 'download-cloud-save') {
-      if (window.WorldrootCloud?.download) {
-        window.WorldrootCloud.download().then((result) => {
-          state = S.loadState();
-          if (result?.ok) {
-            addLog(`Downloaded cloud save (Account Lv ${fmt(S.accountTotalLevel(state))}).`);
-          } else if (result?.reason === 'empty') {
-            addLog('Cloud has no save yet. Upload from your other device first.');
-          } else if (result?.reason === 'fetch') {
-            addLog('Could not reach cloud — check connection and try again.');
-          } else {
-            addLog('Could not download from cloud.');
-          }
-          render({ force: true });
-        }).catch(() => {
-          addLog('Could not download from cloud.');
-          render({ force: true });
-        });
-      }
       return;
     }
     if (action === 'reset-save') {
@@ -2388,10 +2367,17 @@
     if (modal) modal.hidden = true;
   }
 
+  function initCloudSyncUi() {
+    window.addEventListener('worldroot-cloud-sync', (e) => {
+      updateCloudSyncLabel(e.detail?.message);
+    });
+  }
+
   function init(initialState) {
     state = initialState;
     state.lastTickAt = state.lastTickAt || Date.now();
     initTapToAct();
+    initCloudSyncUi();
     document.body.addEventListener('click', handleClick);
     document.body.addEventListener('dblclick', handlePointerSlot);
     initDragDrop();
@@ -2409,7 +2395,9 @@
     init, render, refresh: render, addLog,
     getState: () => state,
     setState: (next) => { state = next; },
-    setSessionBadge: () => { if (activePage === 'settings') renderMainPanel(); },
+    setSessionBadge: () => {
+      if (activePage === 'settings') renderMainPanel();
+    },
   };
 
   function showBootError(msg) {

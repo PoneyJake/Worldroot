@@ -2132,6 +2132,18 @@ button,
   color: #9aaa96;
 }
 
+.cloud-sync-status {
+  color: #a8d4a0;
+  font-weight: 600;
+}
+
+.settings-hint {
+  margin: 0 0 12px;
+  font-size: 0.8rem;
+  color: #6a7a66;
+  line-height: 1.45;
+}
+
 .log {
   margin: 0;
   padding-left: 16px;

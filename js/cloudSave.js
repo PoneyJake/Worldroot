@@ -19,6 +19,18 @@ let saving = false;
 let lastPushAt = 0;
 let cloudDirty = false;
 let listenersBound = false;
+let lastSyncLabel = '';
+
+function notifySyncStatus(state, message) {
+  lastSyncLabel = message || state;
+  window.dispatchEvent(new CustomEvent('worldroot-cloud-sync', {
+    detail: { state, message: lastSyncLabel, at: Date.now() },
+  }));
+}
+
+export function getCloudSyncLabel() {
+  return lastSyncLabel;
+}
 
 function readRawLocalSave() {
   for (const key of LOCAL_SAVE_KEYS) {
@@ -35,7 +47,7 @@ function readRawLocalSave() {
 export function persistGameSave() {
   const state = window.WorldrootUI?.getState?.();
   if (state && window.WorldrootState?.saveState) {
-    window.WorldrootState.saveState(state);
+    window.WorldrootState.saveState(state, { touchCloud: false });
   }
 }
 
@@ -128,16 +140,28 @@ async function fetchCloudRow() {
   return data;
 }
 
+async function ensureAuthSession() {
+  const sb = getSupabase();
+  if (!sb) return null;
+  const { data, error } = await sb.auth.getSession();
+  if (error || !data.session?.user) return null;
+  return data.session;
+}
+
 export async function loadCloudSave() {
   if (!isCloudEnabled()) return { source: 'local' };
 
-  const user = getCurrentUser();
-  if (!user) return { source: 'local' };
+  const session = await ensureAuthSession();
+  if (!session) return { source: 'local' };
 
+  notifySyncStatus('pulling', 'Checking cloud save…');
   persistGameSave();
   const localPayload = exportSaveData();
   const data = await fetchCloudRow();
-  if (!data) return { source: 'local' };
+  if (!data) {
+    notifySyncStatus('error', 'Could not reach cloud');
+    return { source: 'local' };
+  }
 
   const picked = pickNewerSave(localPayload, data);
   if (picked.payload) {
@@ -145,9 +169,11 @@ export async function loadCloudSave() {
     reloadUiFromStorage();
     if (picked.source === 'local') await pushCloudSave(true);
     else cloudDirty = false;
+    notifySyncStatus('saved', picked.source === 'cloud' ? 'Loaded from cloud' : 'Saved to cloud');
     return { source: picked.source };
   }
 
+  notifySyncStatus('idle', 'Cloud save up to date');
   return { source: 'none' };
 }
 
@@ -166,11 +192,13 @@ export async function downloadCloudSave() {
   return { ok: true };
 }
 
-/** Upload this device's current save to the cloud (for Upload to cloud). */
+/** Force-push the current local save to the cloud. */
 export async function uploadCloudSave() {
-  if (!isCloudEnabled() || !getCurrentUser()) return false;
+  if (!isCloudEnabled()) return { ok: false, reason: 'offline' };
+  if (!(await ensureAuthSession())) return { ok: false, reason: 'auth' };
   persistGameSave();
-  return pushCloudSave(true);
+  const ok = await pushCloudSave(true);
+  return ok ? { ok: true } : { ok: false, reason: 'push' };
 }
 
 /** Merge cloud/local saves before opening the game from the home page. */
@@ -207,8 +235,11 @@ export async function pushCloudSave(force = false) {
   if (!isCloudEnabled() || saving) return false;
 
   const sb = getSupabase();
-  const user = getCurrentUser();
-  if (!sb || !user) return false;
+  const session = await ensureAuthSession();
+  if (!sb || !session) {
+    notifySyncStatus('error', 'Not logged in to cloud');
+    return false;
+  }
 
   persistGameSave();
   const payload = exportSaveData();
@@ -217,21 +248,31 @@ export async function pushCloudSave(force = false) {
   if (!force) {
     const remote = await fetchCloudRow();
     const picked = pickNewerSave(payload, remote);
-    if (picked.source === 'cloud' && picked.payload && saveHasProgress(picked.payload)) {
-      importSaveData(picked.payload);
-      reloadUiFromStorage();
-      cloudDirty = false;
-      return true;
+    if (picked.source === 'cloud' && picked.payload) {
+      const localTime = localSavedAt(payload);
+      const cloudTime = cloudSavedAt(remote);
+      if (cloudTime > localTime) {
+        importSaveData(picked.payload);
+        reloadUiFromStorage();
+        cloudDirty = false;
+        notifySyncStatus('saved', 'Loaded from cloud');
+        return true;
+      }
     }
   }
 
   saving = true;
+  notifySyncStatus('saving', 'Saving to cloud…');
   payload.savedAt = Date.now();
+  if (window.WorldrootUI?.getState) {
+    window.WorldrootUI.getState().savedAt = payload.savedAt;
+    window.WorldrootState?.saveState?.(window.WorldrootUI.getState(), { touchCloud: false });
+  }
 
   try {
     const { error } = await sb.from('worldroot_saves').upsert(
       {
-        user_id: user.id,
+        user_id: session.user.id,
         save_data: payload,
         updated_at: new Date().toISOString(),
       },
@@ -240,14 +281,13 @@ export async function pushCloudSave(force = false) {
 
     if (error) {
       console.warn('Cloud save failed:', error.message);
+      notifySyncStatus('error', `Cloud save failed: ${error.message}`);
       return false;
     }
 
     lastPushAt = Date.now();
     cloudDirty = false;
-    if (window.WorldrootUI?.getState) {
-      window.WorldrootUI.getState().savedAt = payload.savedAt;
-    }
+    notifySyncStatus('saved', 'Saved to cloud');
     await syncLeaderboard();
     return true;
   } finally {
@@ -269,6 +309,7 @@ function clearSaveTimers() {
 export function scheduleCloudSave() {
   if (!isCloudEnabled() || !getCurrentUser()) return;
   cloudDirty = true;
+  notifySyncStatus('pending', 'Will save to cloud…');
 
   const now = Date.now();
   if (now - lastPushAt >= MAX_WAIT_MS) {
