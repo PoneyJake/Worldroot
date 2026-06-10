@@ -170,8 +170,7 @@ export async function downloadCloudSave() {
 export async function uploadCloudSave() {
   if (!isCloudEnabled() || !getCurrentUser()) return false;
   persistGameSave();
-  await pushCloudSave(true);
-  return true;
+  return pushCloudSave(true);
 }
 
 /** Merge cloud/local saves before opening the game from the home page. */
@@ -205,15 +204,15 @@ async function pushCloudSaveKeepalive(payload, userId, accessToken) {
 }
 
 export async function pushCloudSave(force = false) {
-  if (!isCloudEnabled() || saving) return;
+  if (!isCloudEnabled() || saving) return false;
 
   const sb = getSupabase();
   const user = getCurrentUser();
-  if (!sb || !user) return;
+  if (!sb || !user) return false;
 
   persistGameSave();
   const payload = exportSaveData();
-  if (!payload) return;
+  if (!payload) return false;
 
   if (!force) {
     const remote = await fetchCloudRow();
@@ -222,7 +221,7 @@ export async function pushCloudSave(force = false) {
       importSaveData(picked.payload);
       reloadUiFromStorage();
       cloudDirty = false;
-      return;
+      return true;
     }
   }
 
@@ -241,14 +240,16 @@ export async function pushCloudSave(force = false) {
 
     if (error) {
       console.warn('Cloud save failed:', error.message);
-    } else {
-      lastPushAt = Date.now();
-      cloudDirty = false;
-      if (window.WorldrootUI?.getState) {
-        window.WorldrootUI.getState().savedAt = payload.savedAt;
-      }
-      await syncLeaderboard();
+      return false;
     }
+
+    lastPushAt = Date.now();
+    cloudDirty = false;
+    if (window.WorldrootUI?.getState) {
+      window.WorldrootUI.getState().savedAt = payload.savedAt;
+    }
+    await syncLeaderboard();
+    return true;
   } finally {
     saving = false;
   }

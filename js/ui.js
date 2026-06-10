@@ -1770,10 +1770,18 @@
         addLog('Save cleared.');
         render();
         if (window.WorldrootSession?.isCloud && window.WorldrootCloud?.upload) {
+          addLog('Syncing reset to cloud…');
+          renderLogEl();
           window.WorldrootCloud.upload().then((ok) => {
             addLog(ok ? 'Reset synced to cloud.' : 'Could not sync reset — tap Upload to cloud.');
-            render();
-          }).catch(() => addLog('Could not sync reset — tap Upload to cloud.'));
+            render({ force: true });
+          }).catch(() => {
+            addLog('Could not sync reset — tap Upload to cloud.');
+            render({ force: true });
+          });
+        } else {
+          addLog('Reset local only — use Play Worldroot while logged in to sync.');
+          render({ force: true });
         }
       }
       return;
