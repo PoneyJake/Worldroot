@@ -671,6 +671,47 @@
     return false;
   }
 
+  function transferStorageToInvSlot(state, char, storIdx, invIdx) {
+    const slot = state.storageSlots[storIdx];
+    if (!slot?.amount) return 0;
+    const stackCap = stackCapacityForResource(state, slot.resourceId, char);
+    const invSlot = char.inventorySlots[invIdx];
+    let move = 0;
+    if (!invSlot) {
+      move = Math.min(slot.amount, stackCap);
+      if (move <= 0) return 0;
+      char.inventorySlots[invIdx] = { resourceId: slot.resourceId, amount: move };
+    } else if (invSlot.resourceId === slot.resourceId && invSlot.amount < stackCap) {
+      move = Math.min(slot.amount, stackCap - invSlot.amount);
+      if (move <= 0) return 0;
+      invSlot.amount += move;
+    } else return 0;
+    slot.amount -= move;
+    if (slot.amount <= 0) state.storageSlots[storIdx] = null;
+    saveState(state);
+    return move;
+  }
+
+  function transferInvToStorageSlot(state, char, invIdx, storIdx) {
+    const slot = char.inventorySlots[invIdx];
+    if (!slot?.amount) return 0;
+    const maxStack = C.STORAGE_STACK_MAX ?? 999999999;
+    const storSlot = state.storageSlots[storIdx];
+    let move = 0;
+    if (!storSlot) {
+      move = slot.amount;
+      state.storageSlots[storIdx] = { resourceId: slot.resourceId, amount: move };
+    } else if (storSlot.resourceId === slot.resourceId && storSlot.amount < maxStack) {
+      move = Math.min(slot.amount, maxStack - storSlot.amount);
+      if (move <= 0) return 0;
+      storSlot.amount += move;
+    } else return 0;
+    slot.amount -= move;
+    if (slot.amount <= 0) char.inventorySlots[invIdx] = null;
+    saveState(state);
+    return move;
+  }
+
   function storageHas(state, resourceId, amount) {
     return countInSlots(state.storageSlots, resourceId) >= amount;
   }
@@ -917,6 +958,7 @@
     swapInventorySlots, swapStorageSlots, placeInInventorySlot, deleteInventorySlot, deleteStorageSlot,
     defaultCapacitySlots,
     depositAllToStorage, transferInvToStorage, transferStorageToInv,
+    transferStorageToInvSlot, transferInvToStorageSlot,
     countInInventory, removeFromInventorySlot, loadOreToSmelt,
     splitInventorySlot, splitStorageSlot, defaultQuestProgress,
     stopAllSmelting, stopAllProducing, stopCharacterProducing,
