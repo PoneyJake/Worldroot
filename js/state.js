@@ -465,7 +465,7 @@
     return char?.pouchTiers?.[category] ?? 0;
   }
 
-  function stackCapacity(state, skillId, char = null) {
+  function carryCapacityBonus(state, skillId, char = null) {
     const effect = carryEffectForSkill(skillId);
     let bonus = window.WorldrootEngine?.effectBonus(state, effect) || 0;
     bonus += window.WorldrootEngine?.effectBonus(state, 'carry_capacity') || 0;
@@ -473,18 +473,25 @@
       bonus += window.WorldrootEngine.gearPercentBonus(char, effect);
       bonus += window.WorldrootEngine.gearPercentBonus(char, 'carry_capacity');
     }
+    return bonus;
+  }
+
+  function stackCapacity(state, skillId, char = null) {
+    const bonus = carryCapacityBonus(state, skillId, char);
     return Math.floor(C.BASE_STACK_SIZE * (1 + bonus));
   }
 
   function stackCapacityForResource(state, resourceId, char) {
     if (C.GEAR_ITEM_IDS?.has(resourceId)) return 1;
+    const skillId = RESOURCE_SKILL_MAP[resourceId] || 'combat';
+    let base = C.BASE_STACK_SIZE;
     const cat = C.POUCH_CATEGORY_FOR_RESOURCE?.[resourceId];
     if (cat) {
       const tier = pouchTierForCategory(char, cat);
-      if (tier > 0) return C.POUCH_CAPACITIES[tier - 1];
+      if (tier > 0) base = C.POUCH_CAPACITIES[tier - 1];
     }
-    const skillId = RESOURCE_SKILL_MAP[resourceId] || 'combat';
-    return stackCapacity(state, skillId, char);
+    const bonus = carryCapacityBonus(state, skillId, char);
+    return Math.floor(base * (1 + bonus));
   }
 
   function swapInventorySlots(char, fromIdx, toIdx) {
