@@ -140,6 +140,61 @@
   max-width: 520px;
 }
 
+.install-app-panel {
+  width: 100%;
+  max-width: 1100px;
+  margin: 0 auto 40px;
+}
+
+.install-app-panel.hidden {
+  display: none !important;
+}
+
+.install-app-panel-inner {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  padding: 18px 20px;
+  background: #121812;
+  border: 1px solid #2a382a;
+  border-radius: 12px;
+}
+
+.install-app-icon {
+  font-size: 1.6rem;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.install-app-title {
+  margin: 0 0 8px;
+  font-size: 1rem;
+  color: #c8e6c3;
+}
+
+.install-app-steps {
+  font-size: 0.88rem;
+  line-height: 1.55;
+  color: #8a9a86;
+}
+
+.install-app-steps ol {
+  margin: 0;
+  padding-left: 1.2rem;
+}
+
+.install-app-steps p {
+  margin: 0 0 8px;
+}
+
+.install-app-steps p:last-child {
+  margin-bottom: 0;
+}
+
+.install-app-copy [data-install-app] {
+  margin-top: 12px;
+}
+
 /* ── Game Preview Mockup ── */
 
 .site-preview {
