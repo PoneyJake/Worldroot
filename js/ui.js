@@ -284,12 +284,18 @@
 
   /* ── Navigation ── */
 
+  const RIGHT_RAIL_PAGES = new Set(['combat', 'mining', 'woodcutting', 'fishing', 'crafting', 'producing', 'smelting']);
+
+  function usesRightRail(pageId = activePage) {
+    return RIGHT_RAIL_PAGES.has(pageId);
+  }
+
   function switchPage(pageId) {
     const item = SIDEBAR_NAV.find((n) => n.id === pageId);
     if (item?.comingSoon) return;
     if (pageId !== 'storage') closeTransferModal();
     activePage = pageId;
-    detailPanel = pageId === 'crafting' ? { kind: 'craft' } : null;
+    detailPanel = null;
     renderSidebar();
     render();
     if (pageId === 'leaderboard') refreshLeaderboard();
@@ -605,7 +611,6 @@
     const hitPct = rateChar ? (rates.hitPct * 100).toFixed(0) : '0';
     const best = char ? charSkillLevel(char, 'combat') : bestSkillLevel('combat');
     const locked = best < mob.level;
-    const on = char?.activity === 'combat' && char?.target === mob.id;
 
     return `
       <div class="detail-panel-inner">
@@ -625,8 +630,7 @@
           <div class="detail-stat"><span>Attack speed</span><strong>${rateChar ? E.combatAttackSec(state, rateChar).toFixed(2) : C.COMBAT_ATTACK_SEC}s</strong></div>
         </div>
         ${renderMobDrops(mob)}
-        ${locked ? `<p class="empty-msg">Requires Combat Lv ${mob.level}</p>` : `<div class="detail-panel-actions">${renderAssignBtn('combat', mob.id, false)}</div>`}
-        ${on ? '<p class="activity-assigned"><strong>Fighting now</strong></p>' : ''}
+        ${locked ? `<p class="empty-msg">Requires Combat Lv ${mob.level}</p>` : ''}
       </div>`;
   }
 
@@ -666,46 +670,65 @@
           <div class="detail-stat"><span>100% +1 ${resLabel}</span><strong>${fmt(thresholds.effFor100)} eff</strong></div>
         </div>
         ${on ? `<div class="progress-bar"><div class="progress-bar-fill" data-gather-progress data-gather-vein="${vein.id}" style="width:${gatherPct}%"></div></div>` : ''}
-        ${locked ? `<p class="empty-msg">Requires ${sk.name} Lv ${vein.minLevel}</p>` : `<div class="detail-panel-actions">${renderAssignBtn(sk.activity, vein.id, false)}</div>`}
-        ${on ? '<p class="activity-assigned"><strong>Active on selected hero</strong></p>' : ''}
+        ${locked ? `<p class="empty-msg">Requires ${sk.name} Lv ${vein.minLevel}</p>` : ''}
       </div>`;
   }
 
-  function renderCraftDetailPanel() {
+  function renderInventoryDetailPanel(opts = {}) {
     const char = selectedChar();
     if (!char) return '<p class="empty-msg">Select a character.</p>';
+    const invOpts = { transferType: 'inv', gridClass: 'grid-inv-4 detail-inv-grid', ...opts };
     return `
-      <div class="detail-panel-inner">
+      <div class="detail-panel-inner detail-panel-inventory">
         <h2 class="detail-panel-title">Inventory</h2>
         <p class="detail-panel-sub">${charLabel(char)}</p>
-        ${renderPagedInventory(char, { transferType: 'inv', gridClass: 'grid-inv-4' })}
+        <div class="detail-inventory-wrap">
+          ${renderPagedInventory(char, invOpts)}
+        </div>
       </div>`;
   }
 
   function renderDetailPanel() {
     const el = $('panel-detail');
-    if (!el) return;
+    const split = document.querySelector('.page-body-split');
+    if (!el || !split) return;
 
-    if (activePage === 'crafting') {
-      el.classList.remove('hidden');
-      el.innerHTML = renderCraftDetailPanel();
+    if (!usesRightRail()) {
+      split.classList.remove('has-right-rail');
+      el.classList.add('hidden');
+      el.innerHTML = '';
       return;
     }
 
+    split.classList.add('has-right-rail');
+    el.classList.remove('hidden');
+
+    if (activePage === 'crafting' || activePage === 'producing') {
+      el.className = 'detail-panel detail-panel-fixed';
+      el.innerHTML = renderInventoryDetailPanel();
+      return;
+    }
+
+    if (activePage === 'smelting') {
+      el.className = 'detail-panel detail-panel-fixed';
+      el.innerHTML = renderInventoryDetailPanel({ smeltOrePick: true });
+      return;
+    }
+
+    el.className = 'detail-panel';
+
     if (detailPanel?.kind === 'combat') {
-      el.classList.remove('hidden');
       el.innerHTML = renderCombatDetail(detailPanel.id);
       return;
     }
 
     if (detailPanel?.kind === 'gather') {
-      el.classList.remove('hidden');
       el.innerHTML = renderGatherDetail(detailPanel.skillId, detailPanel.id);
       return;
     }
 
-    el.classList.add('hidden');
-    el.innerHTML = '';
+    const hint = activePage === 'combat' ? 'monster' : 'resource';
+    el.innerHTML = `<div class="detail-panel-empty"><p class="empty-msg">Click a ${hint} to view stats</p></div>`;
   }
 
   function renderCombatArena(char) {
@@ -762,7 +785,7 @@
             </div>
           </div>
           ${on ? '<p class="activity-assigned compact">Active</p>' : ''}
-          ${locked ? `<p class="empty-msg compact">Lv ${mob.level} req.</p>` : ''}
+          ${locked ? `<p class="empty-msg compact">Lv ${mob.level} req.</p>` : `<div class="activity-card-actions">${renderAssignBtn('combat', mob.id, false)}</div>`}
         </article>`;
     }).join('');
 
@@ -808,7 +831,7 @@
             </div>
           </div>
           ${on ? '<p class="activity-assigned compact">Active</p>' : ''}
-          ${locked ? `<p class="empty-msg compact">Lv ${vein.minLevel} req.</p>` : ''}
+          ${locked ? `<p class="empty-msg compact">Lv ${vein.minLevel} req.</p>` : `<div class="activity-card-actions">${renderAssignBtn(sk.activity, vein.id, false)}</div>`}
         </article>`;
     }).join('');
 
@@ -848,36 +871,23 @@
           </div>` : '';
 
       return `
-        <article class="activity-card smelt-drop-zone${selected}" data-smelt-slot="${i}">
-          <strong class="smelt-slot-title" data-action="select-smelt-slot" data-slot="${i}">Smelter Slot ${i + 1}</strong>
+        <article class="activity-card smelt-drop-zone smelt-slot-compact${selected}" data-smelt-slot="${i}">
+          <strong class="smelt-slot-title" data-action="select-smelt-slot" data-slot="${i}">Slot ${i + 1}</strong>
           <div class="smelt-slot-items">${readySlot}</div>
-          ${slot.ore ? `<p class="empty-msg">${resIcon(slot.ore, 'game-icon')} ${fmt(slot.oreLoaded || 0)} / ${batchCap} · ${recipe?.orePerBar ?? '?'} ore/bar · ${recipe?.ticks ?? '?'}s · ${fmt(recipe?.xp ?? 5)} XP/bar</p>
-            <div class="progress-bar"><div class="progress-bar-fill" style="width:${pct}%"></div></div>
-            <p class="empty-msg">Smelting ${resName(slot.ore)}…</p>` : '<p class="empty-msg">Click ore in inventory to load</p>'}
+          ${slot.ore ? `<p class="empty-msg smelt-slot-meta">${fmt(slot.oreLoaded || 0)}/${batchCap} · ${recipe?.ticks ?? '?'}s</p>
+            <div class="progress-bar compact"><div class="progress-bar-fill" style="width:${pct}%"></div></div>` : '<p class="empty-msg smelt-slot-meta">Load ore →</p>'}
         </article>`;
     }).join('');
-
-    const invSection = char
-      ? `<section class="skill-split-side storage-panel slot-panel-fit">
-          <h3 class="storage-half-title">${charLabel(char)}'s Inventory</h3>
-          ${renderPagedInventory(char, { gridClass: 'grid-inv-4', holdUse: true, smeltOrePick: true })}
-        </section>`
-      : '<section class="skill-split-side storage-panel slot-panel-fit"><p class="empty-msg">Select a character to load ore.</p></section>';
 
     return `
       <header class="page-header">
         <span class="page-header-icon">${sk.icon}</span>
-        <div class="page-header-text"><h1>${sk.name}</h1><p>Click ore to load smelters — max ${batchCap} per slot · click bars to collect</p></div>
+        <div class="page-header-text"><h1>${sk.name}</h1><p>Click ore in inventory to load smelters — max ${batchCap} per slot · click bars to collect</p></div>
         <div class="page-header-stat"><span class="page-header-stat-label">Smelting Lv</span><span class="page-header-stat-value">${lv}</span></div>
       </header>
       ${renderSkillXpBar(state.smelting.skill, 'Smelting XP')}
       ${pageCharBar()}
-      <div class="skill-split-layout">
-        <section class="skill-split-main">
-          <div class="activity-grid smelt-slots-grid">${slotCards}</div>
-        </section>
-        ${invSection}
-      </div>`;
+      <div class="activity-grid smelt-slots-grid smelt-slots-compact">${slotCards}</div>`;
   }
 
   /* ── Producing ── */
@@ -904,21 +914,21 @@
       const btnCls = active ? 'btn-sm active' : 'btn-sm primary';
 
       return `
-        <article class="activity-card${active ? ' activity-assigned-card' : ''}">
-          <div class="activity-card-head">
-            <span class="activity-card-icon">${resIcon(def.id, 'game-icon xl')}</span>
-            <div class="activity-card-title">
-              <strong>Slot ${i + 1} — ${def.name}</strong>
-              <span>${def.ticks}s · max ${cap} · ${fmt(def.xp)} XP/batch</span>
+        <article class="activity-card produce-slot-compact${active ? ' activity-assigned-card' : ''}${locked ? ' locked' : ''}">
+          <div class="produce-slot-head">
+            ${resIcon(def.id, 'game-icon md')}
+            <div class="produce-slot-title">
+              <strong>${def.name}</strong>
+              <span>${def.ticks}s · ${fmt(def.xp)} XP</span>
             </div>
           </div>
-          <div class="activity-actions">
+          <div class="activity-card-actions">
             <button type="button" class="${btnCls}" data-action="pick-produce" data-slot="${i}">
-              ${active ? 'Producing ✓' : `Produce ${def.name}`}
+              ${active ? 'Active ✓' : 'Produce'}
             </button>
             ${active ? `<button type="button" class="btn-sm ghost" data-action="clear-produce">Stop</button>` : ''}
           </div>
-          ${active ? `<div class="progress-bar"><div class="progress-bar-fill" style="width:${pct}%"></div></div>` : ''}
+          ${active ? `<div class="progress-bar compact"><div class="progress-bar-fill" style="width:${pct}%"></div></div>` : ''}
         </article>`;
     }).join('');
 
@@ -937,16 +947,8 @@
       </header>
       ${renderSkillXpBar(prod.skill, 'Producing XP')}
       ${pageCharBar()}
-      <div class="skill-split-layout">
-        <section class="skill-split-main">
-          <div class="activity-grid produce-slots-grid">${slotCards}</div>
-          ${readySlot ? `<div class="produce-ready-wrap"><h3 class="storage-half-title">Ready to collect</h3>${readySlot}</div>` : ''}
-        </section>
-        <section class="skill-split-side storage-panel slot-panel-fit">
-          <h3 class="storage-half-title">${charLabel(char)}'s Inventory</h3>
-          ${renderPagedInventory(char, { transferType: 'inv', gridClass: 'grid-inv-4' })}
-        </section>
-      </div>`;
+      <div class="activity-grid produce-slots-grid produce-slots-compact">${slotCards}</div>
+      ${readySlot ? `<div class="produce-ready-wrap compact"><h3 class="storage-half-title">Ready to collect</h3>${readySlot}</div>` : ''}`;
   }
 
   function renderEquipmentPanel() {
