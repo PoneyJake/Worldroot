@@ -40,7 +40,28 @@
   }
 
   function defaultSkill() {
-    return { level: 0, xp: 0 };
+    return { level: 0, xp: 0, talentPoints: 0, talents: {} };
+  }
+
+  function ensureSkillTalents(skill) {
+    if (!skill) return;
+    if (!skill.talents || typeof skill.talents !== 'object') skill.talents = {};
+    if (skill.talentPoints == null) skill.talentPoints = 0;
+  }
+
+  function syncTalentPointsFromLevel(skill) {
+    ensureSkillTalents(skill);
+    const spent = Object.values(skill.talents).reduce((sum, n) => sum + (n || 0), 0);
+    const owed = skill.level * (C.TALENT_POINTS_PER_LEVEL ?? 2);
+    skill.talentPoints = Math.max(skill.talentPoints || 0, owed - spent);
+  }
+
+  function spendTalentPoint(skill, talentId) {
+    ensureSkillTalents(skill);
+    if ((skill.talentPoints || 0) < 1) return false;
+    skill.talentPoints -= 1;
+    skill.talents[talentId] = (skill.talents[talentId] || 0) + 1;
+    return true;
   }
 
   function defaultSmeltSlots() {
@@ -243,6 +264,7 @@
       woodcutting: { ...defaultSkill(), ...c.skills?.woodcutting },
       fishing: { ...defaultSkill(), ...c.skills?.fishing },
     };
+    for (const sk of Object.values(skills)) syncTalentPointsFromLevel(sk);
 
     const target = c.activity === 'combat' && c.target
       ? migrateMonsterId(c.target)
@@ -266,6 +288,7 @@
         ready: producing.ready ?? 0,
         readyItem: producing.readyItem ?? producing.item ?? null,
       };
+      syncTalentPointsFromLevel(producing.skill);
     }
 
     return {
@@ -331,6 +354,7 @@
           readyBar: s.readyBar ?? null,
         })),
       };
+      syncTalentPointsFromLevel(state.smelting.skill);
     }
     if (Array.isArray(data.characters)) {
       state.characters = data.characters.map(hydrateCharacter);
@@ -410,10 +434,16 @@
   }
 
   function grantXp(skill, amount) {
+    ensureSkillTalents(skill);
+    const before = skill.level;
     skill.xp += amount;
     while (skill.xp >= xpForLevel(skill.level)) {
       skill.xp -= xpForLevel(skill.level);
       skill.level += 1;
+    }
+    const gained = skill.level - before;
+    if (gained > 0) {
+      skill.talentPoints = (skill.talentPoints || 0) + gained * (C.TALENT_POINTS_PER_LEVEL ?? 2);
     }
   }
 
@@ -465,13 +495,19 @@
     return char?.pouchTiers?.[category] ?? 0;
   }
 
-  function carryCapacityBonus(state, skillId, char = null) {
+  function carryCapacityBonus(state, skillId, char = null, resourceId = null) {
     const effect = carryEffectForSkill(skillId);
     let bonus = window.WorldrootEngine?.effectBonus(state, effect) || 0;
     bonus += window.WorldrootEngine?.effectBonus(state, 'carry_capacity') || 0;
     if (char && window.WorldrootEngine?.gearPercentBonus) {
       bonus += window.WorldrootEngine.gearPercentBonus(char, effect);
       bonus += window.WorldrootEngine.gearPercentBonus(char, 'carry_capacity');
+    }
+    if (char && window.WorldrootEngine?.talentBonus) {
+      bonus += window.WorldrootEngine.talentBonus(state, char, skillId, 'carry', 'percent');
+      if (resourceId && C.POUCH_CATEGORY_FOR_RESOURCE?.[resourceId] === 'material') {
+        bonus += window.WorldrootEngine.talentBonus(state, char, 'combat', 'material_carry', 'percent');
+      }
     }
     return bonus;
   }
@@ -490,7 +526,7 @@
       const tier = pouchTierForCategory(char, cat);
       if (tier > 0) base = C.POUCH_CAPACITIES[tier - 1];
     }
-    const bonus = carryCapacityBonus(state, skillId, char);
+    const bonus = carryCapacityBonus(state, skillId, char, resourceId);
     return Math.floor(base * (1 + bonus));
   }
 
@@ -951,7 +987,7 @@
 
   window.WorldrootState = {
     defaultState, loadState, saveState, resetState, exportSaveData, importSaveData,
-    setPlayMode, getSaveKey, createCharacter, xpForLevel, grantXp,
+    setPlayMode, getSaveKey, createCharacter, xpForLevel, grantXp, spendTalentPoint, ensureSkillTalents,
     characterTotalLevel, accountTotalLevel, maxUnlockedSlots, nextSlotUnlock,
     refreshPendingSlot, addCharacter, selectCharacter, getSelectedCharacter,
     setActivity, stopActivity, emptyUpgrades, recordRateEvent, migrateUpgrades,

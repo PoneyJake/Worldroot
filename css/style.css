@@ -2589,6 +2589,40 @@ body {
   border-color: #5a9a52;
 }
 
+.talent-grid {
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+}
+
+.talent-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+}
+
+.talent-per {
+  font-size: 0.72rem;
+  color: #7a9a76;
+}
+
+.talent-level-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.78rem;
+  color: #a8c8a4;
+}
+
+.talent-total {
+  color: #c8e8c4;
+  font-weight: 600;
+}
+
+.talents-points-line {
+  margin: 0 0 12px;
+  font-size: 0.85rem;
+  color: #a8c8a4;
+}
+
 .quest-track-tabs,
 .slot-page-tabs {
   display: flex;

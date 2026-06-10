@@ -24,6 +24,7 @@
   let trashModal = null;
   let suppressClickUntil = 0;
   let detailPanel = null;
+  let skillSubTab = 'activity';
   let logBuffer = [];
   let holdTimer = null;
   let holdEl = null;
@@ -302,6 +303,7 @@
   /* ── Navigation ── */
 
   const RIGHT_RAIL_PAGES = new Set(['combat', 'mining', 'woodcutting', 'fishing', 'crafting', 'producing', 'smelting']);
+  const TALENT_PAGES = new Set(['combat', 'mining', 'woodcutting', 'fishing', 'producing', 'smelting']);
 
   function usesRightRail(pageId = activePage) {
     return RIGHT_RAIL_PAGES.has(pageId);
@@ -313,6 +315,7 @@
     if (pageId !== 'storage') closeTransferModal();
     activePage = pageId;
     detailPanel = null;
+    skillSubTab = 'activity';
     renderSidebar();
     render();
     if (pageId === 'leaderboard') refreshLeaderboard();
@@ -339,7 +342,8 @@
       const sel = item.id === 'characters' && selectedChar()
         ? `<span class="sidebar-btn-badge">${charLabel(selectedChar()).split(' ')[0]}</span>` : '';
       const skillChars = item.type === 'skill' ? skillActivityBadges(item.id) : '';
-      const skillLv = item.type === 'skill' ? `<span class="sidebar-skill-lv">Lv ${skillLevelForNav(item.id)}</span>` : '';
+      const skillLv = item.type === 'skill' && item.id !== 'crafting'
+        ? `<span class="sidebar-skill-lv">Lv ${skillLevelForNav(item.id)}</span>` : '';
       const charAlert = item.id === 'characters' && state.pendingSlot ? '<span class="sidebar-alert">!</span>' : '';
       html += `
         <button type="button" class="sidebar-btn${isActive ? ' active' : ''}${soon}"
@@ -618,6 +622,53 @@
       </div>`;
   }
 
+  /* ── Talents ── */
+
+  function renderSkillSubTabs(skillId) {
+    if (!TALENT_PAGES.has(skillId)) return '';
+    return `<div class="quest-track-tabs">
+      <button type="button" class="quest-track-tab${skillSubTab === 'activity' ? ' active' : ''}" data-action="skill-subtab" data-tab="activity">Activity</button>
+      <button type="button" class="quest-track-tab${skillSubTab === 'talents' ? ' active' : ''}" data-action="skill-subtab" data-tab="talents">Talents</button>
+    </div>`;
+  }
+
+  function renderTalentsPanel(skillId) {
+    const char = selectedChar();
+    if (skillId !== 'smelting' && !char) {
+      return '<p class="empty-msg">Select a character to spend talent points.</p>';
+    }
+
+    const skill = E.skillForTalents(state, char, skillId);
+    if (!skill) return '<p class="empty-msg">No skill data.</p>';
+
+    const treeKey = E.talentTreeKey(skillId);
+    const defs = C.TALENT_TREES?.[treeKey] || [];
+    const points = skill.talentPoints ?? 0;
+    const skillLabel = C.SKILLS[skillId]?.name ?? skillId;
+
+    const cards = defs.map((def) => {
+      const lv = skill.talents?.[def.id] ?? 0;
+      const total = E.formatTalentTotal(def, lv);
+      const canBuy = points > 0;
+      return `
+        <article class="activity-card talent-card">
+          <strong>${def.label}</strong>
+          <span class="talent-per">${def.perLabel ?? ''}</span>
+          <div class="talent-level-row">
+            <span>Rank <strong>${lv}</strong></span>
+            <span class="talent-total">${total}</span>
+          </div>
+          <button type="button" class="btn-sm primary" data-action="buy-talent" data-skill="${skillId}" data-talent="${def.id}" ${canBuy ? '' : 'disabled'}>+1</button>
+        </article>`;
+    }).join('');
+
+    return `
+      <div class="talents-panel">
+        <p class="talents-points-line"><strong>${fmt(points)}</strong> unspent talent points · ${skillLabel} Lv ${skill.level} · +${C.TALENT_POINTS_PER_LEVEL} pts per level</p>
+        <div class="activity-grid talent-grid">${cards}</div>
+      </div>`;
+  }
+
   /* ── Combat ── */
 
   function renderCombatDetail(mobId) {
@@ -808,6 +859,11 @@
     }).join('');
 
     const combatSkill = char?.skills?.combat;
+    const activityBody = `
+      ${pageCharBar()}
+      ${renderSkillSubTabs('combat')}
+      ${skillSubTab === 'talents' ? renderTalentsPanel('combat') : `${arena}<div class="activity-grid activity-grid-compact">${cards}</div>`}`;
+
     return `
       <header class="page-header">
         <span class="page-header-icon">${sk.icon}</span>
@@ -815,9 +871,7 @@
         <div class="page-header-stat"><span class="page-header-stat-label">Combat Lv</span><span class="page-header-stat-value">${best}</span></div>
       </header>
       ${combatSkill ? renderSkillXpBar(combatSkill, 'Combat XP') : ''}
-      ${pageCharBar()}
-      ${arena}
-      <div class="activity-grid activity-grid-compact">${cards}</div>`;
+      ${activityBody}`;
   }
 
   /* ── Gathering ── */
@@ -853,6 +907,11 @@
     }).join('');
 
     const gatherSkill = char?.skills?.[sk.id];
+    const activityBody = `
+      ${pageCharBar()}
+      ${renderSkillSubTabs(sk.id)}
+      ${skillSubTab === 'talents' ? renderTalentsPanel(sk.id) : `<div class="activity-grid activity-grid-compact">${cards}</div>`}`;
+
     return `
       <header class="page-header">
         <span class="page-header-icon">${sk.icon}</span>
@@ -860,8 +919,7 @@
         <div class="page-header-stat"><span class="page-header-stat-label">${sk.name} Lv</span><span class="page-header-stat-value">${best}</span></div>
       </header>
       ${gatherSkill ? renderSkillXpBar(gatherSkill, `${sk.name} XP`) : ''}
-      ${pageCharBar()}
-      <div class="activity-grid activity-grid-compact">${cards}</div>`;
+      ${activityBody}`;
   }
 
   /* ── Smelting ── */
@@ -904,7 +962,8 @@
       </header>
       ${renderSkillXpBar(state.smelting.skill, 'Smelting XP')}
       ${pageCharBar()}
-      <div class="activity-grid smelt-slots-grid smelt-slots-compact">${slotCards}</div>`;
+      ${renderSkillSubTabs('smelting')}
+      ${skillSubTab === 'talents' ? renderTalentsPanel('smelting') : `<div class="activity-grid smelt-slots-grid smelt-slots-compact">${slotCards}</div>`}`;
   }
 
   /* ── Producing ── */
@@ -916,7 +975,6 @@
     const prod = char.producing;
     const lv = prod.skill.level;
     const slotsOpen = E.produceSlotsUnlocked(char);
-    const cap = E.produceBatchCapacity(state);
 
     const slotCards = C.PRODUCE_SLOTS.map((def, i) => {
       const locked = i >= slotsOpen || lv < def.minLevel;
@@ -953,8 +1011,13 @@
     const readySlot = prod.ready > 0 && prod.readyItem
       ? `<div class="produce-ready-slot transferable" data-collect-type="produce" title="Click to collect ${activeDef?.name ?? resName(prod.readyItem)} into inventory">
           <span class="item-slot-icon">${resIcon(prod.readyItem)}</span>
-          <span class="item-slot-qty">${fmt(prod.ready)} / ${cap}</span>
+          <span class="item-slot-qty">${fmt(prod.ready)}</span>
         </div>` : '';
+
+    const activityBody = skillSubTab === 'talents'
+      ? renderTalentsPanel('producing')
+      : `<div class="activity-grid produce-slots-grid produce-slots-compact">${slotCards}</div>
+      ${readySlot ? `<div class="produce-ready-wrap compact"><h3 class="storage-half-title">Ready to collect</h3>${readySlot}</div>` : ''}`;
 
     return `
       <header class="page-header">
@@ -964,8 +1027,8 @@
       </header>
       ${renderSkillXpBar(prod.skill, 'Producing XP')}
       ${pageCharBar()}
-      <div class="activity-grid produce-slots-grid produce-slots-compact">${slotCards}</div>
-      ${readySlot ? `<div class="produce-ready-wrap compact"><h3 class="storage-half-title">Ready to collect</h3>${readySlot}</div>` : ''}`;
+      ${renderSkillSubTabs('producing')}
+      ${activityBody}`;
   }
 
   function renderEquipSlotBox(item, slotType, slotKey, label) {
@@ -1403,6 +1466,16 @@
     if (action === 'inv-page') { invPage = Number(btn.dataset.page); render(); return; }
     if (action === 'stor-page') { storPage = Number(btn.dataset.page); render(); return; }
     if (action === 'quest-track') { questTrack = btn.dataset.track; render(); return; }
+    if (action === 'skill-subtab') { skillSubTab = btn.dataset.tab; render(); return; }
+    if (action === 'buy-talent') {
+      const skillId = btn.dataset.skill;
+      const char = skillId === 'smelting' ? selectedChar() : selectedChar();
+      if (E.buyTalent(state, char, skillId, btn.dataset.talent)) {
+        addLog('Talent upgraded.');
+      } else addLog('No talent points available.');
+      render();
+      return;
+    }
     if (action === 'claim-quest') {
       const ok = E.claimQuest(state, btn.dataset.quest, selectedIndex());
       if (ok) addLog('Quest reward claimed.');

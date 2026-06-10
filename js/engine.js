@@ -134,9 +134,59 @@
     return wt + gear;
   }
 
+  function talentTreeKey(skillId) {
+    return C.TALENT_SKILL_MAP?.[skillId] || skillId;
+  }
+
+  function skillForTalents(state, char, skillId) {
+    if (skillId === 'smelting') return state.smelting?.skill;
+    if (skillId === 'producing') return char?.producing?.skill;
+    return char?.skills?.[skillId];
+  }
+
+  function talentLevel(state, char, skillId, talentId) {
+    const skill = skillForTalents(state, char, skillId);
+    return skill?.talents?.[talentId] ?? 0;
+  }
+
+  function talentDef(skillId, talentId) {
+    const treeKey = talentTreeKey(skillId);
+    return (C.TALENT_TREES?.[treeKey] || []).find((d) => d.id === talentId);
+  }
+
+  function talentBonus(state, char, skillId, talentId, kind) {
+    const def = talentDef(skillId, talentId);
+    if (!def) return 0;
+    const lv = talentLevel(state, char, skillId, talentId);
+    if (kind === 'flat') return lv * (def.flat ?? 0);
+    if (kind === 'percent') return lv * (def.percent ?? 0);
+    return 0;
+  }
+
+  function talentPointsAvailable(state, char, skillId) {
+    return skillForTalents(state, char, skillId)?.talentPoints ?? 0;
+  }
+
+  function buyTalent(state, char, skillId, talentId) {
+    if (skillId !== 'smelting' && !char) return false;
+    const skill = skillForTalents(state, char, skillId);
+    if (!skill || !talentDef(skillId, talentId)) return false;
+    if (!S.spendTalentPoint(skill, talentId)) return false;
+    S.saveState(state);
+    return true;
+  }
+
+  function formatTalentTotal(def, level) {
+    if (!def || level <= 0) return '—';
+    if (def.flat) return `+${def.flat * level}`;
+    if (def.percent) return `+${(def.percent * level * 100).toFixed(level * def.percent < 0.01 ? 2 : 1)}%`;
+    return '—';
+  }
+
   function skillXpBonus(state, skillId, char = null) {
     let bonus = effectBonus(state, `${skillId}_xp`);
     if (char) bonus += gearPercentBonus(char, 'xp_gain');
+    if (char) bonus += talentBonus(state, char, skillId, 'xp', 'percent');
     return bonus;
   }
 
@@ -151,7 +201,8 @@
   function charStat(state, char, statName) {
     const cls = C.CLASSES[char.classId];
     const base = cls?.baseStats?.[statName] ?? 0;
-    const flat = effectBonus(state, statName) + gearFlatBonus(char, statName);
+    const flat = effectBonus(state, statName) + gearFlatBonus(char, statName)
+      + talentBonus(state, char, 'combat', statName, 'flat');
     const pct = gearPercentBonus(char, `${statName}_pct`);
     return Math.floor((base + flat) * (1 + pct));
   }
@@ -289,16 +340,19 @@
     const lv = char.skills[skillId]?.level ?? 0;
     const yieldB = skillYieldBonus(state, skillId) + gearFlatBonus(char, `${skillId}_yield`);
     const statB = gatherStatBonus(state, char, skillId);
-    return C.BASE_GATHER_EFFICIENCY + Math.floor(lv * C.LEVEL_EFF_BONUS + yieldB) + statB + allSkillEffBonus(state);
+    const talentEff = talentBonus(state, char, skillId, 'eff', 'flat');
+    return C.BASE_GATHER_EFFICIENCY + Math.floor(lv * C.LEVEL_EFF_BONUS + yieldB) + statB + allSkillEffBonus(state) + talentEff;
   }
 
   function gatherMultiChance(state, char, skillId) {
     const lv = char.skills[skillId]?.level ?? 0;
-    return lv * C.LEVEL_MULTI_BONUS + skillMultiBonus(state, skillId) + baseMultiKillBonus(state);
+    return lv * C.LEVEL_MULTI_BONUS + skillMultiBonus(state, skillId) + baseMultiKillBonus(state)
+      + talentBonus(state, char, skillId, 'multi', 'percent');
   }
 
   function gatherSpeedBonus(state, char, skillId) {
-    return charEffectBonus(state, char, `${skillId}_speed`, true);
+    return charEffectBonus(state, char, `${skillId}_speed`, true)
+      + talentBonus(state, char, skillId, 'speed', 'percent');
   }
 
   function gatherIntervalTicks(state, char, skillId) {
@@ -327,11 +381,13 @@
   }
 
   function charMaxHp(state, char) {
-    return Math.floor(C.BASE_CHAR_HP + charEffectBonus(state, char, 'base_hp', false));
+    return Math.floor(C.BASE_CHAR_HP + charEffectBonus(state, char, 'base_hp', false)
+      + talentBonus(state, char, 'combat', 'hp', 'flat'));
   }
 
   function charMaxMp(state, char) {
-    return Math.floor(C.BASE_CHAR_MP + charEffectBonus(state, char, 'base_mp', false));
+    return Math.floor(C.BASE_CHAR_MP + charEffectBonus(state, char, 'base_mp', false)
+      + talentBonus(state, char, 'combat', 'mp', 'flat'));
   }
 
   function charDamage(state, char) {
@@ -345,11 +401,13 @@
   }
 
   function charDefence(state, char) {
-    return charEffectBonus(state, char, 'base_defence', false);
+    return charEffectBonus(state, char, 'base_defence', false)
+      + talentBonus(state, char, 'combat', 'def', 'flat');
   }
 
   function charAccuracy(state, char) {
-    return Math.floor(C.BASE_ACCURACY + charEffectBonus(state, char, 'base_accuracy', false));
+    return Math.floor(C.BASE_ACCURACY + charEffectBonus(state, char, 'base_accuracy', false)
+      + talentBonus(state, char, 'combat', 'acc', 'flat'));
   }
 
   function combatHitChance(state, char, monster) {
@@ -359,12 +417,15 @@
   }
 
   function combatAttackSec(state, char) {
-    const speedBonus = charEffectBonus(state, char, 'attack_speed', true);
+    const speedBonus = charEffectBonus(state, char, 'attack_speed', true)
+      + talentBonus(state, char, 'combat', 'attack_speed', 'percent');
     return C.COMBAT_ATTACK_SEC / (1 + speedBonus);
   }
 
   function dropBonus(state, char = null) {
-    return effectBonus(state, 'drop_rate') + (char ? gearPercentBonus(char, 'drop_rate') : 0);
+    let bonus = effectBonus(state, 'drop_rate') + (char ? gearPercentBonus(char, 'drop_rate') : 0);
+    if (char) bonus += talentBonus(state, char, 'combat', 'drop_rate', 'percent');
+    return bonus;
   }
 
   function mobMaxHp(monster) {
@@ -433,12 +494,15 @@
   }
 
   function smeltBatchCapacity(state) {
-    const bonus = effectBonus(state, 'smelt_capacity');
+    const bonus = effectBonus(state, 'smelt_capacity')
+      + talentBonus(state, null, 'smelting', 'capacity', 'percent');
     return Math.floor(C.SMELT_BASE_CAPACITY * (1 + bonus));
   }
 
-  function produceBatchCapacity(state) {
-    const bonus = effectBonus(state, 'produce_capacity');
+  function produceBatchCapacity(state, char = null) {
+    const sel = char || state.characters[state.selectedCharIndex ?? 0];
+    const bonus = effectBonus(state, 'produce_capacity')
+      + (sel ? talentBonus(state, sel, 'producing', 'capacity', 'percent') : 0);
     return Math.floor(C.PRODUCE_BASE_CAPACITY * (1 + bonus));
   }
 
@@ -480,10 +544,14 @@
 
   function tickSmelting(state) {
     const slotsOpen = smeltSlotsUnlocked(state);
-    const speedMult = 1 + effectBonus(state, 'smelt_speed');
+    const speedMult = 1 + effectBonus(state, 'smelt_speed')
+      + talentBonus(state, null, 'smelting', 'speed', 'percent');
     const selChar = state.characters[state.selectedCharIndex ?? 0];
-    const xpMult = 1 + effectBonus(state, 'smelt_xp') + (selChar ? gearPercentBonus(selChar, 'xp_gain') : 0);
-    const multiMult = effectBonus(state, 'smelt_multi') + baseMultiKillBonus(state);
+    const xpMult = 1 + effectBonus(state, 'smelt_xp')
+      + talentBonus(state, null, 'smelting', 'xp', 'percent')
+      + (selChar ? gearPercentBonus(selChar, 'xp_gain') : 0);
+    const multiMult = effectBonus(state, 'smelt_multi') + baseMultiKillBonus(state)
+      + talentBonus(state, null, 'smelting', 'multi', 'percent');
 
     for (let i = 0; i < slotsOpen; i++) {
       const slot = state.smelting.slots[i];
@@ -507,15 +575,17 @@
   }
 
   function tickProducing(state) {
-    const speedMult = 1 + effectBonus(state, 'produce_speed');
-    const multiMult = effectBonus(state, 'produce_multi') + baseMultiKillBonus(state);
-    const cap = produceBatchCapacity(state);
-
     for (const char of state.characters) {
       const prod = char.producing;
       if (!prod || prod.activeSlot == null) continue;
       const def = C.PRODUCE_SLOTS[prod.activeSlot];
       if (!def || prod.skill.level < def.minLevel) continue;
+
+      const speedMult = 1 + effectBonus(state, 'produce_speed')
+        + talentBonus(state, char, 'producing', 'speed', 'percent');
+      const multiMult = effectBonus(state, 'produce_multi') + baseMultiKillBonus(state)
+        + talentBonus(state, char, 'producing', 'multi', 'percent');
+      const cap = produceBatchCapacity(state, char);
       if ((prod.ready || 0) >= cap) continue;
 
       const ticksNeeded = Math.max(1, Math.floor(def.ticks / speedMult));
@@ -529,7 +599,9 @@
       prod.ready = (prod.ready || 0) + made;
       prod.readyItem = def.id;
       recordProduceProgress(state, char, def.id, made);
-      const xpMult = 1 + effectBonus(state, 'produce_xp') + gearPercentBonus(char, 'xp_gain');
+      const xpMult = 1 + effectBonus(state, 'produce_xp')
+        + talentBonus(state, char, 'producing', 'xp', 'percent')
+        + gearPercentBonus(char, 'xp_gain');
       S.grantXp(prod.skill, Math.floor(def.xp * xpMult));
       prod.progress = 0;
     }
@@ -854,8 +926,10 @@
 
       if (hit) {
         let charDmg = charDamage(state, char);
-        const critChance = charEffectBonus(state, char, 'crit_chance', true);
-        const critDmg = charEffectBonus(state, char, 'crit_damage', true);
+        const critChance = charEffectBonus(state, char, 'crit_chance', true)
+          + talentBonus(state, char, 'combat', 'crit_chance', 'percent');
+        const critDmg = charEffectBonus(state, char, 'crit_damage', true)
+          + talentBonus(state, char, 'combat', 'crit_damage', 'percent');
         if (Math.random() < critChance) {
           charDmg = Math.floor(charDmg * (1 + critDmg));
           event.crit = true;
@@ -873,7 +947,8 @@
           S.grantXp(skill, xpGain);
           event.xpGain = (event.xpGain || 0) + xpGain;
 
-          const goldMult = 1 + charEffectBonus(state, char, 'gold_gain', true);
+          const goldMult = 1 + charEffectBonus(state, char, 'gold_gain', true)
+            + talentBonus(state, char, 'combat', 'gold_gain', 'percent');
           const goldMin = monster.goldMin ?? 1;
           const goldMax = monster.goldMax ?? goldMin;
           const goldGain = Math.floor((goldMin + Math.random() * (goldMax - goldMin + 1)) * goldMult);
@@ -1231,5 +1306,7 @@
     canEquipCapacityPouch, equipCapacityPouch, unequipCapacityPouch,
     destroyInventoryItem, destroyStorageItem, destroyEquipped, destroyCapacityPouch,
     catchUpOffline,
+    talentTreeKey, skillForTalents, talentLevel, talentBonus, talentPointsAvailable,
+    buyTalent, formatTalentTotal, talentDef,
   };
 })();
