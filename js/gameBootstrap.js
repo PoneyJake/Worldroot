@@ -48,22 +48,25 @@ async function boot() {
     window.WorldrootState.setPlayMode(isCloud ? 'cloud' : 'offline');
 
     if (isCloud) {
-      await loadCloudSave();
-      patchSaveForCloud();
-      initCloudSyncListeners();
-      await syncLeaderboard();
+      window.WorldrootCloud = {
+        scheduleCloudSave,
+        flushCloudSave,
+        flush: flushCloudSave,
+        flushOnExit: flushCloudSaveOnExit,
+        upload: uploadCloudSave,
+        download: downloadCloudSave,
+      };
+      try {
+        await loadCloudSave();
+        patchSaveForCloud();
+        initCloudSyncListeners();
+        await syncLeaderboard();
+      } catch (err) {
+        console.warn('Cloud sync unavailable:', err);
+      }
     }
-
-    window.WorldrootCloud = {
-      scheduleCloudSave,
-      flushCloudSave,
-      flush: flushCloudSave,
-      flushOnExit: flushCloudSaveOnExit,
-      upload: uploadCloudSave,
-      download: downloadCloudSave,
-    };
   } catch (err) {
-    console.warn('Cloud sync unavailable:', err);
+    console.warn('Boot failed:', err);
   } finally {
     window.__worldrootReleaseBoot?.();
     if (window.WorldrootSession?.isCloud) {

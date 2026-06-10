@@ -1495,6 +1495,37 @@
     lastTapActionAt = Date.now();
   }
 
+  function performResetSave() {
+    if (!confirm('Reset all progress? This will wipe cloud save too when logged in.')) return;
+    state = S.resetState();
+    S.saveState(state);
+    addLog('Save cleared.');
+    render({ force: true });
+
+    if (!window.WorldrootSession?.isCloud) {
+      addLog('Reset local only — use Play Worldroot while logged in to sync.');
+      render({ force: true });
+      return;
+    }
+
+    const uploadFn = window.WorldrootCloud?.upload ?? window.WorldrootCloud?.flush;
+    if (!uploadFn) {
+      addLog('Cloud upload not ready — reload, then tap Upload to cloud.');
+      render({ force: true });
+      return;
+    }
+
+    addLog('Syncing reset to cloud…');
+    renderLogEl();
+    uploadFn().then((ok) => {
+      addLog(ok ? 'Reset synced to cloud.' : 'Could not sync reset — tap Upload to cloud.');
+      render({ force: true });
+    }).catch(() => {
+      addLog('Could not sync reset — tap Upload to cloud.');
+      render({ force: true });
+    });
+  }
+
   function dispatchUiAction(e, rootEl) {
     const origin = rootEl || e.target;
     if (origin.closest?.('[data-collect-type]')) return false;
@@ -1733,12 +1764,21 @@
       return;
     }
     if (action === 'upload-cloud-save') {
-      if (window.WorldrootCloud?.upload) {
-        window.WorldrootCloud.upload().then((ok) => {
+      const uploadFn = window.WorldrootCloud?.upload ?? window.WorldrootCloud?.flush;
+      if (uploadFn) {
+        addLog('Uploading to cloud…');
+        renderLogEl();
+        uploadFn().then((ok) => {
           state = S.loadState();
           addLog(ok ? 'Uploaded save to cloud.' : 'Could not upload to cloud.');
-          render();
-        }).catch(() => addLog('Could not upload to cloud.'));
+          render({ force: true });
+        }).catch(() => {
+          addLog('Could not upload to cloud.');
+          render({ force: true });
+        });
+      } else {
+        addLog('Cloud upload not ready — reload the game and try again.');
+        render({ force: true });
       }
       return;
     }
@@ -1764,26 +1804,7 @@
       return;
     }
     if (action === 'reset-save') {
-      if (confirm('Reset all progress? This will wipe cloud save too when logged in.')) {
-        state = S.resetState();
-        S.saveState(state);
-        addLog('Save cleared.');
-        render();
-        if (window.WorldrootSession?.isCloud && window.WorldrootCloud?.upload) {
-          addLog('Syncing reset to cloud…');
-          renderLogEl();
-          window.WorldrootCloud.upload().then((ok) => {
-            addLog(ok ? 'Reset synced to cloud.' : 'Could not sync reset — tap Upload to cloud.');
-            render({ force: true });
-          }).catch(() => {
-            addLog('Could not sync reset — tap Upload to cloud.');
-            render({ force: true });
-          });
-        } else {
-          addLog('Reset local only — use Play Worldroot while logged in to sync.');
-          render({ force: true });
-        }
-      }
+      performResetSave();
       return;
     }
     if (action === 'go-menu' && window.WorldrootGoMenu) window.WorldrootGoMenu();

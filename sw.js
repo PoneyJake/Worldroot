@@ -1,4 +1,4 @@
-const CACHE = 'worldroot-pwa-v2';
+const CACHE = 'worldroot-pwa-v3';
 
 const PRECACHE = [
   '/',
@@ -40,17 +40,31 @@ self.addEventListener('fetch', (event) => {
   const { request } = event;
   if (request.method !== 'GET' || !isSameOrigin(request)) return;
 
+  let url;
+  try {
+    url = new URL(request.url);
+  } catch {
+    return;
+  }
+  const preferNetwork = url.pathname.endsWith('.js') || url.pathname.endsWith('.html');
+
   event.respondWith(
-    caches.match(request).then((cached) => {
-      const network = fetch(request).then((response) => {
+    (preferNetwork
+      ? fetch(request).then((response) => {
         if (response.ok) {
-          const copy = response.clone();
-          caches.open(CACHE).then((cache) => cache.put(request, copy));
+          caches.open(CACHE).then((cache) => cache.put(request, response.clone()));
         }
         return response;
-      }).catch(() => cached);
-
-      return cached || network;
-    }),
+      }).catch(() => caches.match(request))
+      : caches.match(request).then((cached) => {
+        const network = fetch(request).then((response) => {
+          if (response.ok) {
+            const copy = response.clone();
+            caches.open(CACHE).then((cache) => cache.put(request, copy));
+          }
+          return response;
+        }).catch(() => cached);
+        return cached || network;
+      })),
   );
 });
