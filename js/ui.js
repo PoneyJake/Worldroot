@@ -2415,11 +2415,12 @@
       if (window.__worldrootBootGate) await window.__worldrootBootGate;
       if (window.__worldrootBooted) return;
       window.__worldrootBooted = true;
-      if (window.WorldrootSession?.isCloud && window.WorldrootCloud?.refresh) {
-        await window.WorldrootCloud.refresh();
-      }
       const loaded = window.WorldrootState.loadState();
       init(loaded);
+      if (!state?.characters) {
+        state = window.WorldrootState.defaultState();
+        window.WorldrootUI.setState(state);
+      }
       const offline = window.WorldrootEngine.catchUpOffline(window.WorldrootUI.getState());
       if (offline) showOfflineModal(offline);
       addLog(state.characters.length ? 'Welcome back to Worldroot.' : 'Welcome to Worldroot. Choose your first class.');

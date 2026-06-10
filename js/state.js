@@ -400,19 +400,18 @@
   }
 
   function exportSaveData() {
-    if (window.WorldrootUI?.getState) {
-      return serializeState(window.WorldrootUI.getState());
-    }
+    const live = window.WorldrootUI?.getState?.();
+    if (live) return serializeState(live);
     const raw = localStorage.getItem(getSaveKey());
     if (raw) {
-      try { return JSON.parse(raw); } catch { /* fall through */ }
+      try { return serializeState(hydrateState(JSON.parse(raw))); } catch { /* fall through */ }
     }
     return serializeState(defaultState());
   }
 
   function importSaveData(data) {
     if (!data || typeof data !== 'object') return;
-    localStorage.setItem(getSaveKey(), JSON.stringify(data));
+    localStorage.setItem(getSaveKey(), JSON.stringify(serializeState(hydrateState(data))));
   }
 
   const XP_BASE = 50;

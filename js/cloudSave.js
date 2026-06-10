@@ -54,7 +54,8 @@ export function persistGameSave() {
 }
 
 function exportSaveData() {
-  if (window.WorldrootUI?.getState && window.WorldrootState?.exportSaveData) {
+  const live = window.WorldrootUI?.getState?.();
+  if (live && window.WorldrootState?.exportSaveData) {
     return window.WorldrootState.exportSaveData();
   }
   return readRawLocalSave();
@@ -126,8 +127,12 @@ function pickNewerSave(localPayload, cloudRow) {
 
 function reloadUiFromStorage() {
   if (!window.WorldrootState?.loadState || !window.WorldrootUI?.setState) return;
-  window.WorldrootUI.setState(window.WorldrootState.loadState());
-  window.WorldrootUI.render?.({ force: true });
+  const loaded = window.WorldrootState.loadState();
+  if (!loaded) return;
+  window.WorldrootUI.setState(loaded);
+  if (window.__worldrootBooted) {
+    window.WorldrootUI.render?.({ force: true });
+  }
 }
 
 async function fetchCloudRow() {
