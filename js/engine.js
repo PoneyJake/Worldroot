@@ -102,8 +102,42 @@
     return bonus;
   }
 
-  function skillXpBonus(state, skillId) {
-    return effectBonus(state, `${skillId}_xp`);
+  function equippedItemIds(char) {
+    if (!char) return [];
+    const ids = [];
+    for (const itemId of Object.values(char.equipment || {})) if (itemId) ids.push(itemId);
+    for (const itemId of Object.values(char.tools || {})) if (itemId) ids.push(itemId);
+    return ids;
+  }
+
+  function gearFlatBonus(char, effectType) {
+    let sum = 0;
+    for (const id of equippedItemIds(char)) {
+      sum += C.GEAR_STATS?.[id]?.flat?.[effectType] ?? 0;
+    }
+    return sum;
+  }
+
+  function gearPercentBonus(char, effectType) {
+    let sum = 0;
+    for (const id of equippedItemIds(char)) {
+      sum += C.GEAR_STATS?.[id]?.percent?.[effectType] ?? 0;
+    }
+    return sum;
+  }
+
+  function charEffectBonus(state, char, effectType, isPercent = false) {
+    const wt = effectBonus(state, effectType);
+    const gear = char
+      ? (isPercent ? gearPercentBonus(char, effectType) : gearFlatBonus(char, effectType))
+      : 0;
+    return wt + gear;
+  }
+
+  function skillXpBonus(state, skillId, char = null) {
+    let bonus = effectBonus(state, `${skillId}_xp`);
+    if (char) bonus += gearPercentBonus(char, 'xp_gain');
+    return bonus;
   }
 
   function skillYieldBonus(state, skillId) {
@@ -117,7 +151,9 @@
   function charStat(state, char, statName) {
     const cls = C.CLASSES[char.classId];
     const base = cls?.baseStats?.[statName] ?? 0;
-    return base + effectBonus(state, statName);
+    const flat = effectBonus(state, statName) + gearFlatBonus(char, statName);
+    const pct = gearPercentBonus(char, `${statName}_pct`);
+    return Math.floor((base + flat) * (1 + pct));
   }
 
   function gatherStatBonus(state, char, skillId) {
@@ -251,7 +287,7 @@
 
   function gatherEfficiency(state, char, skillId) {
     const lv = char.skills[skillId]?.level ?? 0;
-    const yieldB = skillYieldBonus(state, skillId);
+    const yieldB = skillYieldBonus(state, skillId) + gearFlatBonus(char, `${skillId}_yield`);
     const statB = gatherStatBonus(state, char, skillId);
     return C.BASE_GATHER_EFFICIENCY + Math.floor(lv * C.LEVEL_EFF_BONUS + yieldB) + statB + allSkillEffBonus(state);
   }
@@ -259,6 +295,15 @@
   function gatherMultiChance(state, char, skillId) {
     const lv = char.skills[skillId]?.level ?? 0;
     return lv * C.LEVEL_MULTI_BONUS + skillMultiBonus(state, skillId) + baseMultiKillBonus(state);
+  }
+
+  function gatherSpeedBonus(state, char, skillId) {
+    return charEffectBonus(state, char, `${skillId}_speed`, true);
+  }
+
+  function gatherIntervalTicks(state, char, skillId) {
+    const speedMult = 1 + gatherSpeedBonus(state, char, skillId);
+    return Math.max(1, Math.floor(C.GATHER_INTERVAL_TICKS / speedMult));
   }
 
   function gatherSuccessChance(state, char, skillId, vein) {
@@ -281,64 +326,81 @@
     return C.GATHER_RATE_PER_MIN;
   }
 
-  function gatherIntervalTicks() {
-    return C.GATHER_INTERVAL_TICKS;
-  }
-
   function charMaxHp(state, char) {
-    return Math.floor(C.BASE_CHAR_HP + effectBonus(state, 'base_hp'));
+    return Math.floor(C.BASE_CHAR_HP + charEffectBonus(state, char, 'base_hp', false));
   }
 
   function charMaxMp(state, char) {
-    return Math.floor(C.BASE_CHAR_MP + effectBonus(state, 'base_mp'));
+    return Math.floor(C.BASE_CHAR_MP + charEffectBonus(state, char, 'base_mp', false));
   }
 
   function charDamage(state, char) {
     const cls = C.CLASSES[char.classId];
     const statName = cls?.combatStat || 'strength';
     const combatStat = charStat(state, char, statName);
-    const baseDmg = effectBonus(state, 'base_damage');
-    const pctDmg = effectBonus(state, 'pct_damage');
+    const baseDmg = charEffectBonus(state, char, 'base_damage', false);
+    const pctDmg = charEffectBonus(state, char, 'pct_damage', true);
     const raw = C.BASE_CHAR_DAMAGE + baseDmg + combatStat;
     return Math.max(1, Math.floor(raw * (1 + pctDmg)));
   }
 
-  function dropBonus(state) {
-    return effectBonus(state, 'drop_rate');
+  function charDefence(state, char) {
+    return charEffectBonus(state, char, 'base_defence', false);
+  }
+
+  function charAccuracy(state, char) {
+    return Math.floor(C.BASE_ACCURACY + charEffectBonus(state, char, 'base_accuracy', false));
+  }
+
+  function combatHitChance(state, char, monster) {
+    const need = monster?.accuracy ?? 0;
+    if (need <= 0) return 1;
+    return Math.min(1, charAccuracy(state, char) / need);
+  }
+
+  function combatAttackSec(state, char) {
+    const speedBonus = charEffectBonus(state, char, 'attack_speed', true);
+    return C.COMBAT_ATTACK_SEC / (1 + speedBonus);
+  }
+
+  function dropBonus(state, char = null) {
+    return effectBonus(state, 'drop_rate') + (char ? gearPercentBonus(char, 'drop_rate') : 0);
   }
 
   function mobMaxHp(monster) {
     return monster.hp + monster.level * 5;
   }
 
-  function dropChance(state) {
-    return C.BASE_DROP_CHANCE + effectBonus(state, 'drop_rate');
+  function dropChance(state, char = null) {
+    return C.BASE_DROP_CHANCE + dropBonus(state, char);
   }
 
   function combatXpPerKill(state, char, monster) {
     if (!char) return 0;
     const base = monster?.xp ?? 5;
-    const xpMult = 1 + skillXpBonus(state, 'combat');
+    const xpMult = 1 + skillXpBonus(state, 'combat', char);
     return Math.floor(base * xpMult);
   }
 
   function gatherXpPerAction(state, char, skillId, vein) {
     if (!char) return 0;
     const base = vein?.xp ?? 5;
-    const xpMult = 1 + skillXpBonus(state, skillId);
+    const xpMult = 1 + skillXpBonus(state, skillId, char);
     return Math.floor(base * xpMult);
   }
 
   function getTheoreticalCombatRates(state, char, monster) {
     if (!char || (char.skills.combat?.level ?? 0) < monster.level) {
-      return { xpHr: 0, killsHr: 0 };
+      return { xpHr: 0, killsHr: 0, hitPct: 0 };
     }
-    const attacksPerHr = 3600 / C.COMBAT_ATTACK_SEC;
+    const attackSec = combatAttackSec(state, char);
+    const attacksPerHr = 3600 / attackSec;
+    const hitPct = combatHitChance(state, char, monster);
     const dmg = charDamage(state, char);
     const hitsPerKill = Math.ceil(mobMaxHp(monster) / Math.max(1, dmg));
-    const killsHr = Math.floor(attacksPerHr / hitsPerKill);
+    const killsHr = Math.floor(attacksPerHr * hitPct / hitsPerKill);
     const xpPerKill = combatXpPerKill(state, char, monster);
-    return { xpHr: killsHr * xpPerKill, killsHr };
+    return { xpHr: killsHr * xpPerKill, killsHr, hitPct };
   }
 
   function initCombatState(state, char, monster) {
@@ -418,7 +480,8 @@
   function tickSmelting(state) {
     const slotsOpen = smeltSlotsUnlocked(state);
     const speedMult = 1 + effectBonus(state, 'smelt_speed');
-    const xpMult = 1 + effectBonus(state, 'smelt_xp');
+    const selChar = state.characters[state.selectedCharIndex ?? 0];
+    const xpMult = 1 + effectBonus(state, 'smelt_xp') + (selChar ? gearPercentBonus(selChar, 'xp_gain') : 0);
     const multiMult = effectBonus(state, 'smelt_multi') + baseMultiKillBonus(state);
 
     for (let i = 0; i < slotsOpen; i++) {
@@ -444,7 +507,6 @@
 
   function tickProducing(state) {
     const speedMult = 1 + effectBonus(state, 'produce_speed');
-    const xpMult = 1 + effectBonus(state, 'produce_xp');
     const multiMult = effectBonus(state, 'produce_multi') + baseMultiKillBonus(state);
     const cap = produceBatchCapacity(state);
 
@@ -466,6 +528,7 @@
       prod.ready = (prod.ready || 0) + made;
       prod.readyItem = def.id;
       recordProduceProgress(state, char, def.id, made);
+      const xpMult = 1 + effectBonus(state, 'produce_xp') + gearPercentBonus(char, 'xp_gain');
       S.grantXp(prod.skill, Math.floor(def.xp * xpMult));
       prod.progress = 0;
     }
@@ -693,46 +756,69 @@
         cs.respawnSec = Math.max(0, cs.respawnSec - C.TICK_MS / 1000);
         if (cs.respawnSec <= 0) {
           cs.charHp = cs.charMaxHp;
+          cs.mobHp = cs.mobMaxHp;
           event.charHp = cs.charHp;
+          event.mobHp = cs.mobHp;
         }
         return event;
       }
 
       char.combatCd = (char.combatCd || 0) + C.TICK_MS / 1000;
-      if (char.combatCd < C.COMBAT_ATTACK_SEC) return event;
+      const attackSec = combatAttackSec(state, char);
+      if (char.combatCd < attackSec) return event;
       char.combatCd = 0;
 
-      const charDmg = charDamage(state, char);
-      const defence = effectBonus(state, 'base_defence');
-      const mobDmg = Math.max(1, Math.floor(monster.damage - defence * 0.5));
+      const hitChance = combatHitChance(state, char, monster);
+      const hit = Math.random() < hitChance;
+      const defence = charDefence(state, char);
+      const mobDmg = Math.max(1, monster.damage - defence);
 
-      cs.mobHp -= charDmg;
-      event.mobHp = cs.mobHp;
+      if (hit) {
+        let charDmg = charDamage(state, char);
+        const critChance = charEffectBonus(state, char, 'crit_chance', true);
+        const critDmg = charEffectBonus(state, char, 'crit_damage', true);
+        if (Math.random() < critChance) {
+          charDmg = Math.floor(charDmg * (1 + critDmg));
+          event.crit = true;
+        }
+        cs.mobHp -= charDmg;
+        event.mobHp = cs.mobHp;
+      } else {
+        event.missed = true;
+      }
 
       if (cs.mobHp <= 0) {
-        const xpMult = 1 + skillXpBonus(state, 'combat');
-        const xpGain = Math.floor((monster.xp ?? 5) * xpMult);
-        S.grantXp(skill, xpGain);
-        event.xpGain = xpGain;
+        const grantKillRewards = () => {
+          const xpMult = 1 + skillXpBonus(state, 'combat', char);
+          const xpGain = Math.floor((monster.xp ?? 5) * xpMult);
+          S.grantXp(skill, xpGain);
+          event.xpGain = (event.xpGain || 0) + xpGain;
+
+          const goldMult = 1 + charEffectBonus(state, char, 'gold_gain', true);
+          const goldMin = monster.goldMin ?? 1;
+          const goldMax = monster.goldMax ?? goldMin;
+          const goldGain = Math.floor((goldMin + Math.random() * (goldMax - goldMin + 1)) * goldMult);
+          if (goldGain > 0) {
+            state.gold += goldGain;
+            event.gold = (event.gold || 0) + goldGain;
+          }
+
+          const chance = dropChance(state, char);
+          if (monster.drop && Math.random() < chance) {
+            const dropAmt = monster.drop.amount;
+            const result = S.addToInventory(char, state, monster.drop.id, dropAmt, 'combat');
+            event.loot = monster.drop.id;
+            event.lootAmount = (event.lootAmount || 0) + result.added;
+            event.lost = (event.lost || 0) + result.lost;
+          }
+        };
+
+        grantKillRewards();
         event.kill = true;
         event.monster = monster.id;
-
-        const goldMult = 1 + effectBonus(state, 'gold_gain');
-        const goldMin = monster.goldMin ?? 1;
-        const goldMax = monster.goldMax ?? goldMin;
-        const goldGain = Math.floor((goldMin + Math.random() * (goldMax - goldMin + 1)) * goldMult);
-        if (goldGain > 0) {
-          state.gold += goldGain;
-          event.gold = goldGain;
-        }
-
-        const chance = dropChance(state);
-        if (monster.drop && Math.random() < chance) {
-          const dropAmt = monster.drop.amount;
-          const result = S.addToInventory(char, state, monster.drop.id, dropAmt, 'combat');
-          event.loot = monster.drop.id;
-          event.lootAmount = result.added;
-          event.lost = result.lost;
+        if (Math.random() < baseMultiKillBonus(state)) {
+          grantKillRewards();
+          event.multikill = true;
         }
 
         cs.mobHp = cs.mobMaxHp;
@@ -753,13 +839,14 @@
     if (!vein || skill.level < vein.minLevel) return event;
 
     char.gatherCd = (char.gatherCd || 0) + 1;
-    if (char.gatherCd < gatherIntervalTicks()) return event;
+    const gatherTicks = gatherIntervalTicks(state, char, skillId);
+    if (char.gatherCd < gatherTicks) return event;
 
     char.gatherCd = 0;
 
     const amount = rollGatherAmount(state, char, skillId, vein);
     if (amount > 0) {
-      const xpMult = 1 + skillXpBonus(state, skillId);
+      const xpMult = 1 + skillXpBonus(state, skillId, char);
       const xpGain = Math.floor((vein.xp ?? 5) * xpMult);
       S.grantXp(skill, xpGain);
       event.xpGain = xpGain;
@@ -937,7 +1024,10 @@
     gatherEfficiency, gatherStatBonus, gatherSuccessChance, gatherSuccessPercent, gatherMultiChance,
     gatherYieldTierInfo, gatherCatchDisplayPercent, gatherPlusOneThresholds, effForSuccessPercent,
     veinEffThreshold, veinEffBreakpoints,
-    gatherRatePerMin, gatherIntervalTicks, charMaxHp, charMaxMp, charDamage, mobMaxHp, dropChance, dropBonus,
+    gatherRatePerMin, gatherIntervalTicks, gatherSpeedBonus,
+    charMaxHp, charMaxMp, charDamage, charDefence, charAccuracy, combatHitChance, combatAttackSec,
+    gearFlatBonus, gearPercentBonus, charEffectBonus,
+    mobMaxHp, dropChance, dropBonus,
     getTheoreticalCombatRates, combatXpPerKill, gatherXpPerAction, smeltBatchCapacity, produceBatchCapacity,
     charStat, gatherStatMult, combatDamageMult,
     tick, buyUpgrade, canAffordUpgrade, findVein, findMonster,

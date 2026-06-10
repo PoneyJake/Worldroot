@@ -37,6 +37,7 @@ window.WorldrootConfig = {
   BASE_CHAR_HP: 20,
   BASE_CHAR_MP: 10,
   BASE_CHAR_DAMAGE: 5,
+  BASE_ACCURACY: 0,
   BASE_DROP_CHANCE: 0.2,
 
   SLOT_UNLOCK_AT: [0, 10, 25],
@@ -117,10 +118,10 @@ window.WorldrootConfig = {
   },
 
   MONSTERS: [
-    { id: 'forest_slime', name: 'Forest Slime', level: 0, hp: 25, damage: 2, xp: 5, goldMin: 1, goldMax: 3, drop: { id: 'slime_gel', name: 'Ectoplasm', amount: 1 } },
-    { id: 'will_o_wisp', name: 'Will-O-Wisp', level: 10, hp: 100, damage: 5, xp: 15, goldMin: 3, goldMax: 6, drop: { id: 'wisp_essence', name: 'Wisp Essence', amount: 1 } },
-    { id: 'gloomcap', name: 'Gloomcap', level: 20, hp: 250, damage: 10, xp: 25, goldMin: 5, goldMax: 10, drop: { id: 'gloomspore', name: 'Gloomspore', amount: 1 } },
-    { id: 'spore_bat', name: 'Spore Bat', level: 30, hp: 450, damage: 20, xp: 50, goldMin: 8, goldMax: 15, drop: { id: 'bat_wing_membrane', name: 'Bat Wing Membrane', amount: 1 } },
+    { id: 'forest_slime', name: 'Forest Slime', level: 0, hp: 25, damage: 2, xp: 5, accuracy: 0, goldMin: 1, goldMax: 3, drop: { id: 'slime_gel', name: 'Ectoplasm', amount: 1 } },
+    { id: 'will_o_wisp', name: 'Will-O-Wisp', level: 10, hp: 100, damage: 5, xp: 15, accuracy: 5, goldMin: 3, goldMax: 6, drop: { id: 'wisp_essence', name: 'Wisp Essence', amount: 1 } },
+    { id: 'gloomcap', name: 'Gloomcap', level: 20, hp: 250, damage: 10, xp: 25, accuracy: 10, goldMin: 5, goldMax: 10, drop: { id: 'gloomspore', name: 'Gloomspore', amount: 1 } },
+    { id: 'spore_bat', name: 'Spore Bat', level: 30, hp: 450, damage: 20, xp: 50, accuracy: 15, goldMin: 8, goldMax: 15, drop: { id: 'bat_wing_membrane', name: 'Bat Wing Membrane', amount: 1 } },
   ],
 
   SMELT_RECIPES: [

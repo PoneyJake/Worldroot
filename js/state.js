@@ -449,9 +449,14 @@
     twine: 'producing', wooden_pegs: 'producing', iron_nails: 'producing', resin: 'producing',
   };
 
-  function stackCapacity(state, skillId) {
+  function stackCapacity(state, skillId, char = null) {
     const effect = carryEffectForSkill(skillId);
-    const bonus = window.WorldrootEngine?.effectBonus(state, effect) || 0;
+    let bonus = window.WorldrootEngine?.effectBonus(state, effect) || 0;
+    bonus += window.WorldrootEngine?.effectBonus(state, 'carry_capacity') || 0;
+    if (char && window.WorldrootEngine?.gearPercentBonus) {
+      bonus += window.WorldrootEngine.gearPercentBonus(char, effect);
+      bonus += window.WorldrootEngine.gearPercentBonus(char, 'carry_capacity');
+    }
     return Math.floor(C.BASE_STACK_SIZE * (1 + bonus));
   }
 
@@ -462,7 +467,7 @@
       return C.POUCH_CAPACITIES[char.pouchTiers[cat] - 1];
     }
     const skillId = RESOURCE_SKILL_MAP[resourceId] || 'combat';
-    return stackCapacity(state, skillId);
+    return stackCapacity(state, skillId, char);
   }
 
   function inventorySlotCount(char) {

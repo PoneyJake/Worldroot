@@ -221,8 +221,8 @@
   Object.assign(C.GAME_ICONS, extraIcons);
 
   C.MONSTERS.push(
-    { id: 'bog_leech', name: 'Bog Leech', level: 40, hp: 750, damage: 35, xp: 75, goldMin: 12, goldMax: 20, drop: { id: 'leech_sucker', name: 'Leech Sucker', amount: 1 } },
-    { id: 'pollen_moth', name: 'Pollen Moth', level: 50, hp: 1250, damage: 50, xp: 100, goldMin: 15, goldMax: 25, drop: { id: 'moth_pollen', name: 'Moth Pollen', amount: 1 } },
+    { id: 'bog_leech', name: 'Bog Leech', level: 40, hp: 750, damage: 35, xp: 75, accuracy: 20, goldMin: 12, goldMax: 20, drop: { id: 'leech_sucker', name: 'Leech Sucker', amount: 1 } },
+    { id: 'pollen_moth', name: 'Pollen Moth', level: 50, hp: 1250, damage: 50, xp: 100, accuracy: 25, goldMin: 15, goldMax: 25, drop: { id: 'moth_pollen', name: 'Moth Pollen', amount: 1 } },
   );
 
   const navInsert = [

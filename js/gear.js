@@ -126,6 +126,89 @@
       costs: [{ res: 'iron_bar', amt: 250 }, { res: 'wooden_pegs', amt: 500 }] },
   ];
 
+  const ARMOR_COPPER = {
+    helmet: { strength: 2, agility: 2, magic: 2, defence: 1 },
+    chest: { strength: 3, agility: 3, magic: 3, defence: 1 },
+    legs: { strength: 3, agility: 3, magic: 3, defence: 1 },
+    boots: { strength: 1, agility: 1, magic: 1, defence: 1 },
+  };
+  const METAL_ARMOR_ADD = { copper: 0, iron: 1, gold: 3, platinum: 5 };
+
+  const TOOL_COPPER = {
+    pickaxe: { stat: 'strength', amount: 5, speed: 'mining_speed', speedPct: 0.05 },
+    axe: { stat: 'agility', amount: 5, speed: 'woodcutting_speed', speedPct: 0.05 },
+    rod: { stat: 'magic', amount: 5, speed: 'fishing_speed', speedPct: 0.05 },
+  };
+  const METAL_TOOL_ADD = {
+    copper: { stat: 0, speed: 0 },
+    iron: { stat: 5, speed: 0.05 },
+    gold: { stat: 10, speed: 0.10 },
+    platinum: { stat: 15, speed: 0.15 },
+  };
+
+  const WEAPON_COPPER = {
+    sword: { stat: 'strength', amount: 5, speedPct: 0.05 },
+    bow: { stat: 'agility', amount: 5, speedPct: 0.05 },
+    staff: { stat: 'magic', amount: 5, speedPct: 0.05 },
+  };
+  const METAL_WEAPON_ADD = {
+    copper: { stat: 0, speed: 0 },
+    iron: { stat: 10, speed: 0.05 },
+    gold: { stat: 20, speed: 0.10 },
+    platinum: { stat: 30, speed: 0.15 },
+  };
+
+  function buildArmorStats(metal, piece) {
+    const base = ARMOR_COPPER[piece];
+    const add = METAL_ARMOR_ADD[metal];
+    const flat = {};
+    for (const [key, val] of Object.entries(base)) flat[key] = val + add;
+    return { flat };
+  }
+
+  function buildToolStats(metal, tool) {
+    const base = TOOL_COPPER[tool];
+    const add = METAL_TOOL_ADD[metal];
+    return {
+      flat: { [base.stat]: base.amount + add.stat },
+      percent: { [base.speed]: base.speedPct + add.speed },
+    };
+  }
+
+  function buildWeaponStats(metal, weapon) {
+    const base = WEAPON_COPPER[weapon];
+    const add = METAL_WEAPON_ADD[metal];
+    return {
+      flat: { [base.stat]: base.amount + add.stat },
+      percent: { attack_speed: base.speedPct + add.speed },
+    };
+  }
+
+  const GEAR_STATS = {
+    ring_of_strength: { percent: { strength_pct: 0.10 } },
+    ring_of_agility: { percent: { agility_pct: 0.10 } },
+    ring_of_magic: { percent: { magic_pct: 0.10 } },
+    ring_of_carrying: { percent: { carry_capacity: 0.10 } },
+    ring_of_wealth: { percent: { gold_gain: 0.10 } },
+    ring_of_fortune: { percent: { drop_rate: 0.05 } },
+    amulet_of_mining: { flat: { mining_yield: 10 }, percent: { mining_speed: 0.10 } },
+    amulet_of_woodcutting: { flat: { woodcutting_yield: 10 }, percent: { woodcutting_speed: 0.10 } },
+    amulet_of_fishing: { flat: { fishing_yield: 10 }, percent: { fishing_speed: 0.10 } },
+    amulet_of_experience: { percent: { xp_gain: 0.10 } },
+  };
+
+  for (const metal of ['copper', 'iron', 'gold', 'platinum']) {
+    for (const piece of ['helmet', 'chest', 'legs', 'boots']) {
+      GEAR_STATS[`${metal}_${piece}`] = buildArmorStats(metal, piece);
+    }
+    for (const tool of ['pickaxe', 'axe', 'rod']) {
+      GEAR_STATS[`${metal}_${tool}`] = buildToolStats(metal, tool);
+    }
+    for (const weapon of ['sword', 'bow', 'staff']) {
+      GEAR_STATS[`${metal}_${weapon}`] = buildWeaponStats(metal, weapon);
+    }
+  }
+
   const EQUIP_ITEM_SLOTS = {};
   const GEAR_ITEM_IDS = new Set();
   const GEAR_NAMES = {};
@@ -146,6 +229,7 @@
 
   C.EQUIP_ITEM_SLOTS = EQUIP_ITEM_SLOTS;
   C.GEAR_ITEM_IDS = GEAR_ITEM_IDS;
+  C.GEAR_STATS = GEAR_STATS;
   C.CRAFT_CATEGORIES = [
     { id: 'armor', label: 'Armor', icon: '🛡' },
     { id: 'weapon', label: 'Weapons', icon: '⚔' },

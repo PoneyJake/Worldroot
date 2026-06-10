@@ -333,6 +333,11 @@ body {
   height: 3rem;
 }
 
+.game-icon.md {
+  width: 2.25rem;
+  height: 2.25rem;
+}
+
 .game-icon.xl {
   width: 4.25rem;
   height: 4.25rem;
@@ -2099,14 +2104,14 @@ body {
 
 .equipment-grid {
   display: grid;
-  grid-template-columns: repeat(4, 76px);
-  gap: 8px;
+  grid-template-columns: repeat(4, minmax(96px, 1fr));
+  gap: 10px;
 }
 
 .tools-grid {
   display: grid;
-  grid-template-columns: repeat(3, 76px);
-  gap: 8px;
+  grid-template-columns: repeat(3, minmax(96px, 1fr));
+  gap: 10px;
 }
 
 .equip-slot {
@@ -2143,6 +2148,20 @@ body {
 .equip-slot-box.filled {
   border-style: solid;
   opacity: 1;
+}
+
+.equip-slot-box-lg {
+  width: 96px;
+  height: 96px;
+}
+
+.equip-stat-line {
+  font-size: 0.62rem;
+  line-height: 1.3;
+  color: #9aaa96;
+  text-align: center;
+  max-width: 110px;
+  margin: 0;
 }
 
 .equip-unequip-btn {
@@ -2216,6 +2235,52 @@ body {
 .craft-grid,
 .quest-grid {
   grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+}
+
+.shop-grid-lg,
+.craft-grid-lg {
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+}
+
+.craft-card-lg {
+  padding: 14px 12px;
+}
+
+.craft-stat-line {
+  font-size: 0.72rem;
+  color: #b8e0a8;
+  margin: 6px 0;
+  line-height: 1.35;
+}
+
+.craft-cost-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin: 10px 0 4px;
+}
+
+.craft-cost-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border-radius: 8px;
+  background: rgba(24, 36, 24, 0.8);
+  border: 1px solid #3a5a38;
+  font-size: 0.88rem;
+  color: #dce6d8;
+}
+
+.craft-cost-chip strong {
+  font-weight: 700;
+}
+
+.shop-card-icon .game-icon.xl,
+.craft-card .shop-card-icon .game-icon.xl {
+  width: 5rem;
+  height: 5rem;
 }
 
 .shop-card,

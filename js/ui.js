@@ -36,6 +36,29 @@
   }
   function fmt(n) { return Math.floor(n).toLocaleString(); }
   function resName(id) { return C.RESOURCE_NAMES?.[id] ?? id; }
+
+  const GEAR_STAT_LABELS = {
+    strength: 'STR', agility: 'AGI', magic: 'MAG', defence: 'DEF',
+    mining_yield: 'Mining Eff', woodcutting_yield: 'WC Eff', fishing_yield: 'Fish Eff',
+    mining_speed: 'Mining Speed', woodcutting_speed: 'WC Speed', fishing_speed: 'Fish Speed',
+    attack_speed: 'Attack Speed', strength_pct: 'STR', agility_pct: 'AGI', magic_pct: 'MAG',
+    carry_capacity: 'Carry Cap', gold_gain: 'Gold', drop_rate: 'Drop Rate', xp_gain: 'XP',
+  };
+
+  function formatGearStats(itemId) {
+    const stats = C.GEAR_STATS?.[itemId];
+    if (!stats) return '';
+    const parts = [];
+    for (const [key, val] of Object.entries(stats.flat || {})) {
+      const label = GEAR_STAT_LABELS[key] || key;
+      parts.push(`+${val} ${label}`);
+    }
+    for (const [key, val] of Object.entries(stats.percent || {})) {
+      const label = GEAR_STAT_LABELS[key] || key;
+      parts.push(`+${(val * 100).toFixed(0)}% ${label}`);
+    }
+    return parts.join(' · ');
+  }
   function iconSrc(key) {
     const file = C.GAME_ICONS?.[key];
     if (!file) return null;
@@ -94,7 +117,7 @@
 
   function smoothGatherPct(char) {
     if (!char?.activity || !C.VEINS[char.activity]) return 0;
-    const ticks = E.gatherIntervalTicks();
+    const ticks = E.gatherIntervalTicks(state, char, char.activity);
     const totalMs = ticks * C.TICK_MS;
     const baseMs = (char.gatherCd || 0) * C.TICK_MS;
     const sinceTick = Date.now() - (state.lastTickAt || Date.now());
@@ -366,13 +389,13 @@
       { label: 'HP', value: fmt(E.charMaxHp(state, char)) },
       { label: 'MP', value: fmt(E.charMaxMp(state, char)) },
       { label: 'Damage', value: fmt(E.charDamage(state, char)) },
-      { label: 'Defence', value: fmt(E.effectBonus(state, 'base_defence')) },
-      { label: 'Accuracy', value: fmt(E.effectBonus(state, 'base_accuracy')) },
-      { label: 'Crit Chance', value: pct(E.effectBonus(state, 'crit_chance')) },
-      { label: 'Crit Damage', value: pct(E.effectBonus(state, 'crit_damage')) },
-      { label: 'Drop Rate', value: pct(E.dropBonus(state)) },
-      { label: 'Gold Gain', value: pct(E.effectBonus(state, 'gold_gain')) },
-      { label: 'Carry Cap.', value: pct(E.effectBonus(state, 'carry_capacity')) },
+      { label: 'Defence', value: fmt(E.charDefence(state, char)) },
+      { label: 'Accuracy', value: fmt(E.charAccuracy(state, char)) },
+      { label: 'Crit Chance', value: pct(E.charEffectBonus(state, char, 'crit_chance', true)) },
+      { label: 'Crit Damage', value: pct(E.charEffectBonus(state, char, 'crit_damage', true)) },
+      { label: 'Drop Rate', value: pct(E.dropBonus(state, char)) },
+      { label: 'Gold Gain', value: pct(E.charEffectBonus(state, char, 'gold_gain', true)) },
+      { label: 'Carry Cap.', value: pct(E.charEffectBonus(state, char, 'carry_capacity', true)) },
     ];
     const attrs = [
       { label: 'STR', value: fmt(E.charStat(state, char, 'strength')) },
@@ -399,7 +422,7 @@
       const lv = charSkillLevel(char, sid);
       const eff = E.gatherEfficiency(state, char, sid);
       const multi = (E.gatherMultiChance(state, char, sid) * 100).toFixed(1);
-      const xpPct = (E.skillXpBonus(state, sid) * 100).toFixed(0);
+      const xpPct = (E.skillXpBonus(state, sid, char) * 100).toFixed(0);
       const carryPct = (E.effectBonus(state, `${sid}_carry`) * 100).toFixed(0);
       return `
         <article class="char-gather-card">
@@ -610,10 +633,12 @@
     const arena = renderCombatArena(char);
     const rateChar = char || state.characters[0];
     const cards = C.MONSTERS.map((mob) => {
-      const rates = rateChar ? E.getTheoreticalCombatRates(state, rateChar, mob) : { xpHr: 0, killsHr: 0 };
+      const rates = rateChar ? E.getTheoreticalCombatRates(state, rateChar, mob) : { xpHr: 0, killsHr: 0, hitPct: 0 };
       const xpPerKill = rateChar ? E.combatXpPerKill(state, rateChar, mob) : 0;
+      const hitPct = rateChar ? (rates.hitPct * 100).toFixed(0) : '0';
       const locked = best < mob.level;
       const on = char?.activity === 'combat' && char?.target === mob.id;
+      const accNeed = mob.accuracy ?? 0;
 
       return `
         <article class="activity-card ${locked ? 'locked' : ''}">
@@ -621,13 +646,14 @@
             <span class="activity-card-icon">${iconHtml(mob.id, 'game-icon xl')}</span>
             <div class="activity-card-title">
               <strong>${mob.name}</strong>
-              <span>Lv ${mob.level} · ${E.mobMaxHp(mob)} HP · ${mob.damage} dmg · ${fmt(xpPerKill)} XP/kill</span>
+              <span>Lv ${mob.level} · ${E.mobMaxHp(mob)} HP · ${mob.damage} dmg · ${fmt(xpPerKill)} XP/kill · ${accNeed} acc</span>
             </div>
           </div>
           <div class="activity-stats">
+            <div class="activity-stat"><span class="activity-stat-label">Hit chance</span><span class="activity-stat-value">${hitPct}%</span></div>
             <div class="activity-stat"><span class="activity-stat-label">XP/hr</span><span class="activity-stat-value">${fmt(rates.xpHr)}</span></div>
             <div class="activity-stat"><span class="activity-stat-label">Kills/hr</span><span class="activity-stat-value">${fmt(rates.killsHr)}</span></div>
-            <div class="activity-stat"><span class="activity-stat-label">Attack speed</span><span class="activity-stat-value">${C.COMBAT_ATTACK_SEC}s</span></div>
+            <div class="activity-stat"><span class="activity-stat-label">Attack speed</span><span class="activity-stat-value">${E.combatAttackSec(state, rateChar || char).toFixed(2)}s</span></div>
           </div>
           ${renderMobDrops(mob)}
           ${locked ? `<p class="empty-msg">Requires Combat Lv ${mob.level}</p>` : `<div class="activity-actions">${renderAssignBtn('combat', mob.id, false)}</div>`}
@@ -663,14 +689,14 @@
     const labels = gatherStatLabels(sk.id);
     const eff = char ? E.gatherEfficiency(state, char, sk.id) : 0;
     const multiPct = char ? (E.gatherMultiChance(state, char, sk.id) * 100).toFixed(1) : '0';
-    const gatherSec = E.gatherIntervalTicks() * (C.TICK_MS / 1000);
+    const gatherSec = E.gatherIntervalTicks(state, char, sk.id) * (C.TICK_MS / 1000);
     const resLabel = sk.id === 'mining' ? 'ore' : sk.id === 'woodcutting' ? 'log' : 'fish';
 
     const cards = veins.map((vein) => {
       const xpPerAction = char ? E.gatherXpPerAction(state, char, sk.id, vein) : (vein.xp ?? 5);
       const locked = best < vein.minLevel;
       const on = char?.activity === sk.activity && char?.target === vein.id;
-      const gatherPct = on ? Math.min(100, ((char.gatherCd || 0) / E.gatherIntervalTicks()) * 100) : 0;
+      const gatherPct = on ? Math.min(100, ((char.gatherCd || 0) / E.gatherIntervalTicks(state, char, sk.id)) * 100) : 0;
       const catchRaw = char ? E.gatherCatchDisplayPercent(state, char, sk.id, vein) : 0;
       const catchPct = catchRaw >= 100 ? catchRaw.toFixed(0) : catchRaw.toFixed(1);
       const thresholds = E.gatherPlusOneThresholds(vein);
@@ -816,7 +842,7 @@
       return `
         <article class="activity-card${active ? ' activity-assigned-card' : ''}">
           <div class="activity-card-head">
-            <span class="activity-card-icon">${resIcon(def.id, 'game-icon')}</span>
+            <span class="activity-card-icon">${resIcon(def.id, 'game-icon xl')}</span>
             <div class="activity-card-title">
               <strong>Slot ${i + 1} — ${def.name}</strong>
               <span>${def.ticks}s · max ${cap} · ${fmt(def.xp)} XP/batch</span>
@@ -864,27 +890,31 @@
     if (!char) return '<p class="empty-msg">Select a character from the Characters page.</p>';
     const eqSlots = (C.EQUIPMENT_SLOTS || []).map((def) => {
       const item = char.equipment?.[def.id];
+      const statLine = item ? `<p class="equip-stat-line">${formatGearStats(item)}</p>` : '';
       const inner = item
-        ? resIcon(item, 'game-icon')
+        ? resIcon(item, 'game-icon xl')
         : `<span class="equip-slot-word">${def.label}</span>`;
       const unequip = item
         ? `<button type="button" class="btn-sm ghost equip-unequip-btn" data-action="unequip-gear" data-slot-type="equipment" data-slot-key="${def.id}">Remove</button>`
         : '';
-      return `<div class="equip-slot" title="${def.label}">
-        <div class="equip-slot-box${item ? ' filled' : ''}">${inner}</div>
+      return `<div class="equip-slot" title="${def.label}${item ? ` — ${resName(item)}` : ''}">
+        <div class="equip-slot-box equip-slot-box-lg${item ? ' filled' : ''}">${inner}</div>
+        ${statLine}
         ${unequip}
       </div>`;
     }).join('');
     const toolSlots = (C.TOOL_SLOTS || []).map((def) => {
       const item = char.tools?.[def.id];
+      const statLine = item ? `<p class="equip-stat-line">${formatGearStats(item)}</p>` : '';
       const inner = item
-        ? resIcon(item, 'game-icon')
+        ? resIcon(item, 'game-icon xl')
         : `<span class="equip-slot-word">${def.label}</span>`;
       const unequip = item
         ? `<button type="button" class="btn-sm ghost equip-unequip-btn" data-action="unequip-gear" data-slot-type="tool" data-slot-key="${def.id}">Remove</button>`
         : '';
-      return `<div class="equip-slot tool-slot" title="${def.label}">
-        <div class="equip-slot-box${item ? ' filled' : ''}">${inner}</div>
+      return `<div class="equip-slot tool-slot" title="${def.label}${item ? ` — ${resName(item)}` : ''}">
+        <div class="equip-slot-box equip-slot-box-lg${item ? ' filled' : ''}">${inner}</div>
+        ${statLine}
         ${unequip}
       </div>`;
     }).join('');
@@ -1034,7 +1064,7 @@
       const canBuy = avail && state.gold >= shop.gold;
       return `
         <article class="activity-card shop-card${!avail ? ' locked' : ''}">
-          <div class="shop-card-icon">${resIcon(shop.id, 'game-icon')}</div>
+          <div class="shop-card-icon">${resIcon(shop.id, 'game-icon xl')}</div>
           <strong>${resName(shop.id)}</strong>
           <p class="empty-msg">${avail ? `${fmt(shop.gold)} gold` : 'Already used — unavailable'}</p>
           <button type="button" class="btn-sm primary" data-action="buy-shop" data-item="${shop.id}" ${!canBuy ? 'disabled' : ''}>Buy</button>
@@ -1047,7 +1077,7 @@
         <div class="page-header-stat"><span class="page-header-stat-label">Gold</span><span class="page-header-stat-value">${fmt(state.gold)}</span></div>
       </header>
       ${pageCharBar()}
-      <div class="activity-grid shop-grid">${items}</div>`;
+      <div class="activity-grid shop-grid shop-grid-lg">${items}</div>`;
   }
 
   function renderCraftingPage(sk) {
@@ -1059,17 +1089,21 @@
     ).join('');
     const filtered = (C.CRAFT_RECIPES || []).filter((r) => r.category === craftCategory);
     const recipes = filtered.map((recipe) => {
-      const costs = recipe.costs.map((c) => `${resIcon(c.res, 'game-icon sm')} ${fmt(c.amt)}`).join(' ');
+      const costs = recipe.costs.map((c) =>
+        `<span class="craft-cost-chip">${resIcon(c.res, 'game-icon md')} <strong>${fmt(c.amt)}</strong></span>`,
+      ).join('');
       const can = E.canCraft(state, char, recipe.id);
       const canStorage = E.canCraftFromStorage(state, char, recipe.id);
       const eqDef = C.EQUIP_ITEM_SLOTS?.[recipe.output];
       const classNote = eqDef?.classId ? `<p class="craft-class-note">${C.CLASSES[eqDef.classId]?.name} only</p>` : '';
+      const statLine = formatGearStats(recipe.output);
       return `
-        <article class="activity-card craft-card">
-          <div class="shop-card-icon">${resIcon(recipe.output, 'game-icon')}</div>
+        <article class="activity-card craft-card craft-card-lg">
+          <div class="shop-card-icon">${resIcon(recipe.output, 'game-icon xl')}</div>
           <strong>${resName(recipe.output)}</strong>
           ${classNote}
-          <p class="empty-msg">Costs: ${costs}</p>
+          ${statLine ? `<p class="craft-stat-line">${statLine}</p>` : ''}
+          <div class="craft-cost-row">${costs}</div>
           <div class="craft-card-actions">
             <button type="button" class="btn-sm primary" data-action="craft-item" data-recipe="${recipe.id}" ${!can ? 'disabled' : ''}>Craft (inventory)</button>
             <button type="button" class="btn-sm ghost" data-action="craft-item-storage" data-recipe="${recipe.id}" ${!canStorage ? 'disabled' : ''}>Craft (storage)</button>
@@ -1083,7 +1117,15 @@
       </header>
       ${pageCharBar()}
       <div class="quest-track-tabs">${tabs}</div>
-      <div class="activity-grid craft-grid">${recipes || '<p class="empty-msg">No recipes in this category.</p>'}</div>`;
+      <div class="skill-split-layout">
+        <section class="skill-split-main">
+          <div class="activity-grid craft-grid craft-grid-lg">${recipes || '<p class="empty-msg">No recipes in this category.</p>'}</div>
+        </section>
+        <section class="skill-split-side storage-panel slot-panel-fit">
+          <h3 class="storage-half-title">${charLabel(char)}'s Inventory</h3>
+          ${renderPagedInventory(char, { transferType: 'inv', gridClass: 'grid-inv-4' })}
+        </section>
+      </div>`;
   }
 
   function renderComingSoon(sk) {
