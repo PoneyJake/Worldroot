@@ -20,6 +20,8 @@ export function isTouchPhoneDevice() {
   return isTouchPhone();
 }
 
+let lastViewportKey = '';
+
 function syncPhoneViewport() {
   const root = document.documentElement;
   const vv = window.visualViewport;
@@ -27,6 +29,9 @@ function syncPhoneViewport() {
   const vh = Math.round(vv?.height ?? window.innerHeight);
   const portrait = vh > vw;
   const flip = getLandscapeFlip();
+  const key = `${vw}x${vh}|${portrait}|${flip}`;
+  if (key === lastViewportKey) return;
+  lastViewportKey = key;
 
   root.classList.toggle('force-landscape', portrait);
   root.classList.toggle('flip-cw', flip === 'cw');
@@ -64,16 +69,17 @@ export function initMobileGameLayout() {
     });
   };
 
+  let viewportTimer = 0;
   const onViewportChange = () => {
-    syncPhoneViewport();
-    if (window.innerWidth > window.innerHeight) lockLandscape();
+    clearTimeout(viewportTimer);
+    viewportTimer = setTimeout(() => {
+      syncPhoneViewport();
+      if (window.innerWidth > window.innerHeight) lockLandscape();
+    }, 120);
   };
 
   document.addEventListener('pointerdown', lockLandscape, { once: true });
-  window.addEventListener('orientationchange', () => setTimeout(onViewportChange, 100));
+  window.addEventListener('orientationchange', () => setTimeout(onViewportChange, 150));
   window.addEventListener('resize', onViewportChange);
-  if (window.visualViewport) {
-    window.visualViewport.addEventListener('resize', onViewportChange);
-    window.visualViewport.addEventListener('scroll', onViewportChange);
-  }
+  window.visualViewport?.addEventListener('resize', onViewportChange);
 }

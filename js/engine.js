@@ -420,6 +420,7 @@
 
   function charDefence(state, char) {
     return charEffectBonus(state, char, 'base_defence', false)
+      + gearFlatBonus(char, 'defence')
       + talentBonus(state, char, 'combat', 'def', 'flat');
   }
 
@@ -1042,7 +1043,7 @@
       const hitChance = combatHitChance(state, char, monster);
       const hit = Math.random() < hitChance;
       const defence = charDefence(state, char);
-      const mobDmg = Math.max(1, monster.damage - defence);
+      const mobDmg = Math.max(0, monster.damage - defence);
 
       if (hit) {
         let charDmg = charDamage(state, char);
@@ -1100,15 +1101,17 @@
         event.mobHp = 0;
         event.charHp = cs.charHp;
       } else {
-        cs.charHp -= mobDmg;
-        event.charHp = cs.charHp;
-        if (tryAutoEatFood(state, char, cs)) {
+        if (mobDmg > 0) {
+          cs.charHp -= mobDmg;
           event.charHp = cs.charHp;
-          event.foodUsed = true;
-        }
-        if (cs.charHp <= 0) {
-          cs.charHp = 0;
-          cs.respawnSec = C.COMBAT_RESPAWN_SEC;
+          if (tryAutoEatFood(state, char, cs)) {
+            event.charHp = cs.charHp;
+            event.foodUsed = true;
+          }
+          if (cs.charHp <= 0) {
+            cs.charHp = 0;
+            cs.respawnSec = C.COMBAT_RESPAWN_SEC;
+          }
         }
       }
       return event;

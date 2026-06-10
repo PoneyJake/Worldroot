@@ -2965,11 +2965,19 @@ html.touch-phone .game-viewport {
   top: 50%;
   width: var(--game-w, 100%);
   height: var(--game-h, 100%);
-  transform: translate(-50%, -50%) rotate(var(--game-rotate, 0deg));
+  transform: translate3d(-50%, -50%, 0) rotate(var(--game-rotate, 0deg));
   transform-origin: center center;
   overflow: hidden;
   background: #0a0e0a;
   box-sizing: border-box;
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+}
+
+html.touch-phone .game-icon,
+html.touch-phone .class-portrait-img {
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
 }
 
 html.touch-phone .app-shell {

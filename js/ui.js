@@ -78,7 +78,7 @@
   function iconHtml(key, className = 'game-icon') {
     const src = iconSrc(key);
     if (!src) return `<span class="${className} icon-fallback">?</span>`;
-    return `<img class="${className}" src="${src}" alt="" draggable="false" loading="lazy" />`;
+    return `<img class="${className}" src="${src}" alt="" draggable="false" loading="eager" decoding="async" />`;
   }
   function itemTipText(id) {
     if (!id) return '';
@@ -129,7 +129,7 @@
     const file = cls?.portrait;
     if (!file) return `<span class="${className} fallback">${cls?.icon ?? '?'}</span>`;
     const src = `${C.PORTRAIT_BASE}/${file}.png`;
-    return `<img class="${className}" src="${src}" alt="${cls.name}" draggable="false" loading="lazy" />`;
+    return `<img class="${className}" src="${src}" alt="${cls.name}" draggable="false" loading="eager" decoding="async" />`;
   }
   function skillName(id) { return C.SKILLS[id]?.name ?? id; }
 
@@ -1551,6 +1551,179 @@
     return `${S.accountTotalLevel(state)}|${state.pendingSlot ?? ''}|${activities}|${skillLevels}|${activePage}`;
   }
 
+  function patchSkillXpBar(skill) {
+    if (!skill) return false;
+    const panel = document.querySelector('.skill-xp-panel');
+    if (!panel) return true;
+    const needed = S.xpForLevel(skill.level);
+    const pct = xpProgress(skill);
+    const fill = panel.querySelector('.progress-bar-fill');
+    const text = panel.querySelector('.skill-xp-text');
+    const lv = panel.querySelector('.skill-xp-level');
+    if (fill) fill.style.width = `${pct}%`;
+    if (text) text.textContent = `${fmt(skill.xp)} / ${fmt(needed)} XP to next level`;
+    if (lv) lv.textContent = `Lv ${skill.level}`;
+    return false;
+  }
+
+  function patchAssignedCards(isOn) {
+    document.querySelectorAll('.activity-card[data-detail-id]').forEach((card) => {
+      card.classList.toggle('activity-assigned-card', isOn(card));
+    });
+  }
+
+  function patchCombatTick() {
+    const char = selectedChar();
+    if (!char || skillSubTab === 'talents') return false;
+
+    const inCombat = char.activity === 'combat' && char.target;
+    const arenaEl = document.querySelector('.combat-arena');
+
+    if (inCombat) {
+      const monster = C.MONSTERS.find((m) => m.id === char.target);
+      if (!monster || !arenaEl) return true;
+      const cs = char.combatState;
+      const charHp = cs?.charHp ?? E.charMaxHp(state, char);
+      const charMax = cs?.charMaxHp ?? E.charMaxHp(state, char);
+      const mobHp = cs?.mobHp ?? E.mobMaxHp(monster);
+      const mobMax = cs?.mobMaxHp ?? E.mobMaxHp(monster);
+      const charPct = charMax ? Math.max(0, (charHp / charMax) * 100) : 0;
+      const mobPct = mobMax ? Math.max(0, (mobHp / mobMax) * 100) : 0;
+
+      const playerFill = arenaEl.querySelector('.combat-fighter.player .hp-bar-fill');
+      const mobFill = arenaEl.querySelector('.combat-fighter.mob .hp-bar-fill');
+      const playerText = arenaEl.querySelector('.combat-fighter.player .hp-text');
+      const mobText = arenaEl.querySelector('.combat-fighter.mob .hp-text');
+      if (playerFill) playerFill.style.width = `${charPct}%`;
+      if (mobFill) mobFill.style.width = `${mobPct}%`;
+      if (playerText) playerText.textContent = `${fmt(charHp)} / ${fmt(charMax)} HP · ${E.charDamage(state, char)} dmg`;
+      if (mobText) mobText.textContent = `${fmt(mobHp)} / ${fmt(mobMax)} HP · ${monster.damage} dmg`;
+
+      const respawnSec = cs?.respawnSec ?? 0;
+      let respawnEl = arenaEl.querySelector('.combat-respawn');
+      if (respawnSec > 0) {
+        const msg = `Respawning in ${Math.ceil(respawnSec)}s…`;
+        if (respawnEl) respawnEl.textContent = msg;
+        else {
+          const player = arenaEl.querySelector('.combat-fighter.player');
+          if (player) {
+            respawnEl = document.createElement('p');
+            respawnEl.className = 'combat-respawn';
+            respawnEl.textContent = msg;
+            player.appendChild(respawnEl);
+          }
+        }
+      } else if (respawnEl) {
+        respawnEl.remove();
+      }
+    } else if (arenaEl) {
+      return true;
+    }
+
+    patchAssignedCards((card) => (
+      card.dataset.detailKind === 'combat' && char.activity === 'combat' && char.target === card.dataset.detailId
+    ));
+    return patchSkillXpBar(char.skills?.combat);
+  }
+
+  function patchGatherTick() {
+    const char = selectedChar();
+    const sk = C.SKILLS[activePage];
+    if (!sk || skillSubTab === 'talents') return false;
+
+    patchAssignedCards((card) => (
+      card.dataset.detailKind === 'gather'
+      && char?.activity === sk.activity
+      && char?.target === card.dataset.detailId
+    ));
+    return patchSkillXpBar(char?.skills?.[activePage]);
+  }
+
+  function patchSmeltTick() {
+    if (skillSubTab === 'talents') return false;
+    let needFull = false;
+    const batchCap = E.smeltBatchCapacity(state);
+
+    state.smelting.slots.forEach((slot, i) => {
+      const card = document.querySelector(`[data-smelt-slot="${i}"]`);
+      if (!card) { needFull = true; return; }
+      const recipe = C.SMELT_RECIPES.find((r) => r.ore === slot.ore);
+      const pct = slot.ore && recipe ? Math.min(100, (slot.progress / recipe.ticks) * 100) : 0;
+      const fill = card.querySelector('.progress-bar .progress-bar-fill');
+      const meta = card.querySelector('.smelt-slot-meta');
+      const hasReadyEl = !!card.querySelector('.produce-ready-slot');
+
+      if ((slot.ready > 0) !== hasReadyEl || (slot.ore && !fill) || (!slot.ore && fill)) {
+        needFull = true;
+        return;
+      }
+      if (fill) fill.style.width = `${pct}%`;
+      if (meta && slot.ore) {
+        meta.textContent = `${fmt(slot.oreLoaded || 0)}/${batchCap} · ${recipe?.ticks ?? '?'}s`;
+      }
+      if (hasReadyEl) {
+        const qty = card.querySelector('.item-slot-qty');
+        if (qty) qty.textContent = fmt(slot.ready);
+      }
+    });
+
+    if (patchSkillXpBar(state.smelting.skill)) needFull = true;
+    return needFull;
+  }
+
+  function patchProduceTick() {
+    const char = selectedChar();
+    if (!char || skillSubTab === 'talents') return false;
+
+    const prod = char.producing;
+    let needFull = false;
+
+    C.PRODUCE_SLOTS.forEach((def, i) => {
+      const btn = document.querySelector(`[data-action="pick-produce"][data-slot="${i}"]`);
+      const card = btn?.closest('.activity-card');
+      if (!card) return;
+      const active = prod.activeSlot === i;
+      card.classList.toggle('activity-assigned-card', active);
+      const fill = card.querySelector('.progress-bar .progress-bar-fill');
+      const pct = active ? Math.min(100, (prod.progress / def.ticks) * 100) : 0;
+      if (active && !fill) needFull = true;
+      else if (fill) fill.style.width = `${pct}%`;
+    });
+
+    const readyWrap = document.querySelector('.produce-ready-wrap');
+    const shouldHaveReady = prod.ready > 0 && prod.readyItem;
+    if (!!readyWrap !== shouldHaveReady) needFull = true;
+    else if (readyWrap) {
+      const qty = readyWrap.querySelector('.item-slot-qty');
+      if (qty) qty.textContent = fmt(prod.ready);
+    }
+
+    if (patchSkillXpBar(prod.skill)) needFull = true;
+    return needFull;
+  }
+
+  /** Update live skill-page UI without rebuilding icon DOM. Returns true if a full render is needed. */
+  function patchTickPanels() {
+    const char = selectedChar();
+    const stat = document.querySelector('.page-header-stat-value');
+    let expectedLevel = null;
+    if (activePage === 'combat') expectedLevel = char ? charSkillLevel(char, 'combat') : bestSkillLevel('combat');
+    else if (activePage === 'smelting') expectedLevel = state.smelting.skill.level;
+    else if (activePage === 'producing') expectedLevel = char?.producing?.skill?.level;
+    else if (C.VEINS[activePage]) expectedLevel = char ? charSkillLevel(char, activePage) : bestSkillLevel(activePage);
+    if (stat && expectedLevel != null && stat.textContent !== String(expectedLevel)) return true;
+
+    switch (activePage) {
+      case 'combat': return patchCombatTick();
+      case 'mining':
+      case 'woodcutting':
+      case 'fishing': return patchGatherTick();
+      case 'smelting': return patchSmeltTick();
+      case 'producing': return patchProduceTick();
+      default: return true;
+    }
+  }
+
   function flushPendingRender() {
     if (activePointers === 0 && pendingFullRender) {
       pendingFullRender = false;
@@ -1573,8 +1746,10 @@
       return;
     }
     if (pageNeedsTickRefresh()) {
-      renderMainPanel();
-      renderDetailPanel();
+      if (patchTickPanels()) {
+        renderMainPanel();
+        renderDetailPanel();
+      }
       const hash = sidebarHash();
       if (hash !== lastSidebarHash) {
         lastSidebarHash = hash;
