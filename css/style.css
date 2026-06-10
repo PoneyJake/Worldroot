@@ -3219,63 +3219,91 @@ body {
   }
 
   .skill-split-layout.equipment-split {
-    grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
-    gap: 6px;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 0.9fr);
+    gap: 4px;
   }
 
   .equipment-split .skill-split-main {
     flex-direction: column;
-    gap: 6px;
+    gap: 4px;
     min-width: 0;
+    width: 100%;
   }
 
   .equipment-split .skill-split-main .storage-panel,
   .equipment-split .skill-split-side.storage-panel {
-    padding: 6px 8px;
+    padding: 4px 6px;
     min-width: 0;
+    width: 100%;
+    max-width: 100%;
     overflow: hidden;
+    box-sizing: border-box;
+  }
+
+  .equipment-split .slot-panel-fit {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  .equipment-grid,
+  .tools-grid,
+  .capacity-grid {
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
   }
 
   .equipment-grid {
     grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 4px;
+    gap: 3px;
   }
 
   .tools-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 4px;
+    gap: 3px;
   }
 
   .capacity-grid {
     grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 4px;
+    gap: 3px;
   }
 
-  .equip-slot {
+  .equip-slot,
+  .capacity-slot {
     min-width: 0;
     width: 100%;
-  }
-
-  .equip-slot-box,
-  .equip-slot-box-lg,
-  .capacity-slot .equip-slot-box {
-    width: 100%;
-    height: auto;
-    aspect-ratio: 1;
     max-width: 100%;
-    min-width: 0;
   }
 
-  .equip-slot-box .game-icon,
-  .equip-slot-box-lg .game-icon,
-  .equip-slot-box .game-icon.dim {
-    width: 1.45rem;
-    height: 1.45rem;
+  .equipment-split .equip-slot-box,
+  .equipment-split .equip-slot-box-lg,
+  .equipment-split .capacity-slot .equip-slot-box {
+    width: 100% !important;
+    height: auto !important;
+    max-width: 44px;
+    aspect-ratio: 1;
+    margin-inline: auto;
+    min-width: 0;
+    box-sizing: border-box;
+    border-width: 1px;
+    border-radius: 6px;
+  }
+
+  .equipment-split .equip-slot-box .game-icon,
+  .equipment-split .equip-slot-box-lg .game-icon,
+  .equipment-split .equip-slot-box .game-icon.dim,
+  .equipment-split .equip-slot-box .game-icon.xl,
+  .equipment-split .equip-slot-box-lg .game-icon.xl,
+  .equipment-split .equip-slot-box .game-icon.lg {
+    width: 1.15rem !important;
+    height: 1.15rem !important;
+    max-width: 100%;
+    max-height: 100%;
   }
 
   .equip-slot-label {
-    font-size: 0.52rem;
-    line-height: 1.1;
+    font-size: 0.48rem;
+    line-height: 1;
     max-width: 100%;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -3286,7 +3314,8 @@ body {
     display: none;
   }
 
-  .storage-half-title {
-    font-size: 0.72rem;
+  .equipment-split .storage-half-title {
+    font-size: 0.68rem;
+    margin-bottom: 4px;
   }
 }
