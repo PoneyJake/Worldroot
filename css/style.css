@@ -2835,3 +2835,386 @@ body {
 .activity-assigned-card {
   outline: 1px solid rgba(120, 200, 120, 0.35);
 }
+
+/* ── Phone: landscape-only + compact HUD ── */
+
+.rotate-device-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  background: #0a0e0a;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  text-align: center;
+}
+
+.rotate-device-card {
+  max-width: 320px;
+}
+
+.rotate-device-icon {
+  display: block;
+  font-size: 3rem;
+  margin-bottom: 16px;
+}
+
+.rotate-device-card h2 {
+  margin: 0 0 10px;
+  color: #c8e6c3;
+  font-size: 1.25rem;
+}
+
+.rotate-device-card p {
+  margin: 0;
+  color: #8a9a86;
+  font-size: 0.92rem;
+  line-height: 1.5;
+}
+
+@media (hover: none) and (pointer: coarse) and (orientation: portrait) {
+  .rotate-device-overlay {
+    display: flex;
+  }
+
+  .app-shell {
+    pointer-events: none;
+    visibility: hidden;
+  }
+}
+
+@media (hover: none) and (pointer: coarse) and (orientation: landscape),
+       (max-height: 520px) and (orientation: landscape) and (max-width: 960px) {
+  body {
+    font-size: 12px;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  .top-bar {
+    height: 40px;
+    padding: 0 10px;
+  }
+
+  .brand-logo {
+    height: 26px;
+  }
+
+  .top-bar-stats {
+    gap: 6px;
+  }
+
+  .stat-chip {
+    padding: 4px 8px;
+    gap: 4px;
+    font-size: 0.72rem;
+  }
+
+  .stat-chip-label {
+    display: none;
+  }
+
+  .stat-chip strong {
+    font-size: 0.82rem;
+  }
+
+  .stat-chip-muted {
+    display: none;
+  }
+
+  .sidebar {
+    width: 48px;
+    padding: 4px 0;
+  }
+
+  .sidebar-btn {
+    padding: 8px 4px;
+    min-height: 40px;
+  }
+
+  .sidebar-btn-label,
+  .sidebar-btn-badge,
+  .sidebar-section-label,
+  .sidebar-skill-lv,
+  .sidebar-skill-chars,
+  .sidebar-alert {
+    display: none;
+  }
+
+  .sidebar-btn-icon {
+    font-size: 1.1rem;
+  }
+
+  .main-content {
+    min-height: 0;
+  }
+
+  .content-panel {
+    padding: 8px 10px 12px;
+    max-width: none;
+  }
+
+  .page-body-split {
+    flex-direction: row !important;
+    min-height: 0;
+    flex: 1;
+  }
+
+  .page-body-split.has-right-rail .content-panel {
+    overflow-y: auto;
+    min-width: 0;
+  }
+
+  .detail-panel {
+    width: min(34vw, 220px) !important;
+    max-height: none !important;
+    padding: 8px;
+    border-top: none;
+    border-left: 1px solid #2a382a;
+  }
+
+  .detail-panel .item-slot-grid.detail-inv-grid {
+    grid-template-columns: repeat(3, 44px);
+    gap: 4px;
+  }
+
+  .detail-panel .item-slot-grid.detail-inv-grid .item-slot {
+    width: 44px;
+    height: 44px;
+    min-height: 44px;
+  }
+
+  .detail-panel .item-slot-grid.detail-inv-grid .item-slot-icon .game-icon {
+    width: 1.75rem;
+    height: 1.75rem;
+  }
+
+  .detail-panel-head h2 {
+    font-size: 0.95rem;
+  }
+
+  .detail-stat-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 6px;
+  }
+
+  .detail-stat {
+    padding: 6px;
+    font-size: 0.72rem;
+  }
+
+  .page-header {
+    gap: 8px;
+    margin-bottom: 8px;
+    padding-bottom: 8px;
+  }
+
+  .page-header-icon {
+    font-size: 1.4rem;
+  }
+
+  .page-header-text h1 {
+    font-size: 1rem;
+  }
+
+  .page-header-text p {
+    display: none;
+  }
+
+  .page-header-stat-label {
+    font-size: 0.6rem;
+  }
+
+  .page-header-stat-value {
+    font-size: 0.95rem;
+  }
+
+  .page-char-bar {
+    margin: 0 0 6px;
+    padding-bottom: 6px;
+  }
+
+  .char-switcher {
+    margin-bottom: 0;
+    gap: 6px;
+  }
+
+  .char-switch-btn {
+    width: 40px;
+    height: 40px;
+  }
+
+  .char-switch-portrait,
+  .char-switch-portrait.fallback {
+    width: 32px;
+    height: 32px;
+    line-height: 32px;
+    font-size: 1rem;
+  }
+
+  .skill-xp-panel {
+    margin-bottom: 6px;
+    padding: 6px 8px;
+  }
+
+  .skill-xp-header {
+    margin-bottom: 4px;
+  }
+
+  .skill-xp-label,
+  .skill-xp-level {
+    font-size: 0.68rem;
+  }
+
+  .skill-xp-text {
+    display: none;
+  }
+
+  .skill-xp-bar {
+    height: 6px;
+  }
+
+  .activity-grid,
+  .activity-grid-compact {
+    grid-template-columns: repeat(auto-fill, minmax(108px, 1fr));
+    gap: 8px;
+  }
+
+  .activity-card,
+  .activity-card-compact {
+    padding: 8px;
+    gap: 6px;
+  }
+
+  .activity-card-head {
+    gap: 6px;
+  }
+
+  .activity-card-title strong {
+    font-size: 0.82rem;
+  }
+
+  .activity-card-title span {
+    font-size: 0.68rem;
+  }
+
+  .activity-card-actions .btn-sm {
+    font-size: 0.62rem;
+    padding: 2px 5px;
+  }
+
+  .smelt-slots-grid,
+  .produce-slots-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 6px;
+  }
+
+  .smelt-slot-compact,
+  .produce-slot-compact {
+    padding: 6px;
+  }
+
+  .char-layout {
+    gap: 8px;
+    min-height: 0;
+  }
+
+  .char-rail {
+    width: 88px;
+  }
+
+  .char-rail-btn {
+    padding: 8px;
+  }
+
+  .char-rail-name {
+    font-size: 0.72rem;
+  }
+
+  .char-rail-lv {
+    font-size: 0.62rem;
+  }
+
+  .char-detail {
+    padding: 10px;
+  }
+
+  .storage-dual {
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .storage-half-title {
+    font-size: 0.78rem;
+    margin-bottom: 6px;
+  }
+
+  .storage-actions {
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-bottom: 8px;
+  }
+
+  .storage-actions .btn-sm {
+    font-size: 0.68rem;
+    padding: 4px 8px;
+  }
+
+  .quest-track-tabs {
+    margin-bottom: 8px;
+    gap: 4px;
+  }
+
+  .quest-track-tab {
+    padding: 4px 8px;
+    font-size: 0.68rem;
+  }
+
+  .talent-grid {
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  }
+
+  .combat-arena {
+    grid-template-columns: 1fr auto 1fr;
+    gap: 8px;
+    padding: 8px;
+    margin-bottom: 8px;
+  }
+
+  .combat-vs {
+    transform: none;
+    font-size: 0.85rem;
+  }
+
+  .fighter-name {
+    font-size: 0.78rem;
+  }
+
+  .hp-text {
+    font-size: 0.65rem;
+  }
+
+  .upgrade-card,
+  .world-tree-branch {
+    font-size: 0.85rem;
+  }
+
+  .slot-row {
+    gap: 6px;
+  }
+
+  .slot-locked {
+    font-size: 0.72rem;
+    padding: 8px;
+  }
+
+  .modal-card {
+    max-width: min(92vw, 480px);
+    max-height: 88vh;
+    overflow-y: auto;
+  }
+
+  .transfer-modal-card input {
+    font-size: 16px;
+  }
+}

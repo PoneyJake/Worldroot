@@ -6,7 +6,7 @@
   "scope": "/",
   "id": "/",
   "display": "standalone",
-  "orientation": "any",
+  "orientation": "landscape",
   "background_color": "#0d120d",
   "theme_color": "#1a281a",
   "categories": ["games", "entertainment"],
