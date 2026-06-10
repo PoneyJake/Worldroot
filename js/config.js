@@ -84,7 +84,7 @@ window.WorldrootConfig = {
     ],
   },
   COMBAT_ATTACK_SEC: 1.5,
-  COMBAT_RESPAWN_SEC: 10,
+  COMBAT_RESPAWN_SEC: 5,
   BASE_CHAR_HP: 20,
   BASE_CHAR_MP: 10,
   BASE_CHAR_DAMAGE: 5,

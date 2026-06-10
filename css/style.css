@@ -838,6 +838,13 @@ button,
   color: #dce6d8;
 }
 
+.char-detail-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
+}
+
 .char-portrait.lg {
   width: 96px;
   height: 96px;

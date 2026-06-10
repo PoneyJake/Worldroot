@@ -913,6 +913,22 @@
     return true;
   }
 
+  function removeCharacter(state, index) {
+    if (index < 0 || index >= state.characters.length) return false;
+    state.characters.splice(index, 1);
+    if (!state.characters.length) {
+      state.selectedCharIndex = 0;
+    } else if (state.selectedCharIndex >= state.characters.length) {
+      state.selectedCharIndex = state.characters.length - 1;
+    } else if (index < state.selectedCharIndex) {
+      state.selectedCharIndex -= 1;
+    }
+    state.pendingSlot = null;
+    refreshPendingSlot(state);
+    saveState(state, { flushCloud: true });
+    return true;
+  }
+
   function selectCharacter(state, index) {
     if (index < 0 || index >= state.characters.length) return;
     state.selectedCharIndex = index;
@@ -997,7 +1013,7 @@
     defaultState, loadState, saveState, resetState, exportSaveData, importSaveData,
     setPlayMode, getSaveKey, createCharacter, xpForLevel, grantXp, spendTalentPoint, ensureSkillTalents,
     characterTotalLevel, accountTotalLevel, maxUnlockedSlots, nextSlotUnlock,
-    refreshPendingSlot, addCharacter, selectCharacter, getSelectedCharacter,
+    refreshPendingSlot, addCharacter, removeCharacter, selectCharacter, getSelectedCharacter,
     setActivity, stopActivity, emptyUpgrades, recordRateEvent, migrateUpgrades,
     defaultSmeltSlots, defaultCharacterProducing, defaultQuestProgress, emptySlotArray,
     stackCapacity, inventorySlotCount, storageSlotCount, inventoryPageCount, storagePageCount,

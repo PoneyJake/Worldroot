@@ -558,7 +558,10 @@
         ${renderCharCombatStats(char)}
         ${renderCharGatherStats(char)}
         <p class="hint-bar">Select this hero, then open a skill page to assign them. Full inventory = lost loot.</p>
-        <button type="button" class="btn-xs ghost" data-action="stop-selected">Stop activity</button>`;
+        <div class="char-detail-actions">
+          <button type="button" class="btn-xs ghost" data-action="stop-selected">Stop activity</button>
+          <button type="button" class="btn-xs danger" data-action="delete-char" data-char="${sel}">Delete character</button>
+        </div>`;
     }
 
     const account = S.accountTotalLevel(state);
@@ -1585,6 +1588,19 @@
       return;
     }
     if (action === 'select-char') { S.selectCharacter(state, Number(btn.dataset.char)); render(); return; }
+    if (action === 'delete-char') {
+      const idx = Number(btn.dataset.char);
+      const char = state.characters[idx];
+      if (!char) return;
+      const cls = C.CLASSES[char.classId];
+      const name = cls?.name ?? 'Character';
+      if (!confirm(`Delete ${name}? Their inventory and gear will be lost forever.`)) return;
+      if (S.removeCharacter(state, idx)) {
+        addLog(`${name} removed.`);
+      } else addLog('Could not remove character.');
+      render();
+      return;
+    }
     if (action === 'pick-class') {
       S.addCharacter(state, btn.dataset.class);
       addLog(`${C.CLASSES[btn.dataset.class].name} joined.`);
