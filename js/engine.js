@@ -304,11 +304,15 @@
     return C.VEIN_EFF_CURVE[0]?.[1] ?? 10;
   }
 
-  function gatherPlusOneThresholds(vein) {
+  function gatherPlusOneThresholds(vein, amountTier = 1) {
     const minCatch = gatherMinCatchPercent();
+    const tier = Math.max(1, Math.floor(amountTier));
+    const target10 = (tier - 1) * 100 + minCatch;
+    const target100 = tier * 100;
     return {
-      effFor10: Math.ceil(effForSuccessPercent(minCatch, vein)),
-      effFor100: Math.ceil(effForSuccessPercent(100, vein)),
+      amountTier: tier,
+      effFor10: Math.ceil(effForSuccessPercent(target10, vein)),
+      effFor100: Math.ceil(effForSuccessPercent(target100, vein)),
     };
   }
 

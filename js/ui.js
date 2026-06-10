@@ -782,7 +782,11 @@
     const xpPerAction = char ? E.gatherXpPerAction(state, char, skillId, vein) : (vein.xp ?? 5);
     const catchRaw = char ? E.gatherCatchDisplayPercent(state, char, skillId, vein) : 0;
     const catchPct = catchRaw >= 100 ? catchRaw.toFixed(0) : catchRaw.toFixed(1);
-    const thresholds = E.gatherPlusOneThresholds(vein);
+    const yieldTier = char
+      ? E.gatherYieldTierInfo(state, char, skillId, vein).nextAmount
+      : 1;
+    const thresholds = E.gatherPlusOneThresholds(vein, yieldTier);
+    const plusLabel = thresholds.amountTier;
     const gatherSec = char ? E.gatherIntervalTicks(state, char, skillId) * (C.TICK_MS / 1000) : 0;
     const eff = char ? E.gatherEfficiency(state, char, skillId) : 0;
     const multiPct = char ? (E.gatherMultiChance(state, char, skillId) * 100).toFixed(1) : '0';
@@ -802,8 +806,8 @@
           <div class="detail-stat"><span>${labels.eff}</span><strong>${eff}</strong></div>
           <div class="detail-stat"><span>${labels.chance}</span><strong>${catchPct}%</strong></div>
           <div class="detail-stat"><span>${labels.multi}</span><strong>${multiPct}%</strong></div>
-          <div class="detail-stat"><span>10% +1 ${resLabel}</span><strong>${fmt(thresholds.effFor10)} eff</strong></div>
-          <div class="detail-stat"><span>100% +1 ${resLabel}</span><strong>${fmt(thresholds.effFor100)} eff</strong></div>
+          <div class="detail-stat"><span>10% +${plusLabel} ${resLabel}</span><strong>${fmt(thresholds.effFor10)} eff</strong></div>
+          <div class="detail-stat"><span>100% +${plusLabel} ${resLabel}</span><strong>${fmt(thresholds.effFor100)} eff</strong></div>
         </div>
         ${on ? `<div class="progress-bar"><div class="progress-bar-fill" data-gather-progress data-gather-vein="${vein.id}" style="width:${gatherPct}%"></div></div>` : ''}
         ${locked ? `<p class="empty-msg">Requires ${sk.name} Lv ${vein.minLevel}</p>` : ''}

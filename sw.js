@@ -1,4 +1,4 @@
-const CACHE = 'worldroot-pwa-v18';
+const CACHE = 'worldroot-pwa-v19';
 
 const PRECACHE = [
   '/',
