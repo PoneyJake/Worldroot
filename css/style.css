@@ -10,6 +10,8 @@ body {
   color: #dce6d8;
   min-height: 100vh;
   overflow: hidden;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .hidden {
@@ -25,6 +27,18 @@ body {
   height: 100vh;
   background: rgba(12, 16, 12, 0.68);
   backdrop-filter: blur(1px);
+  touch-action: manipulation;
+}
+
+button,
+.sidebar-btn,
+[role="button"],
+.item-slot,
+.activity-card,
+.upgrade-card,
+.class-pick,
+.char-switch-btn {
+  touch-action: manipulation;
 }
 
 /* ── Top Bar ── */

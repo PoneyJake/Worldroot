@@ -23,6 +23,12 @@
   let leaderboardLoading = false;
   let trashModal = null;
   let suppressClickUntil = 0;
+  let lastTapActionAt = 0;
+  let activePointers = 0;
+  let pendingFullRender = false;
+  let tapRecord = null;
+  let lastSidebarHash = '';
+  const TAP_MOVE_PX = 12;
   let detailPanel = null;
   let skillSubTab = 'activity';
   let logBuffer = [];
@@ -1427,16 +1433,61 @@
     else el.innerHTML = '<p class="empty-msg">Select a page.</p>';
   }
 
-  function render() {
+  function sidebarHash() {
+    const skillLevels = SIDEBAR_NAV.filter((n) => n.type === 'skill' && n.id !== 'crafting')
+      .map((n) => skillLevelForNav(n.id)).join(',');
+    const activities = state.characters.map((c) => `${c.activity}:${c.target ?? ''}`).join('|');
+    return `${S.accountTotalLevel(state)}|${state.pendingSlot ?? ''}|${activities}|${skillLevels}|${activePage}`;
+  }
+
+  function flushPendingRender() {
+    if (activePointers === 0 && pendingFullRender) {
+      pendingFullRender = false;
+      renderInternal();
+    }
+  }
+
+  function renderInternal() {
     renderHud();
     renderSidebar();
+    lastSidebarHash = sidebarHash();
     renderMainPanel();
     renderDetailPanel();
   }
 
-  function handleClick(e) {
-    if (e.target.closest('[data-collect-type]')) return;
-    const equipBtn = e.target.closest('[data-action="equip-item"]');
+  function renderTick() {
+    renderHud();
+    if (activePointers > 0) {
+      pendingFullRender = true;
+      return;
+    }
+    renderMainPanel();
+    renderDetailPanel();
+    const hash = sidebarHash();
+    if (hash !== lastSidebarHash) {
+      lastSidebarHash = hash;
+      renderSidebar();
+    }
+  }
+
+  function render(opts = {}) {
+    if (!opts.force && activePointers > 0) {
+      pendingFullRender = true;
+      renderHud();
+      return;
+    }
+    pendingFullRender = false;
+    renderInternal();
+  }
+
+  function markTapHandled() {
+    lastTapActionAt = Date.now();
+  }
+
+  function dispatchUiAction(e, rootEl) {
+    const origin = rootEl || e.target;
+    if (origin.closest?.('[data-collect-type]')) return false;
+    const equipBtn = origin.closest?.('[data-action="equip-item"]');
     if (equipBtn && !e.shiftKey) {
       e.stopPropagation();
       const char = selectedChar();
@@ -1446,7 +1497,7 @@
       render();
       return;
     }
-    const pouchBtn = e.target.closest('[data-action="equip-pouch"]');
+    const pouchBtn = origin.closest?.('[data-action="equip-pouch"]');
     if (pouchBtn && !e.shiftKey) {
       e.stopPropagation();
       const char = selectedChar();
@@ -1456,8 +1507,9 @@
       render();
       return;
     }
-    const btn = e.target.closest('[data-action]');
-    if (!btn) return;
+    const btn = origin.closest?.('[data-action]');
+    if (!btn) return false;
+    if (btn.disabled) return true;
     const action = btn.dataset.action;
 
     if (action === 'switch-page') { switchPage(btn.dataset.page); return; }
@@ -1699,6 +1751,103 @@
       return;
     }
     if (action === 'go-menu' && window.WorldrootGoMenu) window.WorldrootGoMenu();
+    return true;
+  }
+
+  function uiActionTarget(origin) {
+    if (!origin?.closest) return null;
+    if (origin.closest('[data-collect-type]')) return origin;
+    if (origin.closest('[data-action="equip-item"]')) return origin;
+    if (origin.closest('[data-action="equip-pouch"]')) return origin;
+    if (origin.closest('[data-action]')) return origin;
+    if (activePage === 'storage' && origin.closest('[data-transfer-type]')) return origin;
+    return null;
+  }
+
+  function runUiAction(e, rootEl) {
+    if (handlePointerSlotFromRoot(rootEl, e, 'click')) return true;
+    if (!uiActionTarget(rootEl)) return false;
+    dispatchUiAction(e, rootEl);
+    return true;
+  }
+
+  function handlePointerSlotFromRoot(root, e, type) {
+    const collectEl = root.closest?.('[data-collect-type]');
+    if (collectEl && type === 'click' && !e.shiftKey) {
+      handleCollect(collectEl);
+      return true;
+    }
+
+    const slotEl = root.closest?.('[data-transfer-type]');
+    if (!slotEl || activePage !== 'storage') return false;
+
+    if (type === 'dblclick') {
+      handleSlotTransfer(slotEl, false);
+      return true;
+    }
+
+    if (type === 'click' && e.shiftKey) {
+      window.getSelection()?.removeAllRanges();
+      handleSlotTransfer(slotEl, true);
+      return true;
+    }
+
+    if (type === 'click' && activePage === 'storage') {
+      const typeName = slotEl.dataset.transferType;
+      const idx = Number(slotEl.dataset.slot);
+      const char = selectedChar();
+      const slot = typeName === 'inv' ? char?.inventorySlots[idx] : state.storageSlots[idx];
+      if (!slot) return true;
+      if (storageSplitMode) {
+        openTransferModal(typeName, idx);
+      } else if (storageQuickTap) {
+        handleQuickTapTransfer(slotEl);
+      } else {
+        handleSlotTransfer(slotEl, false);
+      }
+      return true;
+    }
+    return false;
+  }
+
+  function initTapToAct() {
+    document.body.addEventListener('pointerdown', (e) => {
+      if (e.pointerType === 'mouse' && e.button !== 0) return;
+      activePointers++;
+      tapRecord = {
+        id: e.pointerId,
+        x: e.clientX,
+        y: e.clientY,
+        root: e.target,
+        moved: false,
+      };
+    }, true);
+
+    document.body.addEventListener('pointermove', (e) => {
+      if (!tapRecord || e.pointerId !== tapRecord.id || tapRecord.moved) return;
+      const dx = e.clientX - tapRecord.x;
+      const dy = e.clientY - tapRecord.y;
+      if (dx * dx + dy * dy > TAP_MOVE_PX * TAP_MOVE_PX) tapRecord.moved = true;
+    }, true);
+
+    const finishPointer = (e) => {
+      const rec = tapRecord?.id === e.pointerId ? tapRecord : null;
+      if (rec) tapRecord = null;
+      activePointers = Math.max(0, activePointers - 1);
+
+      if (rec && !rec.moved && Date.now() >= suppressClickUntil) {
+        if (runUiAction(e, rec.root)) markTapHandled();
+      }
+      flushPendingRender();
+    };
+
+    document.body.addEventListener('pointerup', finishPointer, true);
+    document.body.addEventListener('pointercancel', finishPointer, true);
+  }
+
+  function handleClick(e) {
+    if (Date.now() - lastTapActionAt < 400) return;
+    runUiAction(e, e.target);
   }
 
   function loadSmeltFromDrag(invIdx, smeltIdx) {
@@ -1877,7 +2026,8 @@
     document.body.addEventListener('dragend', (e) => {
       e.target.closest('.dragging')?.classList.remove('dragging');
       document.querySelectorAll('.drag-over').forEach((n) => n.classList.remove('drag-over'));
-      suppressClickUntil = Date.now() + 150;
+      suppressClickUntil = Date.now() + 300;
+      tapRecord = null;
     });
 
     document.body.addEventListener('dragover', (e) => {
@@ -2024,47 +2174,7 @@
   }
 
   function handlePointerSlot(e) {
-    const collectEl = e.target.closest('[data-collect-type]');
-    if (collectEl && e.type === 'click' && !e.shiftKey) {
-      e.preventDefault();
-      e.stopPropagation();
-      handleCollect(collectEl);
-      return;
-    }
-
-    const slotEl = e.target.closest('[data-transfer-type]');
-    if (!slotEl || activePage !== 'storage') return;
-
-    if (e.type === 'dblclick') {
-      e.preventDefault();
-      handleSlotTransfer(slotEl, false);
-      return;
-    }
-
-    if (e.type === 'click' && e.shiftKey) {
-      e.preventDefault();
-      e.stopPropagation();
-      window.getSelection()?.removeAllRanges();
-      handleSlotTransfer(slotEl, true);
-      return;
-    }
-
-    if (e.type === 'click' && activePage === 'storage') {
-      e.preventDefault();
-      e.stopPropagation();
-      const type = slotEl.dataset.transferType;
-      const idx = Number(slotEl.dataset.slot);
-      const char = selectedChar();
-      const slot = type === 'inv' ? char?.inventorySlots[idx] : state.storageSlots[idx];
-      if (!slot) return;
-      if (storageSplitMode) {
-        openTransferModal(type, idx);
-      } else if (storageQuickTap) {
-        handleQuickTapTransfer(slotEl);
-      } else {
-        handleSlotTransfer(slotEl, false);
-      }
-    }
+    handlePointerSlotFromRoot(e.target, e, e.type);
   }
 
   function cancelHold() {
@@ -2224,9 +2334,9 @@
   function init(initialState) {
     state = initialState;
     state.lastTickAt = state.lastTickAt || Date.now();
+    initTapToAct();
     document.body.addEventListener('click', handleClick);
     document.body.addEventListener('dblclick', handlePointerSlot);
-    document.body.addEventListener('click', handlePointerSlot, true);
     initDragDrop();
     initHoldUse();
     initResourceTooltips();
@@ -2268,7 +2378,7 @@
       setInterval(() => {
         window.WorldrootEngine.tick(window.WorldrootUI.getState());
         window.WorldrootState.refreshPendingSlot(window.WorldrootUI.getState());
-        window.WorldrootUI.refresh();
+        renderTick();
       }, C?.TICK_MS ?? 1000);
       window.addEventListener('beforeunload', () => {
         const s = window.WorldrootUI.getState();
