@@ -1376,7 +1376,8 @@
       <div class="settings-grid">
         <section class="detail-box"><h3>Save</h3><p class="settings-line">${sessionText}</p>
           <div class="btn-row">
-            ${session?.isCloud ? '<button type="button" class="btn-sm primary" data-action="sync-cloud-save">Sync account save</button>' : ''}
+            ${session?.isCloud ? `<button type="button" class="btn-sm primary" data-action="upload-cloud-save">Upload to cloud</button>
+            <button type="button" class="btn-sm ghost" data-action="download-cloud-save">Download from cloud</button>` : ''}
             <button type="button" class="btn-sm ghost" data-action="go-menu">Main menu</button>
             <button type="button" class="btn-sm danger" data-action="reset-save">Reset save</button>
           </div>
@@ -1649,13 +1650,23 @@
       render();
       return;
     }
-    if (action === 'sync-cloud-save') {
-      if (window.WorldrootCloud?.sync) {
-        window.WorldrootCloud.sync().then(() => {
+    if (action === 'upload-cloud-save') {
+      if (window.WorldrootCloud?.upload) {
+        window.WorldrootCloud.upload().then((ok) => {
           state = S.loadState();
-          addLog('Account save synced from cloud.');
+          addLog(ok ? 'Uploaded save to cloud.' : 'Could not upload to cloud.');
           render();
-        }).catch(() => addLog('Could not sync account save.'));
+        }).catch(() => addLog('Could not upload to cloud.'));
+      }
+      return;
+    }
+    if (action === 'download-cloud-save') {
+      if (window.WorldrootCloud?.download) {
+        window.WorldrootCloud.download().then((ok) => {
+          state = S.loadState();
+          addLog(ok ? 'Downloaded save from cloud.' : 'Could not download from cloud.');
+          render();
+        }).catch(() => addLog('Could not download from cloud.'));
       }
       return;
     }

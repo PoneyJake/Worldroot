@@ -1029,7 +1029,7 @@
         events.push({ char, ev });
       }
     }
-    if (save) S.saveState(state);
+    if (save) S.saveState(state, { touchCloud: false });
     return events;
   }
 

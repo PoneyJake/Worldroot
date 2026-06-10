@@ -1,5 +1,8 @@
 import { initAuth, getDisplayName, signOut } from './auth.js';
-import { loadCloudSave, scheduleCloudSave, flushCloudSave, initCloudSyncListeners, flushCloudSaveOnExit } from './cloudSave.js';
+import {
+  loadCloudSave, scheduleCloudSave, flushCloudSave, initCloudSyncListeners,
+  flushCloudSaveOnExit, uploadCloudSave, downloadCloudSave,
+} from './cloudSave.js';
 import { fetchLeaderboardTop, syncLeaderboard } from './leaderboard.js';
 import { registerServiceWorker } from './pwa.js';
 import { initMobileGameLayout } from './mobile.js';
@@ -8,9 +11,11 @@ const PLAY_MODE_KEY = 'worldroot_play_mode';
 
 function patchSaveForCloud() {
   const orig = window.WorldrootState.saveState;
-  window.WorldrootState.saveState = (state) => {
-    orig(state);
-    if (window.WorldrootSession?.isCloud) scheduleCloudSave();
+  window.WorldrootState.saveState = (state, opts) => {
+    orig(state, opts);
+    if (window.WorldrootSession?.isCloud && opts?.touchCloud !== false) {
+      scheduleCloudSave();
+    }
   };
 }
 
@@ -53,14 +58,8 @@ async function boot() {
       flushCloudSave,
       flush: flushCloudSave,
       flushOnExit: flushCloudSaveOnExit,
-      sync: async () => {
-        await loadCloudSave();
-        await flushCloudSave();
-        if (window.WorldrootUI?.setState && window.WorldrootState?.loadState) {
-          window.WorldrootUI.setState(window.WorldrootState.loadState());
-          window.WorldrootUI.refresh?.();
-        }
-      },
+      upload: uploadCloudSave,
+      download: downloadCloudSave,
     };
   } catch (err) {
     console.warn('Cloud sync unavailable:', err);

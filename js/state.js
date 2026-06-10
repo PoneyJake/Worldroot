@@ -883,8 +883,10 @@
     return defaultState();
   }
 
-  function saveState(state) {
-    state.savedAt = Date.now();
+  function saveState(state, opts = {}) {
+    if (opts.touchCloud !== false) {
+      state.savedAt = Date.now();
+    }
     localStorage.setItem(getSaveKey(), JSON.stringify(serializeState(state)));
   }
 
