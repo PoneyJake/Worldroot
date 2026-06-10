@@ -310,9 +310,18 @@
 
   const RIGHT_RAIL_PAGES = new Set(['combat', 'mining', 'woodcutting', 'fishing', 'crafting', 'producing', 'smelting']);
   const TALENT_PAGES = new Set(['combat', 'mining', 'woodcutting', 'fishing', 'producing', 'smelting']);
+  /** Pages that do not need a full DOM rebuild every game tick. */
+  const IDLE_TICK_PAGES = new Set([
+    'settings', 'leaderboard', 'shop', 'quests', 'worldtree',
+    'storage', 'equipment', 'inventory', 'crafting', 'characters',
+  ]);
 
   function usesRightRail(pageId = activePage) {
     return RIGHT_RAIL_PAGES.has(pageId);
+  }
+
+  function pageNeedsTickRefresh(pageId = activePage) {
+    return !IDLE_TICK_PAGES.has(pageId);
   }
 
   function switchPage(pageId) {
@@ -1461,12 +1470,14 @@
       pendingFullRender = true;
       return;
     }
-    renderMainPanel();
-    renderDetailPanel();
-    const hash = sidebarHash();
-    if (hash !== lastSidebarHash) {
-      lastSidebarHash = hash;
-      renderSidebar();
+    if (pageNeedsTickRefresh()) {
+      renderMainPanel();
+      renderDetailPanel();
+      const hash = sidebarHash();
+      if (hash !== lastSidebarHash) {
+        lastSidebarHash = hash;
+        renderSidebar();
+      }
     }
   }
 
@@ -1733,11 +1744,22 @@
     }
     if (action === 'download-cloud-save') {
       if (window.WorldrootCloud?.download) {
-        window.WorldrootCloud.download().then((ok) => {
+        window.WorldrootCloud.download().then((result) => {
           state = S.loadState();
-          addLog(ok ? 'Downloaded save from cloud.' : 'Could not download from cloud.');
-          render();
-        }).catch(() => addLog('Could not download from cloud.'));
+          if (result?.ok) {
+            addLog(`Downloaded cloud save (Account Lv ${fmt(S.accountTotalLevel(state))}).`);
+          } else if (result?.reason === 'empty') {
+            addLog('Cloud has no save yet. Upload from your other device first.');
+          } else if (result?.reason === 'fetch') {
+            addLog('Could not reach cloud — check connection and try again.');
+          } else {
+            addLog('Could not download from cloud.');
+          }
+          render({ force: true });
+        }).catch(() => {
+          addLog('Could not download from cloud.');
+          render({ force: true });
+        });
       }
       return;
     }

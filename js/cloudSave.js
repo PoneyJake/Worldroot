@@ -84,12 +84,6 @@ function cloudSavedAt(row) {
   return localSavedAt(row?.save_data);
 }
 
-function reloadUiFromStorage() {
-  if (!window.WorldrootState?.loadState || !window.WorldrootUI?.setState) return;
-  window.WorldrootUI.setState(window.WorldrootState.loadState());
-  window.WorldrootUI.refresh?.();
-}
-
 function pickNewerSave(localPayload, cloudRow) {
   const cloudPayload = cloudRow?.save_data;
   const cloudTime = cloudSavedAt(cloudRow);
@@ -110,6 +104,12 @@ function pickNewerSave(localPayload, cloudRow) {
   if (cloudPayload) return { payload: cloudPayload, source: 'cloud' };
   if (localPayload) return { payload: localPayload, source: 'local' };
   return { payload: null, source: 'none' };
+}
+
+function reloadUiFromStorage() {
+  if (!window.WorldrootState?.loadState || !window.WorldrootUI?.setState) return;
+  window.WorldrootUI.setState(window.WorldrootState.loadState());
+  window.WorldrootUI.render?.({ force: true });
 }
 
 async function fetchCloudRow() {
@@ -153,15 +153,17 @@ export async function loadCloudSave() {
 
 /** Always apply the cloud save (for Download from cloud). */
 export async function downloadCloudSave() {
-  if (!isCloudEnabled() || !getCurrentUser()) return false;
+  if (!isCloudEnabled()) return { ok: false, reason: 'offline' };
+  if (!getCurrentUser()) return { ok: false, reason: 'auth' };
 
   const data = await fetchCloudRow();
-  if (!data?.save_data) return false;
+  if (!data) return { ok: false, reason: 'fetch' };
+  if (!data.save_data) return { ok: false, reason: 'empty' };
 
   importSaveData(data.save_data);
   reloadUiFromStorage();
   cloudDirty = false;
-  return true;
+  return { ok: true };
 }
 
 /** Upload this device's current save to the cloud (for Upload to cloud). */
