@@ -69,6 +69,10 @@
     return n;
   }
 
+  function spendTalentPoint(skill, talentId) {
+    return spendTalentPoints(skill, talentId, 1) === 1;
+  }
+
   function resetTalentRank(skill, talentId) {
     ensureSkillTalents(skill);
     const lv = skill.talents[talentId] || 0;
