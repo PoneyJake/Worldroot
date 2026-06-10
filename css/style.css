@@ -905,7 +905,9 @@ button,
   font-size: 0.8rem;
   font-weight: 600;
   pointer-events: none;
-  white-space: nowrap;
+  white-space: normal;
+  max-width: 280px;
+  line-height: 1.4;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.45);
 }
 

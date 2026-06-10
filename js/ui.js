@@ -80,8 +80,39 @@
     if (!src) return `<span class="${className} icon-fallback">?</span>`;
     return `<img class="${className}" src="${src}" alt="" draggable="false" loading="lazy" />`;
   }
+  function itemTipText(id) {
+    if (!id) return '';
+    const name = resName(id);
+    const gearStats = formatGearStats(id);
+    if (gearStats) return `${name} — ${gearStats}`;
+
+    const consumable = C.CONSUMABLE_ITEMS?.[id];
+    if (consumable?.type === 'pouch') {
+      const cap = C.POUCH_CAPACITIES?.[consumable.tier - 1];
+      const catLabel = {
+        material: 'Material',
+        mining: 'Mining',
+        woodcutting: 'Woodcutting',
+        fishing: 'Fishing',
+      }[consumable.category] || consumable.category;
+      return `${name} — ${fmt(cap)} per stack (${catLabel} pouch)`;
+    }
+    if (consumable?.type === 'bag') {
+      return `${name} — +${C.BAG_SLOTS_ADD || 4} inventory slots`;
+    }
+    if (consumable?.type === 'chest') {
+      return `${name} — +${C.CHEST_SLOTS_ADD || 3} storage slots`;
+    }
+    return name;
+  }
+
   function resTipText(id) {
-    return resName(id);
+    return itemTipText(id);
+  }
+
+  function tipAttr(id) {
+    if (!id) return '';
+    return ` data-res-tip="${escHtml(itemTipText(id))}"`;
   }
 
   function resIcon(id, className = 'game-icon') {
@@ -198,7 +229,7 @@
           : '';
         const holdHint = canUse ? ' · hold 2s to use bag/chest' : (canLoad ? ' — click to load smelter' : (canEquip ? ' — click to equip' : (canEquipPouch ? ' — click to equip pouch' : ' · drag to move')));
         html += `
-          <div class="item-slot filled drag-drop-target draggable-item${transferType ? ' transferable' : ''}${canLoad ? ' smelt-ore-pick' : ''}${canUse ? ' hold-use-slot' : ''}${canEquip ? ' equip-item-slot' : ''}${canEquipPouch ? ' equip-pouch-slot' : ''}"
+          <div class="item-slot filled drag-drop-target draggable-item${transferType ? ' transferable' : ''}${canLoad ? ' smelt-ore-pick' : ''}${canUse ? ' hold-use-slot' : ''}${canEquip ? ' equip-item-slot' : ''}${canEquipPouch ? ' equip-pouch-slot' : ''}"${tipAttr(slot.resourceId)}
             draggable="true" data-drag-kind="${dragKind}" data-drag-idx="${idx}" title="${resName(slot.resourceId)}${tapHint}${holdHint}"${dropAttrs}${transferAttr}${smeltAttr}${holdAttr}${equipAttr}${pouchAttr}>
             <span class="item-slot-icon">${resIcon(slot.resourceId, 'game-icon')}</span>
             <span class="item-slot-qty">${fmt(slot.amount)}</span>
@@ -1059,9 +1090,9 @@
       ? ` draggable="true" data-drag-kind="equip" data-slot-type="${slotType}" data-slot-key="${slotKey}" data-action="unequip-zone"`
       : '';
     return `
-      <div class="equip-slot-box equip-slot-box-lg drag-drop-target${item ? ' filled draggable-item' : ''}"
+      <div class="equip-slot-box equip-slot-box-lg drag-drop-target${item ? ' filled draggable-item' : ''}"${item ? tipAttr(item) : ''}
         data-drop-zone="equip" data-slot-type="${slotType}" data-slot-key="${slotKey}"${dragAttrs}
-        title="${label}${item ? ` — ${resName(item)} · click or drag to unequip` : ' · drag gear here'}">${inner}</div>`;
+        title="${label}${item ? ` — ${itemTipText(item)}` : ' · drag gear here'}">${inner}</div>`;
   }
 
   function renderCapacitySlotBox(item, category, label) {
@@ -1075,9 +1106,9 @@
     return `
       <div class="equip-slot capacity-slot">
         <span class="equip-slot-label">${label}</span>
-        <div class="equip-slot-box drag-drop-target${item ? ' filled draggable-item' : ''}"
+        <div class="equip-slot-box drag-drop-target${item ? ' filled draggable-item' : ''}"${item ? tipAttr(item) : ''}
           data-drop-zone="capacity" data-capacity-category="${category}"${dragAttrs}
-          title="${label}${item ? ` — ${resName(item)} · click or drag to unequip` : ' · drag matching pouch here'}">${inner}</div>
+          title="${label}${item ? ` — ${itemTipText(item)}` : ' · drag matching pouch here'}">${inner}</div>
         ${capLine}
       </div>`;
   }
