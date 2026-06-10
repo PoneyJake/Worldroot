@@ -2061,10 +2061,13 @@
   function openTrashModal(payload) {
     if (!payload) return;
     let label = '';
+    const snapshot = { ...payload };
     if (payload.kind === 'inv') {
       const char = state.characters[payload.charIdx];
       const slot = char?.inventorySlots[payload.idx];
       if (!slot) return;
+      snapshot.resourceId = slot.resourceId;
+      snapshot.amount = slot.amount;
       label = `${fmt(slot.amount)} × ${resName(slot.resourceId)}`;
     } else if (payload.kind === 'storage') {
       const slot = state.storageSlots[payload.idx];
@@ -2090,7 +2093,7 @@
       if (!normalized?.resourceId) return;
       label = `${fmt(normalized.amount ?? 1)} × ${resName(normalized.resourceId)}`;
     } else return;
-    trashModal = payload;
+    trashModal = snapshot;
     const modal = $('trash-modal');
     const text = $('trash-modal-label');
     if (text) text.textContent = `Permanently delete ${label}? This cannot be undone.`;
@@ -2110,7 +2113,14 @@
     let ok = false;
     if (payload.kind === 'inv') {
       const char = state.characters[payload.charIdx];
-      ok = char && E.destroyInventoryItem(state, char, payload.idx);
+      if (char) {
+        let idx = payload.idx;
+        const slot = char.inventorySlots[idx];
+        if (payload.resourceId && slot?.resourceId !== payload.resourceId) {
+          idx = char.inventorySlots.findIndex((s) => s?.resourceId === payload.resourceId);
+        }
+        ok = idx >= 0 && E.destroyInventoryItem(state, char, idx);
+      }
     } else if (payload.kind === 'storage') {
       ok = E.destroyStorageItem(state, payload.idx);
     } else if (payload.kind === 'equip') {
@@ -2222,6 +2232,8 @@
     document.body.addEventListener('dragstart', (e) => {
       const el = e.target.closest('[data-drag-kind]');
       if (!el || el.getAttribute('draggable') !== 'true') return;
+      suppressClickUntil = Date.now() + 400;
+      if (tapRecord) tapRecord.moved = true;
       const payload = buildDragPayload(el);
       if (!payload) return;
       e.dataTransfer.setData('application/worldroot-drag', JSON.stringify(payload));
@@ -2254,6 +2266,8 @@
       if (!zone) return;
       e.preventDefault();
       zone.classList.remove('drag-over');
+      suppressClickUntil = Date.now() + 400;
+      if (tapRecord) tapRecord.moved = true;
       const payload = parseDragPayload(e);
       handleDragDrop(payload, zone);
     });
