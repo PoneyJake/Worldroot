@@ -769,7 +769,19 @@
   function shopItemAvailable(state, itemId) {
     const def = C.CONSUMABLE_ITEMS?.[itemId];
     if (def?.type === 'chest') return !state.storageChestsUsed?.includes(def.tier);
+    if (def?.type === 'bag') {
+      const chars = state.characters;
+      if (!chars?.length) return true;
+      return chars.some((char) => !char.bagsUsed?.includes(def.tier));
+    }
     return true;
+  }
+
+  function shopItemUnavailableReason(state, itemId) {
+    const def = C.CONSUMABLE_ITEMS?.[itemId];
+    if (def?.type === 'bag') return 'All heroes already use this bag';
+    if (def?.type === 'chest') return 'Already used — unavailable';
+    return 'Unavailable';
   }
 
   function canEquipCapacityPouch(char, itemId, category) {
@@ -1501,7 +1513,7 @@
     setSmeltSlot, setProduceSlot, clearSmeltSlot, clearProduceSlot,
     collectProduce, collectSmelt, unloadSmeltOre,
     questTrackProgress, questIsComplete, questIsClaimed, claimQuest,
-    canUseConsumable, useConsumableFromSlot, shopItemAvailable, buyShopItem,
+    canUseConsumable, useConsumableFromSlot, shopItemAvailable, shopItemUnavailableReason, buyShopItem,
     canCraft, craftItem,
     canEquipItem, equipFromInventory, unequipSlot, unequipToInventorySlot,
     canEquipCapacityPouch, equipCapacityPouch, unequipCapacityPouch,

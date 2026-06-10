@@ -1409,6 +1409,7 @@
     const items = (C.SHOP_ITEMS || []).map((shop) => {
       const avail = E.shopItemAvailable(state, shop.id);
       const canBuy = avail && state.gold >= shop.gold;
+      const priceLine = avail ? `${fmt(shop.gold)} gold each` : E.shopItemUnavailableReason(state, shop.id);
       const buyControls = shop.id === 'bread'
         ? `<div class="shop-bulk-buy">
             <input type="number" class="shop-qty-input" data-shop-qty="${shop.id}" min="1" max="9999" value="1" inputmode="numeric" aria-label="Bread quantity" />
@@ -1419,7 +1420,7 @@
         <article class="activity-card shop-card${!avail ? ' locked' : ''}">
           <div class="shop-card-icon">${resIcon(shop.id, 'game-icon xl')}</div>
           <strong>${resName(shop.id)}</strong>
-          <p class="empty-msg">${avail ? `${fmt(shop.gold)} gold each` : 'Already used — unavailable'}</p>
+          <p class="empty-msg">${priceLine}</p>
           ${buyControls}
         </article>`;
     }).join('');

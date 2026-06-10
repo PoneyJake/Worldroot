@@ -2988,6 +2988,12 @@ button,
 
 .shop-card.locked {
   opacity: 0.5;
+  filter: grayscale(0.9);
+  pointer-events: none;
+}
+
+.shop-card.locked .btn-sm {
+  opacity: 0.6;
 }
 
 .shop-bulk-buy {
