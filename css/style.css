@@ -2930,83 +2930,57 @@ button,
   outline: 1px solid rgba(120, 200, 120, 0.35);
 }
 
-/* ── Phone: landscape-only + compact HUD ── */
+/* ── Phone: forced landscape + compact HUD ── */
 
 .rotate-device-overlay {
-  display: none;
+  display: none !important;
+}
+
+html.touch-phone {
+  overflow: hidden;
+  width: 100%;
+  height: 100%;
+  background: #0a0e0a;
+}
+
+html.touch-phone body {
+  margin: 0;
+  overflow: hidden;
+  background: #0a0e0a;
+  background-image: none;
+  font-size: 12px;
+  -webkit-text-size-adjust: 100%;
+  width: var(--phone-long, 100%);
+  height: var(--phone-short, 100dvh);
+  max-width: var(--phone-long, 100%);
+  max-height: var(--phone-short, 100dvh);
+}
+
+html.touch-phone:not(.force-landscape) body {
   position: fixed;
   inset: 0;
-  z-index: 99999;
-  background: #0a0e0a;
-  align-items: center;
-  justify-content: center;
-  padding: 24px;
-  text-align: center;
+  width: 100%;
+  height: 100%;
+  height: 100dvh;
+  max-width: none;
+  max-height: none;
 }
 
-.rotate-device-card {
-  max-width: 320px;
+html.touch-phone.force-landscape body {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) rotate(90deg);
+  transform-origin: center center;
 }
 
-.rotate-device-icon {
-  display: block;
-  font-size: 3rem;
-  margin-bottom: 16px;
+html.touch-phone .app-shell {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
 }
 
-.rotate-device-card h2 {
-  margin: 0 0 10px;
-  color: #c8e6c3;
-  font-size: 1.25rem;
-}
-
-.rotate-device-card p {
-  margin: 0;
-  color: #8a9a86;
-  font-size: 0.92rem;
-  line-height: 1.5;
-}
-
-@media (hover: none) and (pointer: coarse) and (orientation: portrait) and (max-width: 520px) {
-  .rotate-device-overlay {
-    display: none !important;
-  }
-
-  html {
-    overflow: hidden;
-    height: 100%;
-    width: 100%;
-    background: #0a0e0a;
-  }
-
-  body {
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    width: 100vh;
-    height: 100vw;
-    max-width: 100vh;
-    max-height: 100vw;
-    margin: 0;
-    transform: translate(-50%, -50%) rotate(90deg);
-    transform-origin: center center;
-    overflow: hidden;
-  }
-
-  .app-shell {
-    width: 100%;
-    height: 100%;
-  }
-}
-
-@media (hover: none) and (pointer: coarse) and (orientation: landscape),
-       (hover: none) and (pointer: coarse) and (orientation: portrait) and (max-width: 520px),
-       (max-height: 520px) and (orientation: landscape) and (max-width: 960px) {
-  body {
-    font-size: 12px;
-    -webkit-text-size-adjust: 100%;
-  }
-
+@media (hover: none) and (pointer: coarse) {
   .top-bar {
     height: 40px;
     padding: 0 10px;

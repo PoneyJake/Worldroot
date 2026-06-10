@@ -2,13 +2,14 @@
   "name": "Worldroot — Idle RPG",
   "short_name": "Worldroot",
   "description": "Grow the World Tree. Command your party in this browser idle RPG.",
-  "start_url": "/",
+  "start_url": "/game.html",
   "scope": "/",
   "id": "/",
   "display": "standalone",
+  "display_override": ["fullscreen", "standalone"],
   "orientation": "landscape",
-  "background_color": "#0d120d",
-  "theme_color": "#1a281a",
+  "background_color": "#0a0e0a",
+  "theme_color": "#0a0e0a",
   "categories": ["games", "entertainment"],
   "icons": [
     {

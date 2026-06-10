@@ -1,28 +1,41 @@
-/** Phone-only helpers: forced landscape layout and optional orientation lock. */
+/** Phone-only helpers: forced landscape when held upright + optional orientation lock. */
 
 function isTouchPhone() {
   return window.matchMedia('(hover: none) and (pointer: coarse)').matches;
 }
 
-function syncPhoneOrientationClass() {
-  const portrait = window.matchMedia('(orientation: portrait)').matches;
-  document.documentElement.classList.toggle('touch-phone-portrait', portrait);
+function syncPhoneViewport() {
+  const root = document.documentElement;
+  const w = window.innerWidth;
+  const h = window.innerHeight;
+  const portrait = h > w;
+  const longSide = Math.max(w, h);
+  const shortSide = Math.min(w, h);
+
+  root.style.setProperty('--phone-long', `${longSide}px`);
+  root.style.setProperty('--phone-short', `${shortSide}px`);
+  root.classList.toggle('force-landscape', portrait);
 }
 
 export function initMobileGameLayout() {
   if (!isTouchPhone()) return;
 
   document.documentElement.classList.add('touch-phone');
-  syncPhoneOrientationClass();
+  syncPhoneViewport();
 
   const lockLandscape = () => {
     screen.orientation?.lock?.('landscape').catch(() => {});
   };
 
+  const onViewportChange = () => {
+    syncPhoneViewport();
+    if (window.innerWidth > window.innerHeight) lockLandscape();
+  };
+
   document.addEventListener('pointerdown', lockLandscape, { once: true });
-  window.addEventListener('orientationchange', () => {
-    syncPhoneOrientationClass();
-    if (window.matchMedia('(orientation: landscape)').matches) lockLandscape();
-  });
-  window.addEventListener('resize', syncPhoneOrientationClass);
+  window.addEventListener('orientationchange', () => setTimeout(onViewportChange, 50));
+  window.addEventListener('resize', onViewportChange);
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', onViewportChange);
+  }
 }
