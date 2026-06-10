@@ -47,12 +47,12 @@ window.WorldrootConfig = {
 
   TALENT_TREES: {
     combat: [
-      { id: 'hp', label: 'HP', flat: 5, perLabel: '+5 HP/pt' },
-      { id: 'mp', label: 'MP', flat: 3, perLabel: '+3 MP/pt' },
+      { id: 'hp', label: 'HP', flat: 1, perLabel: '+1 HP/pt' },
+      { id: 'mp', label: 'MP', flat: 1, perLabel: '+1 MP/pt' },
       { id: 'def', label: 'DEF', flat: 1, perLabel: '+1 DEF/pt' },
       { id: 'acc', label: 'ACC', flat: 1, perLabel: '+1 ACC/pt' },
       { id: 'crit_chance', label: 'Crit Chance', percent: 0.005, perLabel: '+0.5%/pt' },
-      { id: 'crit_damage', label: 'Crit Damage', percent: 0.02, perLabel: '+2%/pt' },
+      { id: 'crit_damage', label: 'Crit Damage', percent: 0.01, perLabel: '+1%/pt' },
       { id: 'drop_rate', label: 'Drop Rate', percent: 0.0025, perLabel: '+0.25%/pt' },
       { id: 'gold_gain', label: 'Gold Gain', percent: 0.01, perLabel: '+1%/pt' },
       { id: 'material_carry', label: 'Material Carry', percent: 0.01, perLabel: '+1%/pt' },
